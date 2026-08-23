@@ -17,30 +17,6 @@ const queryClient = new QueryClient({
 });
 
 function AuthGuard() {
-  const { isAuthenticated, isLoading, initializeAuth } = useAuthStore();
-  const segments = useSegments();
-  const router = useRouter();
-
-  // Load tokens on mount
-  useEffect(() => {
-    initializeAuth();
-  }, []);
-
-  // Control routing according to auth status
-  useEffect(() => {
-    if (isLoading) return;
-
-    const inAuthGroup = segments[0] === "(auth)";
-
-    if (!isAuthenticated && !inAuthGroup) {
-      // Redirect to login if not authenticated and trying to view app screens
-      router.replace("/(auth)/login");
-    } else if (isAuthenticated && inAuthGroup) {
-      // Redirect to dashboard if authenticated and trying to view auth screens
-      router.replace("/(tabs)");
-    }
-  }, [isAuthenticated, segments, isLoading]);
-
   return <Slot />;
 }
 

@@ -131,11 +131,6 @@ export default function ProfileScreen() {
             </Button>
           </View>
         </Card>
-
-        {/* Action Button */}
-        <Button variant="danger" onPress={logout} className="mb-10 shadow-lg shadow-error/15">
-          Sign Out of Orio
-        </Button>
       </ScrollView>
     </SafeAreaView>
   );
