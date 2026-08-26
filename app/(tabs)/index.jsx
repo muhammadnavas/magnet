@@ -41,21 +41,25 @@ export default function HomeScreen() {
 
   const username = user?.full_name || "Navas";
 
-  // Compute real dynamic stats
-  const uniqueProjectsCount = [...new Set(knowledgeItems.map(i => i.project))].filter(Boolean).length;
-  const uniqueTagsCount = [...new Set(knowledgeItems.flatMap(i => i.tags))].filter(Boolean).length;
+  // Compute real dynamic stats with defensive arrays verification
+  const itemsList = Array.isArray(knowledgeItems) ? knowledgeItems : [];
+  const convsList = Array.isArray(conversations) ? conversations : [];
+  const insightsList = Array.isArray(insightsData) ? insightsData : [];
+
+  const uniqueProjectsCount = [...new Set(itemsList.map(i => i.project))].filter(Boolean).length;
+  const uniqueTagsCount = [...new Set(itemsList.flatMap(i => i.tags))].filter(Boolean).length;
 
   const stats = [
-    { label: "Knowledge", count: knowledgeItems.length, icon: "bulb-outline" },
-    { label: "Documents", count: knowledgeItems.filter(i => i.contentType === "pdf").length, icon: "document-text-outline" },
+    { label: "Knowledge", count: itemsList.length, icon: "bulb-outline" },
+    { label: "Documents", count: itemsList.filter(i => i.contentType === "pdf").length, icon: "document-text-outline" },
     { label: "Projects", count: uniqueProjectsCount, icon: "folder-outline" },
     { label: "Topics", count: uniqueTagsCount, icon: "pricetags-outline" },
-    { label: "Conversations", count: conversations.length, icon: "chatbubbles-outline" },
+    { label: "Conversations", count: convsList.length, icon: "chatbubbles-outline" },
   ];
 
-  const recentItems = knowledgeItems.slice(0, 3);
+  const recentItems = itemsList.slice(0, 3);
 
-  const aiInsights = insightsData.map(insight => insight.message);
+  const aiInsights = insightsList.map(insight => insight.message || "");
 
   return (
     <SafeAreaView className="flex-1 bg-background">
