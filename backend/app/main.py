@@ -6,7 +6,27 @@ from app.routers import auth, knowledge, search, chat, projects, insights, githu
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup lifecycle hooks (e.g. redis pools initialization in Phase 2)
+    # Startup lifecycle hooks: Seed default developer user
+    from app.database import async_session
+    from app.models.user import User
+    from app.utils.security import get_password_hash
+    from sqlalchemy.future import select
+    
+    async with async_session() as db:
+        try:
+            result = await db.execute(select(User).where(User.email == "personal-app@orio.local"))
+            user = result.scalars().first()
+            if not user:
+                user = User(
+                    email="personal-app@orio.local",
+                    hashed_password=get_password_hash("password"),
+                    full_name="Navas",
+                )
+                db.add(user)
+                await db.commit()
+                print("Seeded default developer user: personal-app@orio.local / password")
+        except Exception as e:
+            print(f"Error seeding user on startup: {e}")
     yield
     # Shutdown hooks
 

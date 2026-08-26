@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     LLM_MODEL: str = "gpt-4o-mini"
     
+    GEMINI_API_KEY: str = "mock-key-for-phase-1"
+    GEMINI_EMBEDDING_MODEL: str = "models/text-embedding-004"
+    GEMINI_LLM_MODEL: str = "gemini-1.5-flash"
+    
     OLLAMA_API_URL: str = "http://localhost:11434"
     OLLAMA_MODEL: str = "llama3.1"
 

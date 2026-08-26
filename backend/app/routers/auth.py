@@ -18,25 +18,41 @@ from app.utils.security import (
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login-form-fallback")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 async def get_current_user(
+    token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db)
 ) -> User:
-    email = "personal-app@orio.local"
-    result = await db.execute(select(User).where(User.email == email))
-    user = result.scalars().first()
+    payload = decode_token(token)
+    user_id_str = payload.get("sub")
+    token_type = payload.get("type")
     
-    if user is None:
-        user = User(
-            email=email,
-            hashed_password=get_password_hash("mocked-unused-password"),
-            full_name="Navas",
+    if user_id_str is None or token_type != "access":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
         )
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
         
+    try:
+        import uuid
+        user_uuid = uuid.UUID(user_id_str)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials format",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+        
+    result = await db.execute(select(User).where(User.id == user_uuid))
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     return user
 
 @router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)

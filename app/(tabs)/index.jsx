@@ -2,10 +2,13 @@ import React from "react";
 import { View, Text, ScrollView, Pressable, SafeAreaView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { useQuery } from "@tanstack/react-query";
 import colors from "../../constants/colors";
 import Card from "../../components/ui/Card";
 import useKnowledge from "../../hooks/useKnowledge";
 import useAuth from "../../hooks/useAuth";
+import useChat from "../../hooks/useChat";
+import api from "../../lib/api";
 
 const QUICK_CAPTURE_ACTIONS = [
   { label: "PDF", icon: "document-text", color: "#6C63FF", type: "pdf" },
@@ -21,25 +24,38 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const { useGetItems } = useKnowledge();
   const { data: knowledgeItems = [] } = useGetItems();
+  const { conversations } = useChat();
+
+  // Fetch real insights dynamically from API
+  const { data: insightsData = [] } = useQuery({
+    queryKey: ["insights"],
+    queryFn: async () => {
+      try {
+        const response = await api.get("/insights");
+        return response.data;
+      } catch (e) {
+        return [];
+      }
+    }
+  });
 
   const username = user?.full_name || "Navas";
 
-  // Compute mock stats
+  // Compute real dynamic stats
+  const uniqueProjectsCount = [...new Set(knowledgeItems.map(i => i.project))].filter(Boolean).length;
+  const uniqueTagsCount = [...new Set(knowledgeItems.flatMap(i => i.tags))].filter(Boolean).length;
+
   const stats = [
     { label: "Knowledge", count: knowledgeItems.length, icon: "bulb-outline" },
     { label: "Documents", count: knowledgeItems.filter(i => i.contentType === "pdf").length, icon: "document-text-outline" },
-    { label: "Projects", count: 3, icon: "folder-outline" },
-    { label: "Topics", count: 12, icon: "pricetags-outline" },
-    { label: "Conversations", count: 1, icon: "chatbubbles-outline" },
+    { label: "Projects", count: uniqueProjectsCount, icon: "folder-outline" },
+    { label: "Topics", count: uniqueTagsCount, icon: "pricetags-outline" },
+    { label: "Conversations", count: conversations.length, icon: "chatbubbles-outline" },
   ];
 
   const recentItems = knowledgeItems.slice(0, 3);
 
-  const aiInsights = [
-    `You have ${knowledgeItems.filter(i => i.tags.includes("docker")).length || 1} note related to Docker.`,
-    "Your FastAPI notes are related to your Email Scheduler project.",
-    "You haven't reviewed your Redis notes recently.",
-  ];
+  const aiInsights = insightsData.map(insight => insight.message);
 
   return (
     <SafeAreaView className="flex-1 bg-background">

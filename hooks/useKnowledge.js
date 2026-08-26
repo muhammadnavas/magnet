@@ -2,6 +2,31 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import useKnowledgeStore from "../store/knowledgeStore";
 import api from "../lib/api";
 
+const normalizeItem = (item) => {
+  if (!item) return null;
+  return {
+    id: item.id,
+    title: item.title,
+    contentType: item.content_type || item.contentType || "note",
+    summary: item.summary || "",
+    rawContent: item.raw_content || item.rawContent || "",
+    extractedText: item.extracted_text || item.extractedText || "",
+    keyPoints: item.key_points || item.keyPoints || [],
+    processingStatus: item.processing_status || item.processingStatus || "pending",
+    isFavorite: item.is_favorite !== undefined ? item.is_favorite : (item.isFavorite || false),
+    isArchived: item.is_archived !== undefined ? item.is_archived : (item.isArchived || false),
+    createdAt: item.created_at || item.createdAt || new Date().toISOString(),
+    updatedAt: item.updated_at || item.updatedAt || new Date().toISOString(),
+    tags: Array.isArray(item.tags)
+      ? item.tags.map((t) => (typeof t === "string" ? t : t.name))
+      : [],
+    project: Array.isArray(item.projects) && item.projects.length > 0
+      ? item.projects[0].name
+      : (item.project || "Personal Projects"),
+    technologies: item.meta?.technologies || item.technologies || [],
+  };
+};
+
 export const useKnowledge = () => {
   const queryClient = useQueryClient();
   const store = useKnowledgeStore();
@@ -13,7 +38,10 @@ export const useKnowledge = () => {
       queryFn: async () => {
         try {
           const response = await api.get("/knowledge", { params: filters });
-          return response.data;
+          const normalized = response.data.map(normalizeItem);
+          // Keep zustand store in sync
+          useKnowledgeStore.setState({ items: normalized });
+          return normalized;
         } catch (e) {
           console.warn("Backend offline or error fetching knowledge. Using store cache.");
           return store.getFilteredItems();
@@ -30,10 +58,15 @@ export const useKnowledge = () => {
       queryFn: async () => {
         try {
           const response = await api.get(`/knowledge/${id}`);
-          return response.data;
+          const normalized = normalizeItem(response.data);
+          // Sync specific item details into store
+          useKnowledgeStore.setState((state) => ({
+            items: state.items.map((item) => (item.id === id ? normalized : item)),
+          }));
+          return normalized;
         } catch (e) {
           // Fallback to store matching item
-          const localItem = store.items.find(item => item.id === id);
+          const localItem = store.items.find((item) => item.id === id);
           if (!localItem) throw new Error("Item not found in local cache");
           return localItem;
         }
@@ -45,31 +78,19 @@ export const useKnowledge = () => {
   // Add new item mutation
   const addItemMutation = useMutation({
     mutationFn: async (itemData) => {
-      try {
-        const response = await api.post("/knowledge/upload", itemData);
-        return response.data;
-      } catch (err) {
-        console.warn("Backend offline. Saving item locally in store.");
-        // Add locally
-        store.addKnowledgeItem(itemData);
-        return { success: true, local: true, item: itemData };
-      }
+      await store.addKnowledgeItem(itemData);
+      return { success: true };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["knowledge", "list"] });
+      queryClient.invalidateQueries({ queryKey: ["knowledge"] });
     },
   });
 
   // Toggle favorite mutation
   const toggleFavoriteMutation = useMutation({
     mutationFn: async (id) => {
-      try {
-        const response = await api.patch(`/knowledge/${id}`, { is_favorite: true });
-        return response.data;
-      } catch (err) {
-        store.toggleFavorite(id);
-        return { success: true, local: true };
-      }
+      await store.toggleFavorite(id);
+      return { success: true };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["knowledge"] });
@@ -79,13 +100,8 @@ export const useKnowledge = () => {
   // Archive mutation
   const archiveItemMutation = useMutation({
     mutationFn: async (id) => {
-      try {
-        const response = await api.patch(`/knowledge/${id}`, { is_archived: true });
-        return response.data;
-      } catch (err) {
-        store.archiveItem(id);
-        return { success: true, local: true };
-      }
+      await store.archiveItem(id);
+      return { success: true };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["knowledge"] });
@@ -102,6 +118,8 @@ export const useKnowledge = () => {
     items: store.items,
     projects: store.projects,
     tags: store.tags,
+    fetchItems: store.fetchItems,
+    syncOfflineQueue: store.syncOfflineQueue,
   };
 };
 
