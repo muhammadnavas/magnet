@@ -18,10 +18,10 @@ const normalizeItem = (item) => {
     createdAt: item.created_at || item.createdAt || new Date().toISOString(),
     updatedAt: item.updated_at || item.updatedAt || new Date().toISOString(),
     tags: Array.isArray(item.tags)
-      ? item.tags.map((t) => (typeof t === "string" ? t : t.name))
+      ? item.tags.map((t) => (typeof t === "string" ? t : (t && t.name ? t.name : ""))).filter(Boolean)
       : [],
-    project: Array.isArray(item.projects) && item.projects.length > 0
-      ? item.projects[0].name
+    project: Array.isArray(item.projects) && item.projects.length > 0 && item.projects[0]
+      ? (item.projects[0].name || "Personal Projects")
       : (item.project || "Personal Projects"),
     technologies: item.meta?.technologies || item.technologies || [],
   };
@@ -38,7 +38,7 @@ export const useKnowledge = () => {
       queryFn: async () => {
         try {
           const response = await api.get("/knowledge", { params: filters });
-          const normalized = response.data.map(normalizeItem);
+          const normalized = response.data.map(normalizeItem).filter(Boolean);
           // Keep zustand store in sync
           useKnowledgeStore.setState({ items: normalized });
           return normalized;
