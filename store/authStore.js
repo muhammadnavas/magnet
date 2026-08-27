@@ -23,7 +23,30 @@ export const useAuthStore = create((set) => ({
           isLoading: false,
         });
       } else {
-        set({ isLoading: false });
+        // Auto-login with default seeded developer account for single-user personal mode
+        try {
+          const api = require("../lib/api").default; // Dynamic import to prevent circular dependency
+          const response = await api.post("/auth/login", {
+            email: "personal-app@orio.local",
+            password: "password"
+          });
+          const { user, access_token, refresh_token } = response.data;
+          
+          await tokenStorage.setToken("accessToken", access_token);
+          await tokenStorage.setToken("refreshToken", refresh_token);
+          await tokenStorage.setToken("user", JSON.stringify(user));
+          
+          set({
+            user,
+            accessToken: access_token,
+            refreshToken: refresh_token,
+            isAuthenticated: true,
+            isLoading: false,
+          });
+        } catch (authError) {
+          console.warn("Auto-login failed. Backend may be offline.", authError.message);
+          set({ isLoading: false });
+        }
       }
     } catch (e) {
       console.error("Failed to initialize auth store", e);
