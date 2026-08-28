@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { View, Text, ScrollView, Switch, Pressable, SafeAreaView, Alert, Platform } from "react-native";
+import { View, Text, ScrollView, Switch, Pressable, Alert, Platform } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import colors from "../../constants/colors";
 import Button from "../../components/ui/Button";

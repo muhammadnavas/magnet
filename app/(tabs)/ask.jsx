@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, SafeAreaView, KeyboardAvoidingView, Platform, Pressable } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Pressable } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import colors from "../../constants/colors";
 import ChatMessage from "../../components/chat/ChatMessage";
@@ -25,37 +26,36 @@ export default function AskScreen() {
     sendMessage(text);
     setInputText("");
 
-    // Auto scroll down
     setTimeout(() => {
       scrollViewRef.current?.scrollToEnd({ animated: true });
     }, 100);
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         className="flex-1"
         keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
         {/* Chat Header */}
-        <View className="flex-row items-center justify-between px-5 py-3.5 border-b border-border/40 bg-surface">
+        <View className="flex-row items-center justify-between px-5 py-4 border-b border-border/40 bg-surface">
           <View className="flex-row items-center">
-            <View className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 items-center justify-center mr-2.5">
-              <Ionicons name="sparkles" size={16} color={colors.primaryLight} />
+            <View className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 items-center justify-center mr-3">
+              <Ionicons name="sparkles" size={20} color={colors.primaryLight} />
             </View>
             <View>
-              <Text className="text-white text-sm font-bold">Ask Orio</Text>
-              <Text className="text-[9px] font-bold text-success uppercase tracking-wider">
-                RAG Ingestion Active
+              <Text className="text-white text-base font-bold">Ask Orio</Text>
+              <Text className="text-xs font-bold text-success uppercase tracking-wider">
+                RAG Search Active
               </Text>
             </View>
           </View>
           <TouchableOpacity
             onPress={clearChat}
-            className="p-1.5 rounded-lg bg-surface-hover border border-border"
+            className="p-2.5 rounded-xl bg-surface-hover border border-border"
           >
-            <Ionicons name="trash-outline" size={16} color={colors.text.secondary} />
+            <Ionicons name="trash-outline" size={18} color={colors.text.secondary} />
           </TouchableOpacity>
         </View>
 
@@ -74,15 +74,15 @@ export default function AskScreen() {
                 <View className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 items-center justify-center mb-4">
                   <Ionicons name="chatbubbles-outline" size={32} color={colors.primaryLight} />
                 </View>
-                <Text className="text-white text-base font-bold mb-2">
+                <Text className="text-white text-lg font-bold mb-2">
                   No Active Conversations
                 </Text>
-                <Text className="text-text-secondary text-xs text-center max-w-[260px] leading-relaxed">
-                  Query your private technical library. Answers will dynamically resolve with citations to notes, code snippets, and PDFs.
+                <Text className="text-text-secondary text-xs text-center max-w-[280px] leading-relaxed">
+                  Ask questions about your captured notes, code snippets, links, or PDF documents.
                 </Text>
               </View>
 
-              <Text className="text-text-muted text-[10px] font-bold uppercase tracking-wider mb-3 px-1">
+              <Text className="text-text-muted text-xs font-bold uppercase tracking-wider mb-3 px-1">
                 Suggested Prompts
               </Text>
               {SUGGESTED_QUESTIONS.map((question, idx) => (
@@ -90,13 +90,13 @@ export default function AskScreen() {
                   key={idx}
                   onPress={() => handleSend(question)}
                   style={({ pressed }) => [pressed ? { opacity: 0.8 } : {}]}
-                  className="mb-2"
+                  className="mb-2.5"
                 >
-                  <Card className="p-3.5 flex-row items-center justify-between border border-border/60">
-                    <Text className="text-text-secondary text-xs font-semibold flex-1 mr-3">
+                  <Card className="p-4 flex-row items-center justify-between border border-border/80">
+                    <Text className="text-text-secondary text-xs font-semibold flex-1 mr-3 leading-snug">
                       {question}
                     </Text>
-                    <Ionicons name="arrow-forward" size={14} color={colors.primaryLight} />
+                    <Ionicons name="arrow-forward" size={16} color={colors.primaryLight} />
                   </Card>
                 </Pressable>
               ))}
@@ -108,36 +108,46 @@ export default function AskScreen() {
 
           {/* Typing/Thinking indicator */}
           {isTyping && (
-            <View className="flex-row items-center mb-4 self-start bg-surface border border-border rounded-2xl px-4 py-2.5 rounded-tl-none ml-10">
-              <View className="w-1.5 h-1.5 rounded-full bg-text-secondary animate-bounce mr-1" />
-              <View className="w-1.5 h-1.5 rounded-full bg-text-secondary animate-bounce mr-1" />
-              <View className="w-1.5 h-1.5 rounded-full bg-text-secondary animate-bounce" />
+            <View className="flex-row items-center mb-4 self-start bg-surface border border-border rounded-2xl px-4 py-3 rounded-tl-none ml-2">
+              <View className="w-2 h-2 rounded-full bg-text-secondary animate-bounce mr-1.5" />
+              <View className="w-2 h-2 rounded-full bg-text-secondary animate-bounce mr-1.5" />
+              <View className="w-2 h-2 rounded-full bg-text-secondary animate-bounce" />
             </View>
           )}
         </ScrollView>
 
-        {/* Input Bar */}
-        <View className="p-4 border-t border-border/40 bg-surface">
-          <View className="flex-row items-center bg-background border border-border rounded-xl px-3 py-1.5 h-12 w-full">
+        {/* ChatGPT-Style Bottom Input Bar */}
+        <View className="p-4 bg-background border-t border-border/40">
+          <View className="flex-row items-center bg-card border border-border rounded-3xl p-2 px-3">
+            {/* Attachment Button */}
+            <TouchableOpacity
+              onPress={() => handleSend("Show everything related to RAG.")}
+              className="w-9 h-9 rounded-full bg-surface items-center justify-center mr-2 border border-border/60"
+            >
+              <Ionicons name="add" size={20} color={colors.text.secondary} />
+            </TouchableOpacity>
+
+            {/* ChatGPT Expanding Text Input */}
             <TextInput
               value={inputText}
               onChangeText={setInputText}
-              placeholder="Ask anything about your knowledge..."
+              placeholder="Message Orio..."
               placeholderTextColor={colors.text.muted}
-              className="flex-1 text-white text-sm h-full"
-              style={{ paddingVertical: 0 }}
-              onSubmitEditing={() => handleSend()}
-              returnKeyType="send"
+              className="flex-1 text-white text-base max-h-28 px-1"
+              multiline
+              style={{ paddingTop: Platform.OS === "ios" ? 8 : 4, paddingBottom: Platform.OS === "ios" ? 8 : 4 }}
               editable={!isSending}
             />
+
+            {/* ChatGPT Circular Send Button */}
             <TouchableOpacity
               onPress={() => handleSend()}
               disabled={isSending || !inputText.trim()}
-              className={`w-9 h-9 rounded-lg items-center justify-center ${
-                inputText.trim() ? "bg-primary" : "bg-surface-hover opacity-50"
+              className={`w-9 h-9 rounded-full items-center justify-center ml-2 ${
+                inputText.trim() ? "bg-primary" : "bg-surface-hover opacity-40"
               }`}
             >
-              <Ionicons name="arrow-up" size={18} color="#FFFFFF" />
+              <Ionicons name="arrow-up" size={20} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
         </View>

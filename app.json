@@ -2,6 +2,7 @@
   "expo": {
     "name": "Orio",
     "slug": "orio",
+    "scheme": "orio",
     "owner": "muhammadnavas",
     "version": "1.0.0",
     "orientation": "portrait",
