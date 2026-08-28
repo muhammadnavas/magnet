@@ -27,7 +27,7 @@ export const useAuthStore = create((set) => ({
         try {
           const api = require("../lib/api").default; // Dynamic import to prevent circular dependency
           const response = await api.post("/auth/login", {
-            email: "personal-app@orio.local",
+            email: "personal-app@orio.com",
             password: "password"
           });
           const { user, access_token, refresh_token } = response.data;

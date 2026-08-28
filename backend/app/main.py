@@ -18,13 +18,13 @@ async def lifespan(app: FastAPI):
             user = result.scalars().first()
             if not user:
                 user = User(
-                    email="personal-app@orio.local",
+                    email="personal-app@orio.com",
                     hashed_password=get_password_hash("password"),
                     full_name="Navas",
                 )
                 db.add(user)
                 await db.commit()
-                print("Seeded default developer user: personal-app@orio.local / password")
+                print("Seeded default developer user: personal-app@orio.com / password")
         except Exception as e:
             print(f"Error seeding user on startup: {e}")
     yield
