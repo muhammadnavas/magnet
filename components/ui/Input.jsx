@@ -20,23 +20,23 @@ export const Input = ({
   return (
     <View className={`mb-4 w-full ${containerStyle}`}>
       {label && (
-        <Text className="text-text-secondary text-xs font-semibold mb-2 ml-1">
+        <Text className="text-text-muted text-xs font-bold uppercase tracking-wider mb-2 ml-1">
           {label}
         </Text>
       )}
       <View
-        className={`flex-row items-center bg-surface border rounded-xl px-3 py-1 h-12 w-full ${
+        className={`flex-row items-center bg-surface border rounded-2xl px-4 h-13 w-full ${
           isFocused ? "border-primary" : error ? "border-error" : "border-border"
         }`}
       >
-        {iconLeft && <View className="mr-2">{iconLeft}</View>}
+        {iconLeft && <View className="mr-3">{iconLeft}</View>}
         
         <TextInput
           placeholderTextColor={colors.text.muted}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           secureTextEntry={secureTextEntry && !isPasswordVisible}
-          className={`flex-1 text-white text-sm h-full ${style}`}
+          className={`flex-1 text-white text-base h-full ${style}`}
           style={{ paddingVertical: 0 }}
           {...props}
         />

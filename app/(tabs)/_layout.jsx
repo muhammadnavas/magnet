@@ -14,14 +14,14 @@ export default function TabLayout() {
           backgroundColor: colors.card,
           borderTopColor: colors.border,
           borderTopWidth: 1,
-          paddingBottom: 6,
-          paddingTop: 6,
-          height: 60,
+          paddingBottom: 8,
+          paddingTop: 8,
+          height: 64,
         },
         tabBarLabelStyle: {
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: "bold",
-          marginTop: -2,
+          marginTop: 2,
         },
       }}
     >
@@ -30,7 +30,7 @@ export default function TabLayout() {
         options={{
           title: "Home",
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "home" : "home-outline"} size={20} color={color} />
+            <Ionicons name={focused ? "home" : "home-outline"} size={22} color={color} />
           ),
         }}
       />
@@ -39,7 +39,7 @@ export default function TabLayout() {
         options={{
           title: "Knowledge",
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "book" : "book-outline"} size={20} color={color} />
+            <Ionicons name={focused ? "book" : "book-outline"} size={22} color={color} />
           ),
         }}
       />
@@ -48,7 +48,7 @@ export default function TabLayout() {
         options={{
           title: "Ask AI",
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "sparkles" : "sparkles-outline"} size={20} color={color} />
+            <Ionicons name={focused ? "sparkles" : "sparkles-outline"} size={22} color={color} />
           ),
         }}
       />
@@ -57,16 +57,16 @@ export default function TabLayout() {
         options={{
           title: "Capture",
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "add-circle" : "add-circle-outline"} size={20} color={color} />
+            <Ionicons name={focused ? "add-circle" : "add-circle-outline"} size={24} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profile",
+          title: "Settings",
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "person" : "person-outline"} size={20} color={color} />
+            <Ionicons name={focused ? "settings" : "settings-outline"} size={22} color={color} />
           ),
         }}
       />
