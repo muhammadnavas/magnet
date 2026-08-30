@@ -8,10 +8,12 @@ import Card from "../../components/ui/Card";
 import config from "../../constants/config";
 import useAuth from "../../hooks/useAuth";
 import useKnowledgeStore from "../../store/knowledgeStore";
+import useThemeStore from "../../store/themeStore";
 
 export default function SettingsScreen() {
   const { user } = useAuth();
   const store = useKnowledgeStore();
+  const { theme, setTheme } = useThemeStore();
   const [githubConnected, setGithubConnected] = useState(false);
   const [provider, setProvider] = useState("gemini");
   const [offlineSync, setOfflineSync] = useState(true);
@@ -63,6 +65,47 @@ export default function SettingsScreen() {
           <View className="bg-success/15 px-3 py-1.5 rounded-full flex-row items-center">
             <View className="w-2 h-2 rounded-full bg-success mr-2" />
             <Text className="text-success text-xs font-bold uppercase">Active</Text>
+          </View>
+        </Card>
+
+        {/* Theme Appearance Mode Switcher */}
+        <Text className="text-white text-sm font-bold uppercase tracking-wider mb-3">
+          Appearance & Theme Mode
+        </Text>
+        <Card className="p-5 mb-6">
+          <Text className="text-text-muted text-xs font-bold uppercase tracking-wider mb-3">
+            Interface Theme
+          </Text>
+          <View className="flex-row gap-3">
+            <Pressable
+              onPress={() => setTheme("dark")}
+              className={`flex-1 p-4 rounded-2xl border items-center justify-center ${
+                theme === "dark"
+                  ? "bg-primary/20 border-primary"
+                  : "bg-surface border-border"
+              }`}
+            >
+              <Ionicons name="moon" size={24} color={theme === "dark" ? colors.primaryLight : colors.text.secondary} className="mb-2" />
+              <Text className={`text-xs font-bold ${theme === "dark" ? "text-white" : "text-text-secondary"}`}>
+                Dark Mode
+              </Text>
+              <Text className="text-text-muted text-[10px] mt-0.5">Deep Space Black</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => setTheme("light")}
+              className={`flex-1 p-4 rounded-2xl border items-center justify-center ${
+                theme === "light"
+                  ? "bg-primary/20 border-primary"
+                  : "bg-surface border-border"
+              }`}
+            >
+              <Ionicons name="sunny" size={24} color={theme === "light" ? colors.primaryLight : colors.text.secondary} className="mb-2" />
+              <Text className={`text-xs font-bold ${theme === "light" ? "text-white" : "text-text-secondary"}`}>
+                Light Mode
+              </Text>
+              <Text className="text-text-muted text-[10px] mt-0.5">Clean White BG</Text>
+            </Pressable>
           </View>
         </Card>
 
