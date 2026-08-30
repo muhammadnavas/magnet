@@ -19,7 +19,7 @@ export const darkTheme = {
   text: {
     primary: "#FFFFFF",
     secondary: "#A0A0B8",
-    muted: "#60607A",
+    muted: "#80809C",
     highlight: "#00D4FF",
   },
   
@@ -28,30 +28,30 @@ export const darkTheme = {
 
 export const lightTheme = {
   mode: "light",
-  background: "#F5F6FA", // Clean white background
+  background: "#F1F5F9", // Crisp light slate background
   card: "#FFFFFF",       // Pure white card surface
-  cardHover: "#EDF0F7",  // Slightly elevated surface
+  cardHover: "#F8FAFC",  // Slightly elevated surface
   surface: "#FFFFFF",
-  surfaceHover: "#F1F3F9",
-  border: "#E2E8F0",      // Crisp border
+  surfaceHover: "#F1F5F9",
+  border: "#CBD5E1",      // Crisp border
   
   primary: "#6C63FF",    // Primary violet accent
   primaryHover: "#574EED",
-  primaryLight: "#5A51E6",
+  primaryLight: "#4F46E5",
   
-  accent: "#0088FF",     // Blue accent
+  accent: "#0284C7",     // Blue accent
   success: "#059669",    // Emerald green
   warning: "#D97706",    // Orange
   error: "#DC2626",      // Soft red
   
   text: {
-    primary: "#0F172A",   // Dark slate heading text
-    secondary: "#475569", // Medium slate text
-    muted: "#94A3B8",     // Muted text
+    primary: "#0F172A",   // Very dark navy heading text
+    secondary: "#334155", // Crisp dark slate body text
+    muted: "#64748B",     // Medium slate label text (high contrast)
     highlight: "#0284C7",
   },
   
-  shadow: "rgba(0, 0, 0, 0.06)",
+  shadow: "rgba(0, 0, 0, 0.08)",
 };
 
 export const colors = darkTheme;
