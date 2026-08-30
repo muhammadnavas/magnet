@@ -7,32 +7,33 @@ import Card from "../ui/Card";
 import Badge from "../ui/Badge";
 import Tag from "../ui/Tag";
 import { formatDistanceToNow } from "date-fns";
+import useThemeStore from "../../store/themeStore";
 
 export const KnowledgeCard = ({ item }) => {
   const { id, title, contentType, summary, tags, createdAt, processingStatus } = item;
+  const { colors: themeColors } = useThemeStore();
 
   const getTypeIcon = () => {
     switch (contentType?.toLowerCase()) {
       case "pdf":
-        return { name: "document-text", color: "#6C63FF" }; // purple
+        return { name: "document-text", color: "#6C63FF" };
       case "image":
       case "screenshot":
-        return { name: "image", color: "#00E5A0" }; // green
+        return { name: "image", color: "#00E5A0" };
       case "code":
-        return { name: "code-working", color: "#00D4FF" }; // cyan
+        return { name: "code-working", color: "#00D4FF" };
       case "url":
-        return { name: "link", color: "#FF9F43" }; // orange
+        return { name: "link", color: "#FF9F43" };
       case "error":
-        return { name: "bug", color: "#FF6B6B" }; // red
+        return { name: "bug", color: "#FF6B6B" };
       case "note":
       default:
-        return { name: "pencil", color: "#A0A0B8" }; // secondary
+        return { name: "pencil", color: themeColors.text.secondary };
     }
   };
 
   const typeIcon = getTypeIcon();
   
-  // Format creation date beautifully
   let formattedDate = "";
   try {
     formattedDate = formatDistanceToNow(new Date(createdAt), { addSuffix: true });
@@ -55,7 +56,7 @@ export const KnowledgeCard = ({ item }) => {
           >
             <Ionicons name={typeIcon.name} size={16} color={typeIcon.color} />
           </View>
-          <Text className="text-[10px] font-bold text-text-secondary uppercase tracking-widest">
+          <Text style={{ color: themeColors.text.secondary }} className="text-[10px] font-bold uppercase tracking-widest">
             {contentType}
           </Text>
         </View>
@@ -66,24 +67,23 @@ export const KnowledgeCard = ({ item }) => {
       </View>
 
       {/* Title */}
-      <Text className="text-white text-base font-bold mb-1.5 leading-snug">
+      <Text style={{ color: themeColors.text.primary }} className="text-base font-bold mb-1.5 leading-snug">
         {title}
       </Text>
 
       {/* Summary */}
-      <Text numberOfLines={2} className="text-text-secondary text-xs leading-relaxed mb-3">
+      <Text numberOfLines={2} style={{ color: themeColors.text.secondary }} className="text-xs leading-relaxed mb-3">
         {summary}
       </Text>
 
       {/* Footer: Tags and Date */}
-      <View className="flex-row items-center justify-between border-t border-border/40 pt-3">
-        {/* Horizontal tag scroll */}
+      <View style={{ borderTopColor: themeColors.border }} className="flex-row items-center justify-between border-t pt-3">
         <View className="flex-row flex-wrap gap-1.5 flex-1 mr-2">
           {tags.slice(0, 3).map((tag, idx) => (
             <Tag key={`${tag}-${idx}`} text={tag} />
           ))}
         </View>
-        <Text className="text-text-muted text-[10px] font-semibold">
+        <Text style={{ color: themeColors.text.muted }} className="text-[10px] font-semibold">
           {formattedDate}
         </Text>
       </View>

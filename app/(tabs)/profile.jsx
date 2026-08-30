@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { View, Text, ScrollView, Switch, Pressable, Alert, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import colors from "../../constants/colors";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
 import config from "../../constants/config";
@@ -43,23 +42,23 @@ export default function SettingsScreen() {
       <ScrollView className="flex-1 px-5 pt-6" showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View className="mb-6">
-          <Text className="text-primary-light text-xs font-bold uppercase tracking-widest mb-1">
+          <Text style={{ color: themeColors.primary }} className="text-xs font-bold uppercase tracking-widest mb-1">
             Application Preferences
           </Text>
-          <Text className="text-white text-3xl font-black">
+          <Text style={{ color: themeColors.text.primary }} className="text-3xl font-black">
             Settings
           </Text>
         </View>
 
         {/* Developer Profile Info */}
-        <Card className="p-5 mb-6 flex-row items-center justify-between border border-border bg-card">
+        <Card className="p-5 mb-6 flex-row items-center justify-between border">
           <View className="flex-row items-center">
             <View className="w-12 h-12 rounded-2xl bg-primary/20 items-center justify-center mr-4 border border-primary/30">
-              <Ionicons name="person" size={24} color={colors.primaryLight} />
+              <Ionicons name="person" size={24} color={themeColors.primary} />
             </View>
             <View>
-              <Text className="text-white text-base font-bold">{username}</Text>
-              <Text className="text-text-secondary text-xs mt-0.5">{useremail}</Text>
+              <Text style={{ color: themeColors.text.primary }} className="text-base font-bold">{username}</Text>
+              <Text style={{ color: themeColors.text.secondary }} className="text-xs mt-0.5">{useremail}</Text>
             </View>
           </View>
           <View className="bg-success/15 px-3 py-1.5 rounded-full flex-row items-center">
@@ -69,42 +68,42 @@ export default function SettingsScreen() {
         </Card>
 
         {/* Theme Appearance Mode Switcher */}
-        <Text className="text-white text-sm font-bold uppercase tracking-wider mb-3">
+        <Text style={{ color: themeColors.text.primary }} className="text-sm font-bold uppercase tracking-wider mb-3">
           Appearance & Theme Mode
         </Text>
         <Card className="p-5 mb-6">
-          <Text className="text-text-muted text-xs font-bold uppercase tracking-wider mb-3">
+          <Text style={{ color: themeColors.text.muted }} className="text-xs font-bold uppercase tracking-wider mb-3">
             Interface Theme
           </Text>
           <View className="flex-row gap-3">
             <Pressable
               onPress={() => setTheme("dark")}
-              className={`flex-1 p-4 rounded-2xl border items-center justify-center ${
-                theme === "dark"
-                  ? "bg-primary/20 border-primary"
-                  : "bg-surface border-border"
-              }`}
+              style={{
+                backgroundColor: theme === "dark" ? `${themeColors.primary}20` : themeColors.surface,
+                borderColor: theme === "dark" ? themeColors.primary : themeColors.border,
+              }}
+              className="flex-1 p-4 rounded-2xl border items-center justify-center"
             >
-              <Ionicons name="moon" size={24} color={theme === "dark" ? colors.primaryLight : colors.text.secondary} className="mb-2" />
-              <Text className={`text-xs font-bold ${theme === "dark" ? "text-white" : "text-text-secondary"}`}>
+              <Ionicons name="moon" size={24} color={theme === "dark" ? themeColors.primary : themeColors.text.secondary} className="mb-2" />
+              <Text style={{ color: theme === "dark" ? themeColors.text.primary : themeColors.text.secondary }} className="text-xs font-bold">
                 Dark Mode
               </Text>
-              <Text className="text-text-muted text-[10px] mt-0.5">Deep Space Black</Text>
+              <Text style={{ color: themeColors.text.muted }} className="text-[10px] mt-0.5">Deep Space Black</Text>
             </Pressable>
 
             <Pressable
               onPress={() => setTheme("light")}
-              className={`flex-1 p-4 rounded-2xl border items-center justify-center ${
-                theme === "light"
-                  ? "bg-primary/20 border-primary"
-                  : "bg-surface border-border"
-              }`}
+              style={{
+                backgroundColor: theme === "light" ? `${themeColors.primary}20` : themeColors.surface,
+                borderColor: theme === "light" ? themeColors.primary : themeColors.border,
+              }}
+              className="flex-1 p-4 rounded-2xl border items-center justify-center"
             >
-              <Ionicons name="sunny" size={24} color={theme === "light" ? colors.primaryLight : colors.text.secondary} className="mb-2" />
-              <Text className={`text-xs font-bold ${theme === "light" ? "text-white" : "text-text-secondary"}`}>
+              <Ionicons name="sunny" size={24} color={theme === "light" ? themeColors.primary : themeColors.text.secondary} className="mb-2" />
+              <Text style={{ color: theme === "light" ? themeColors.text.primary : themeColors.text.secondary }} className="text-xs font-bold">
                 Light Mode
               </Text>
-              <Text className="text-text-muted text-[10px] mt-0.5">Clean White BG</Text>
+              <Text style={{ color: themeColors.text.muted }} className="text-[10px] mt-0.5">Clean White BG</Text>
             </Pressable>
           </View>
         </Card>
@@ -112,122 +111,122 @@ export default function SettingsScreen() {
         {/* System & Database Stats */}
         <Card className="p-5 mb-6">
           <View className="flex-row items-center justify-between mb-2">
-            <Text className="text-white text-sm font-bold">Vector Database Status</Text>
-            <Text className="text-primary-light text-xs font-bold">PostgreSQL + pgvector</Text>
+            <Text style={{ color: themeColors.text.primary }} className="text-sm font-bold">Vector Database Status</Text>
+            <Text style={{ color: themeColors.primary }} className="text-xs font-bold">PostgreSQL + pgvector</Text>
           </View>
-          <Text className="text-text-secondary text-xs leading-relaxed">
+          <Text style={{ color: themeColors.text.secondary }} className="text-xs leading-relaxed">
             {store.items.length} knowledge items cataloged and embedded for RAG search.
           </Text>
         </Card>
 
         {/* AI Model Configuration */}
-        <Text className="text-white text-sm font-bold uppercase tracking-wider mb-3">
+        <Text style={{ color: themeColors.text.primary }} className="text-sm font-bold uppercase tracking-wider mb-3">
           AI & RAG Model Provider
         </Text>
         <Card className="p-5 mb-6">
-          <Text className="text-text-muted text-xs font-bold uppercase tracking-wider mb-3">
+          <Text style={{ color: themeColors.text.muted }} className="text-xs font-bold uppercase tracking-wider mb-3">
             Primary LLM Engine
           </Text>
           
           <View className="gap-2 mb-4">
             <Pressable
               onPress={() => setProvider("gemini")}
-              className={`p-3.5 rounded-xl border flex-row items-center justify-between ${
-                provider === "gemini" 
-                  ? "bg-primary/15 border-primary" 
-                  : "bg-surface border-border"
-              }`}
+              style={{
+                backgroundColor: provider === "gemini" ? `${themeColors.primary}15` : themeColors.surface,
+                borderColor: provider === "gemini" ? themeColors.primary : themeColors.border,
+              }}
+              className="p-3.5 rounded-xl border flex-row items-center justify-between"
             >
               <View className="flex-row items-center">
-                <Ionicons name="sparkles" size={18} color={provider === "gemini" ? colors.primaryLight : colors.text.secondary} className="mr-3" />
+                <Ionicons name="sparkles" size={18} color={provider === "gemini" ? themeColors.primary : themeColors.text.secondary} className="mr-3" />
                 <View>
-                  <Text className={`text-sm font-bold ${provider === "gemini" ? "text-white" : "text-text-secondary"}`}>
+                  <Text style={{ color: provider === "gemini" ? themeColors.text.primary : themeColors.text.secondary }} className="text-sm font-bold">
                     Google Gemini 1.5 Flash
                   </Text>
-                  <Text className="text-text-muted text-xs mt-0.5">Recommended (Fast & Multi-modal)</Text>
+                  <Text style={{ color: themeColors.text.muted }} className="text-xs mt-0.5">Recommended (Fast & Multi-modal)</Text>
                 </View>
               </View>
-              {provider === "gemini" && <Ionicons name="checkmark-circle" size={18} color={colors.primaryLight} />}
+              {provider === "gemini" && <Ionicons name="checkmark-circle" size={18} color={themeColors.primary} />}
             </Pressable>
 
             <Pressable
               onPress={() => setProvider("openai")}
-              className={`p-3.5 rounded-xl border flex-row items-center justify-between ${
-                provider === "openai" 
-                  ? "bg-primary/15 border-primary" 
-                  : "bg-surface border-border"
-              }`}
+              style={{
+                backgroundColor: provider === "openai" ? `${themeColors.primary}15` : themeColors.surface,
+                borderColor: provider === "openai" ? themeColors.primary : themeColors.border,
+              }}
+              className="p-3.5 rounded-xl border flex-row items-center justify-between"
             >
               <View className="flex-row items-center">
-                <Ionicons name="hardware-chip-outline" size={18} color={provider === "openai" ? colors.primaryLight : colors.text.secondary} className="mr-3" />
+                <Ionicons name="hardware-chip-outline" size={18} color={provider === "openai" ? themeColors.primary : themeColors.text.secondary} className="mr-3" />
                 <View>
-                  <Text className={`text-sm font-bold ${provider === "openai" ? "text-white" : "text-text-secondary"}`}>
+                  <Text style={{ color: provider === "openai" ? themeColors.text.primary : themeColors.text.secondary }} className="text-sm font-bold">
                     OpenAI GPT-4o Mini
                   </Text>
-                  <Text className="text-text-muted text-xs mt-0.5">Cloud LLM Fallback</Text>
+                  <Text style={{ color: themeColors.text.muted }} className="text-xs mt-0.5">Cloud LLM Fallback</Text>
                 </View>
               </View>
-              {provider === "openai" && <Ionicons name="checkmark-circle" size={18} color={colors.primaryLight} />}
+              {provider === "openai" && <Ionicons name="checkmark-circle" size={18} color={themeColors.primary} />}
             </Pressable>
 
             <Pressable
               onPress={() => setProvider("ollama")}
-              className={`p-3.5 rounded-xl border flex-row items-center justify-between ${
-                provider === "ollama" 
-                  ? "bg-primary/15 border-primary" 
-                  : "bg-surface border-border"
-              }`}
+              style={{
+                backgroundColor: provider === "ollama" ? `${themeColors.primary}15` : themeColors.surface,
+                borderColor: provider === "ollama" ? themeColors.primary : themeColors.border,
+              }}
+              className="p-3.5 rounded-xl border flex-row items-center justify-between"
             >
               <View className="flex-row items-center">
-                <Ionicons name="laptop-outline" size={18} color={provider === "ollama" ? colors.primaryLight : colors.text.secondary} className="mr-3" />
+                <Ionicons name="laptop-outline" size={18} color={provider === "ollama" ? themeColors.primary : themeColors.text.secondary} className="mr-3" />
                 <View>
-                  <Text className={`text-sm font-bold ${provider === "ollama" ? "text-white" : "text-text-secondary"}`}>
+                  <Text style={{ color: provider === "ollama" ? themeColors.text.primary : themeColors.text.secondary }} className="text-sm font-bold">
                     Ollama Local
                   </Text>
-                  <Text className="text-text-muted text-xs mt-0.5">Offline Self-Hosted AI</Text>
+                  <Text style={{ color: themeColors.text.muted }} className="text-xs mt-0.5">Offline Self-Hosted AI</Text>
                 </View>
               </View>
-              {provider === "ollama" && <Ionicons name="checkmark-circle" size={18} color={colors.primaryLight} />}
+              {provider === "ollama" && <Ionicons name="checkmark-circle" size={18} color={themeColors.primary} />}
             </Pressable>
           </View>
 
           {/* Sync Switch */}
-          <View className="flex-row items-center justify-between pt-3 border-t border-border/40">
+          <View style={{ borderTopColor: themeColors.border }} className="flex-row items-center justify-between pt-3 border-t">
             <View className="flex-1 mr-4">
-              <Text className="text-white text-sm font-bold">Offline Auto-Sync</Text>
-              <Text className="text-text-muted text-xs mt-0.5">Queue items when offline and sync when connected</Text>
+              <Text style={{ color: themeColors.text.primary }} className="text-sm font-bold">Offline Auto-Sync</Text>
+              <Text style={{ color: themeColors.text.muted }} className="text-xs mt-0.5">Queue items when offline and sync when connected</Text>
             </View>
             <Switch
               value={offlineSync}
               onValueChange={setOfflineSync}
-              trackColor={{ false: colors.border, true: colors.primary }}
+              trackColor={{ false: themeColors.border, true: themeColors.primary }}
               thumbColor={Platform.OS === "android" ? "#ffffff" : ""}
             />
           </View>
         </Card>
 
         {/* Backend & Integrations */}
-        <Text className="text-white text-sm font-bold uppercase tracking-wider mb-3">
+        <Text style={{ color: themeColors.text.primary }} className="text-sm font-bold uppercase tracking-wider mb-3">
           Backend Connection
         </Text>
         <Card className="p-5 mb-10">
           <View className="mb-4">
-            <Text className="text-text-muted text-xs font-bold uppercase tracking-wider mb-1">
+            <Text style={{ color: themeColors.text.muted }} className="text-xs font-bold uppercase tracking-wider mb-1">
               Active API Server Endpoint
             </Text>
-            <View className="bg-surface border border-border p-3 rounded-xl">
-              <Text className="text-white text-xs font-mono">{config.API_URL}</Text>
+            <View style={{ backgroundColor: themeColors.surfaceHover, borderColor: themeColors.border }} className="border p-3 rounded-xl">
+              <Text style={{ color: themeColors.text.primary }} className="text-xs font-mono">{config.API_URL}</Text>
             </View>
           </View>
 
-          <View className="flex-row items-center justify-between pt-3 border-t border-border/40">
+          <View style={{ borderTopColor: themeColors.border }} className="flex-row items-center justify-between pt-3 border-t">
             <View className="flex-row items-center">
-              <View className="w-9 h-9 rounded-xl bg-white/10 items-center justify-center mr-3">
-                <Ionicons name="logo-github" size={20} color="#FFFFFF" />
+              <View style={{ backgroundColor: themeColors.surfaceHover }} className="w-9 h-9 rounded-xl items-center justify-center mr-3">
+                <Ionicons name="logo-github" size={20} color={themeColors.text.primary} />
               </View>
               <View>
-                <Text className="text-white text-sm font-bold">GitHub Sync</Text>
-                <Text className="text-text-secondary text-xs mt-0.5">
+                <Text style={{ color: themeColors.text.primary }} className="text-sm font-bold">GitHub Sync</Text>
+                <Text style={{ color: themeColors.text.secondary }} className="text-xs mt-0.5">
                   {githubConnected ? "Connected as @muhammadnavas" : "Link code & README sources"}
                 </Text>
               </View>

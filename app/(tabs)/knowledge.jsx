@@ -1,13 +1,14 @@
 import React, { useState } from "react";
-import { View, Text, ScrollView, FlatList, Pressable, SafeAreaView } from "react-native";
+import { View, Text, ScrollView, FlatList, Pressable } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import colors from "../../constants/colors";
 import SearchBar from "../../components/ui/SearchBar";
 import Tag from "../../components/ui/Tag";
 import EmptyState from "../../components/ui/EmptyState";
 import KnowledgeCard from "../../components/knowledge/KnowledgeCard";
 import useKnowledgeStore from "../../store/knowledgeStore";
 import useSearch from "../../hooks/useSearch";
+import useThemeStore from "../../store/themeStore";
 
 const CONTENT_TYPE_FILTERS = [
   "All",
@@ -21,6 +22,7 @@ const CONTENT_TYPE_FILTERS = [
 
 export default function KnowledgeScreen() {
   const store = useKnowledgeStore();
+  const { colors: themeColors } = useThemeStore();
   const { searchQuery, setSearchQuery } = useSearch();
   const [showAdvanceFilters, setShowAdvanceFilters] = useState(false);
 
@@ -30,24 +32,16 @@ export default function KnowledgeScreen() {
     store.setFilters({ contentType: type });
   };
 
-  const handleProjectSelect = (project) => {
-    store.setFilters({ project: project });
-  };
-
-  const handleTagSelect = (tag) => {
-    store.setFilters({ tag: tag });
-  };
-
   const clearAllFilters = () => {
     store.resetFilters();
     setSearchQuery("");
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <SafeAreaView style={{ backgroundColor: themeColors.background }} className="flex-1">
       {/* Top Search Banner */}
-      <View className="px-5 pt-4 pb-2 border-b border-border/40">
-        <Text className="text-white text-lg font-black mb-3">
+      <View style={{ borderBottomColor: themeColors.border }} className="px-5 pt-4 pb-2 border-b">
+        <Text style={{ color: themeColors.text.primary }} className="text-xl font-black mb-3">
           Knowledge Library
         </Text>
         <View className="flex-row items-center">
@@ -58,42 +52,44 @@ export default function KnowledgeScreen() {
           />
           <Pressable
             onPress={() => setShowAdvanceFilters(!showAdvanceFilters)}
-            className={`w-11 h-11 rounded-xl items-center justify-center ml-2 border ${
-              showAdvanceFilters
-                ? "bg-primary/10 border-primary"
-                : "bg-surface border-border"
-            }`}
+            style={{
+              backgroundColor: showAdvanceFilters ? `${themeColors.primary}20` : themeColors.card,
+              borderColor: showAdvanceFilters ? themeColors.primary : themeColors.border,
+            }}
+            className="w-12 h-12 rounded-xl border items-center justify-center ml-2"
           >
             <Ionicons
-              name={showAdvanceFilters ? "funnel" : "funnel-outline"}
-              size={18}
-              color={showAdvanceFilters ? colors.primaryLight : colors.text.secondary}
+              name="filter"
+              size={20}
+              color={showAdvanceFilters ? themeColors.primary : themeColors.text.secondary}
             />
           </Pressable>
         </View>
 
-        {/* Content Type Filter Bar */}
+        {/* Content Type Filter Pills */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          className="flex-row mt-4 mb-2 -mx-5 px-5"
+          className="py-3"
+          contentContainerStyle={{ paddingRight: 20 }}
         >
           {CONTENT_TYPE_FILTERS.map((filter) => {
-            const isSelected = store.filters.contentType === filter;
+            const filterValue = filter === "All" ? null : filter.toLowerCase().replace("s", "");
+            const isSelected = store.filters.contentType === filterValue;
+
             return (
               <Pressable
                 key={filter}
-                onPress={() => handleTypeSelect(filter)}
-                className={`px-4 py-1.5 rounded-full mr-2 border ${
-                  isSelected
-                    ? "bg-primary border-primary"
-                    : "bg-surface border-border"
-                }`}
+                onPress={() => handleTypeSelect(filterValue)}
+                style={{
+                  backgroundColor: isSelected ? themeColors.primary : themeColors.card,
+                  borderColor: isSelected ? themeColors.primary : themeColors.border,
+                }}
+                className="px-4 py-2 rounded-full border mr-2"
               >
                 <Text
-                  className={`text-xs font-bold ${
-                    isSelected ? "text-white" : "text-text-secondary"
-                  }`}
+                  style={{ color: isSelected ? "#FFFFFF" : themeColors.text.secondary }}
+                  className="text-xs font-bold"
                 >
                   {filter}
                 </Text>
@@ -103,93 +99,25 @@ export default function KnowledgeScreen() {
         </ScrollView>
       </View>
 
-      {/* Advanced Filters Drawer */}
-      {showAdvanceFilters && (
-        <View className="bg-surface border-b border-border p-4">
-          <View className="flex-row items-center justify-between mb-3">
-            <Text className="text-white text-xs font-bold uppercase tracking-wider">
-              Filter by Metadata
-            </Text>
-            <Pressable onPress={clearAllFilters}>
-              <Text className="text-error text-xs font-semibold">Clear All</Text>
-            </Pressable>
-          </View>
-
-          {/* Project Filtering */}
-          <Text className="text-text-muted text-[10px] font-bold uppercase tracking-wider mb-2">
-            Project
-          </Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row mb-4">
-            <Pressable
-              onPress={() => handleProjectSelect("All")}
-              className={`px-3 py-1 rounded-lg mr-1.5 border ${
-                store.filters.project === "All" ? "bg-primary/20 border-primary" : "bg-background border-border"
-              }`}
-            >
-              <Text className="text-white text-[10px] font-bold">ALL PROJECTS</Text>
-            </Pressable>
-            {store.projects.map((proj) => {
-              const isSelected = store.filters.project === proj;
-              return (
-                <Pressable
-                  key={proj}
-                  onPress={() => handleProjectSelect(proj)}
-                  className={`px-3 py-1 rounded-lg mr-1.5 border ${
-                    isSelected ? "bg-primary/20 border-primary" : "bg-background border-border"
-                  }`}
-                >
-                  <Text className="text-white text-[10px] font-semibold">{proj}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-
-          {/* Tag Filtering */}
-          <Text className="text-text-muted text-[10px] font-bold uppercase tracking-wider mb-2">
-            Tag
-          </Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row">
-            <Pressable
-              onPress={() => handleTagSelect("All")}
-              className={`px-3 py-1 rounded-lg mr-1.5 border ${
-                store.filters.tag === "All" ? "bg-primary/20 border-primary" : "bg-background border-border"
-              }`}
-            >
-              <Text className="text-white text-[10px] font-bold">ALL TAGS</Text>
-            </Pressable>
-            {store.tags.map((tag) => {
-              const isSelected = store.filters.tag === tag;
-              return (
-                <Pressable
-                  key={tag}
-                  onPress={() => handleTagSelect(tag)}
-                  className={`px-3 py-1 rounded-lg mr-1.5 border ${
-                    isSelected ? "bg-primary/20 border-primary" : "bg-background border-border"
-                  }`}
-                >
-                  <Text className="text-white text-[10px] font-semibold">#{tag}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
-      )}
-
-      {/* Main List */}
-      <FlatList
-        data={filteredItems}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <KnowledgeCard item={item} />}
-        contentContainerStyle={{ padding: 20, flexGrow: 1 }}
-        ListEmptyComponent={
+      {/* Knowledge Item List */}
+      {filteredItems.length === 0 ? (
+        <View className="flex-1 justify-center items-center px-6">
           <EmptyState
             title="Library is empty"
             description="No items match your active filters or search criteria. Try modifying your settings."
             actionLabel="Reset Filters"
-            onActionPress={clearAllFilters}
+            onAction={clearAllFilters}
           />
-        }
-      />
+        </View>
+      ) : (
+        <FlatList
+          data={filteredItems}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => <KnowledgeCard item={item} />}
+          contentContainerStyle={{ padding: 20 }}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </SafeAreaView>
   );
 }

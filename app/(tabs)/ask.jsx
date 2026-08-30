@@ -142,9 +142,8 @@ export default function AskScreen() {
             <TouchableOpacity
               onPress={() => handleSend()}
               disabled={isSending || !inputText.trim()}
-              className={`w-9 h-9 rounded-full items-center justify-center ml-2 ${
-                inputText.trim() ? "bg-primary" : "bg-surface-hover opacity-40"
-              }`}
+              className={`w-9 h-9 rounded-full items-center justify-center ml-2 ${inputText.trim() ? "bg-primary" : "bg-surface-hover opacity-40"
+                }`}
             >
               <Ionicons name="arrow-up" size={20} color="#FFFFFF" />
             </TouchableOpacity>

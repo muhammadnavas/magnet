@@ -166,8 +166,8 @@ export default function HomeScreen() {
                       <Ionicons
                         name={
                           item.contentType === "pdf" ? "document-text" :
-                          item.contentType === "code" ? "code-working" :
-                          item.contentType === "url" ? "link" : "pencil"
+                            item.contentType === "code" ? "code-working" :
+                              item.contentType === "url" ? "link" : "pencil"
                         }
                         size={14}
                         color={colors.primaryLight}

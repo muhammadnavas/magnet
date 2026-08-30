@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useLocalSearchParams, router } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
-import colors from "../../constants/colors";
 import ProcessingIndicator from "../../components/knowledge/ProcessingIndicator";
 import useKnowledgeStore from "../../store/knowledgeStore";
 import Card from "../../components/ui/Card";
 import Tag from "../../components/ui/Tag";
-
 import Logo from "../../components/ui/Logo";
 import useThemeStore from "../../store/themeStore";
 
@@ -27,7 +25,6 @@ export default function CaptureScreen() {
     if (params.selectType === "image") handleImageUpload();
   }, [params.selectType]);
 
-  // Smart automatic content type detector
   const detectContentType = (rawText) => {
     const trimmed = rawText.trim();
     if (/^https?:\/\/\S+$/i.test(trimmed) || trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
@@ -114,7 +111,6 @@ export default function CaptureScreen() {
     const raw = inputText.trim();
     const detectedType = detectContentType(raw);
 
-    // Auto generate clean title from the first line or content snippet
     const firstLine = raw.split("\n")[0].replace(/^[#*-\s]+/, "");
     const generatedTitle = firstLine.slice(0, 40) + (firstLine.length > 40 ? "..." : "");
 
@@ -135,7 +131,7 @@ export default function CaptureScreen() {
 
   if (processingState) {
     return (
-      <SafeAreaView className="flex-1 bg-background justify-center p-6">
+      <SafeAreaView style={{ backgroundColor: themeColors.background }} className="flex-1 justify-center p-6">
         <ProcessingIndicator
           progress={processingState.progress}
           statusMessage={processingState.message}
@@ -154,10 +150,10 @@ export default function CaptureScreen() {
           {/* Centered Hero Section */}
           <View className="items-center mt-8 mb-10">
             <Logo size="lg" showText={false} className="mb-4" />
-            <Text className="text-white text-3xl font-black text-center mb-2 tracking-tight">
+            <Text style={{ color: themeColors.text.primary }} className="text-3xl font-black text-center mb-2 tracking-tight">
               Where should we begin?
             </Text>
-            <Text className="text-text-secondary text-sm text-center max-w-[300px] leading-relaxed">
+            <Text style={{ color: themeColors.text.secondary }} className="text-sm text-center max-w-[300px] leading-relaxed">
               Capture any text, code snippet, link, or document instantly into your AI library.
             </Text>
           </View>
@@ -166,35 +162,37 @@ export default function CaptureScreen() {
           <View className="flex-row justify-center gap-2 mb-10">
             <TouchableOpacity
               onPress={handlePdfUpload}
-              className="flex-row items-center bg-card border border-border px-3.5 py-2 rounded-full"
+              style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }}
+              className="flex-row items-center border px-3.5 py-2 rounded-full"
             >
-              <Ionicons name="document-text-outline" size={16} color={colors.primaryLight} className="mr-2" />
-              <Text className="text-text-secondary text-xs font-semibold">Upload PDF</Text>
+              <Ionicons name="document-text-outline" size={16} color={themeColors.primary} className="mr-2" />
+              <Text style={{ color: themeColors.text.secondary }} className="text-xs font-semibold">Upload PDF</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={handleImageUpload}
-              className="flex-row items-center bg-card border border-border px-3.5 py-2 rounded-full"
+              style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }}
+              className="flex-row items-center border px-3.5 py-2 rounded-full"
             >
-              <Ionicons name="image-outline" size={16} color={colors.primaryLight} className="mr-2" />
-              <Text className="text-text-secondary text-xs font-semibold">Upload Screenshot</Text>
+              <Ionicons name="image-outline" size={16} color={themeColors.primary} className="mr-2" />
+              <Text style={{ color: themeColors.text.secondary }} className="text-xs font-semibold">Upload Screenshot</Text>
             </TouchableOpacity>
           </View>
 
           {/* Recently Captured Feedback List */}
           {recentSaved.length > 0 && (
             <View className="mb-8">
-              <Text className="text-text-muted text-xs font-bold uppercase tracking-wider mb-3 px-1">
+              <Text style={{ color: themeColors.text.muted }} className="text-xs font-bold uppercase tracking-wider mb-3 px-1">
                 Just Captured
               </Text>
               <View className="gap-2">
                 {recentSaved.slice(0, 3).map((item, idx) => (
-                  <Card key={idx} className="p-3.5 flex-row items-center justify-between border border-border/80 bg-card">
+                  <Card key={idx} className="p-3.5 flex-row items-center justify-between">
                     <View className="flex-1 mr-3">
-                      <Text className="text-white text-xs font-bold" numberOfLines={1}>
+                      <Text style={{ color: themeColors.text.primary }} className="text-xs font-bold" numberOfLines={1}>
                         {item.title}
                       </Text>
-                      <Text className="text-text-muted text-[11px] mt-0.5" numberOfLines={1}>
+                      <Text style={{ color: themeColors.text.muted }} className="text-[11px] mt-0.5" numberOfLines={1}>
                         {item.summary}
                       </Text>
                     </View>
@@ -207,8 +205,14 @@ export default function CaptureScreen() {
         </ScrollView>
 
         {/* ChatGPT / Gemini Single Floating Input Bar */}
-        <View className="p-4 bg-background border-t border-border/30">
-          <View className="flex-row items-center bg-card border border-border/90 rounded-3xl p-2.5 px-4 shadow-xl">
+        <View
+          style={{ backgroundColor: themeColors.background, borderTopColor: themeColors.border }}
+          className="p-4 border-t"
+        >
+          <View
+            style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }}
+            className="flex-row items-center border rounded-3xl p-2.5 px-4 shadow-sm"
+          >
             {/* Attachment Button */}
             <TouchableOpacity
               onPress={() => {
@@ -218,9 +222,10 @@ export default function CaptureScreen() {
                   { text: "Cancel", style: "cancel" },
                 ]);
               }}
-              className="w-10 h-10 rounded-full bg-surface items-center justify-center mr-2 border border-border/60"
+              style={{ backgroundColor: themeColors.surfaceHover, borderColor: themeColors.border }}
+              className="w-10 h-10 rounded-full items-center justify-center mr-2 border"
             >
-              <Ionicons name="add" size={24} color={colors.primaryLight} />
+              <Ionicons name="add" size={24} color={themeColors.primary} />
             </TouchableOpacity>
 
             {/* Expanding Multi-line Text Area */}
@@ -228,10 +233,14 @@ export default function CaptureScreen() {
               value={inputText}
               onChangeText={setInputText}
               placeholder="Capture anything... notes, URLs, code, or logs"
-              placeholderTextColor={colors.text.muted}
-              className="flex-1 text-white text-base max-h-32 px-1"
+              placeholderTextColor={themeColors.text.muted}
+              className="flex-1 text-base max-h-32 px-1"
               multiline
-              style={{ paddingTop: Platform.OS === "ios" ? 8 : 4, paddingBottom: Platform.OS === "ios" ? 8 : 4 }}
+              style={{
+                color: themeColors.text.primary,
+                paddingTop: Platform.OS === "ios" ? 8 : 4,
+                paddingBottom: Platform.OS === "ios" ? 8 : 4,
+              }}
             />
 
             {/* Send / Capture Circular Pill */}
@@ -239,8 +248,9 @@ export default function CaptureScreen() {
               onPress={handleCapture}
               disabled={!inputText.trim()}
               className={`w-10 h-10 rounded-full items-center justify-center ml-2 ${
-                inputText.trim() ? "bg-primary" : "bg-surface-hover opacity-40"
+                inputText.trim() ? "bg-primary" : "opacity-40"
               }`}
+              style={{ backgroundColor: inputText.trim() ? themeColors.primary : themeColors.border }}
             >
               <Ionicons name="arrow-up" size={22} color="#FFFFFF" />
             </TouchableOpacity>
