@@ -14,6 +14,8 @@ const SUGGESTED_QUESTIONS = [
   "Explain my AI Interviewer project."
 ];
 
+import Logo from "../../components/ui/Logo";
+
 export default function AskScreen() {
   const [inputText, setInputText] = useState("");
   const { messages, sendMessage, isSending, isTyping, clearChat } = useChat();
@@ -41,15 +43,10 @@ export default function AskScreen() {
         {/* Chat Header */}
         <View className="flex-row items-center justify-between px-5 py-4 border-b border-border/40 bg-surface">
           <View className="flex-row items-center">
-            <View className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 items-center justify-center mr-3">
-              <Ionicons name="sparkles" size={20} color={colors.primaryLight} />
-            </View>
-            <View>
-              <Text className="text-white text-base font-bold">Ask Orio</Text>
-              <Text className="text-xs font-bold text-success uppercase tracking-wider">
-                RAG Search Active
-              </Text>
-            </View>
+            <Logo size="sm" showText={true} />
+            <Text className="text-[11px] font-bold text-success uppercase tracking-wider ml-3">
+              • RAG Search Active
+            </Text>
           </View>
           <TouchableOpacity
             onPress={clearChat}

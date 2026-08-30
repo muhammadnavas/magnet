@@ -19,6 +19,8 @@ const QUICK_ACTIONS = [
   { id: "image", label: "Upload Image", icon: "image", type: "image", color: "#00E5A0" },
 ];
 
+import Logo from "../../components/ui/Logo";
+
 export default function HomeScreen() {
   const { user } = useAuth();
   const { useGetItems } = useKnowledge();
@@ -63,10 +65,8 @@ export default function HomeScreen() {
         {/* User Greeting Header */}
         <View className="flex-row items-center justify-between mb-6">
           <View>
-            <Text className="text-text-muted text-xs font-bold uppercase tracking-widest mb-1">
-              Welcome Back
-            </Text>
-            <Text className="text-white text-2xl font-black">
+            <Logo size="md" className="mb-1" />
+            <Text className="text-text-muted text-xs font-bold uppercase tracking-widest">
               Good evening, {username} 👋
             </Text>
           </View>

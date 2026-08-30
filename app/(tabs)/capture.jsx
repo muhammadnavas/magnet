@@ -11,6 +11,8 @@ import useKnowledgeStore from "../../store/knowledgeStore";
 import Card from "../../components/ui/Card";
 import Tag from "../../components/ui/Tag";
 
+import Logo from "../../components/ui/Logo";
+
 export default function CaptureScreen() {
   const store = useKnowledgeStore();
   const params = useLocalSearchParams();
@@ -149,9 +151,7 @@ export default function CaptureScreen() {
         <ScrollView className="flex-1 px-5 pt-10" showsVerticalScrollIndicator={false}>
           {/* Centered Hero Section */}
           <View className="items-center mt-8 mb-10">
-            <View className="w-16 h-16 rounded-3xl bg-primary/10 border border-primary/20 items-center justify-center mb-5 shadow-lg">
-              <Ionicons name="sparkles" size={30} color={colors.primaryLight} />
-            </View>
+            <Logo size="lg" showText={false} className="mb-4" />
             <Text className="text-white text-3xl font-black text-center mb-2 tracking-tight">
               Where should we begin?
             </Text>
