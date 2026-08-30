@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgrespassword@db:5432/orio"
+    SUPABASE_URL: str = "https://kvxfxnztcwyygkfsciim.supabase.co"
+    SUPABASE_ANON_KEY: str = ""
     REDIS_URL: str = "redis://redis:6379/0"
     
     OPENAI_API_KEY: str = "mock-key-for-phase-1"
