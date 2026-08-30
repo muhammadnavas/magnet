@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, ScrollView, Pressable, Alert } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Text, ScrollView, Pressable, SafeAreaView, Alert } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
@@ -18,21 +17,13 @@ const CAPTURE_MODES = [
   { id: "image", label: "Image / Screenshot", icon: "image", desc: "OCR text extraction from photo" },
 ];
 
-const CONTENT_TYPES = [
-  { id: "note", label: "Note" },
-  { id: "code", label: "Code" },
-  { id: "url", label: "URL / Link" },
-  { id: "error", label: "Error Log" },
-];
-
 export default function CaptureScreen() {
   const store = useKnowledgeStore();
   const params = useLocalSearchParams();
   const [selectedMode, setSelectedMode] = useState("text"); // text, pdf, image
-  const [selectedType, setSelectedType] = useState("note"); // note, code, url, error
   const [processingState, setProcessingState] = useState(null);
 
-  // Form states
+  // Unified Form states
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [project, setProject] = useState("");
@@ -47,10 +38,24 @@ export default function CaptureScreen() {
         handleImageUpload();
       } else {
         setSelectedMode("text");
-        setSelectedType(params.selectType);
       }
     }
   }, [params.selectType]);
+
+  // Smart automatic content type detector
+  const detectContentType = (rawText) => {
+    const trimmed = rawText.trim();
+    if (/^https?:\/\/\S+$/i.test(trimmed) || trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+      return "url";
+    }
+    if (/(?:def |function |const |let |var |import |export |class |<[a-z]+|{\s*\n|;\s*\n|\(\)=>)/i.test(trimmed)) {
+      return "code";
+    }
+    if (/error|exception|traceback|failed|crash|stack|unhandled/i.test(trimmed)) {
+      return "error";
+    }
+    return "note";
+  };
 
   const handlePdfUpload = async () => {
     try {
@@ -119,9 +124,18 @@ export default function CaptureScreen() {
   };
 
   const handleFormSubmit = () => {
-    if (!title.trim() || !content.trim()) {
-      Alert.alert("Missing Fields", "Please enter both a title and content.");
+    if (!content.trim()) {
+      Alert.alert("Content Required", "Please enter or paste your content.");
       return;
+    }
+
+    const detectedType = detectContentType(content);
+    
+    // Auto-generate title if left blank
+    let finalTitle = title.trim();
+    if (!finalTitle) {
+      const firstLine = content.trim().split("\n")[0];
+      finalTitle = firstLine.slice(0, 45) + (firstLine.length > 45 ? "..." : "");
     }
 
     const tagsArr = tagsText
@@ -129,16 +143,16 @@ export default function CaptureScreen() {
       : [];
 
     store.addKnowledgeItem({
-      title: title.trim(),
-      contentType: selectedType,
+      title: finalTitle,
+      contentType: detectedType,
       summary: content.slice(0, 120) + (content.length > 120 ? "..." : ""),
-      tags: tagsArr.length > 0 ? tagsArr : ["custom", selectedType],
-      technologies: selectedType === "code" || selectedType === "error" ? [project || "General"] : [],
+      tags: tagsArr.length > 0 ? tagsArr : ["custom", detectedType],
+      technologies: detectedType === "code" || detectedType === "error" ? [project || "General"] : [],
       project: project.trim() || "Personal Projects",
       rawContent: content.trim(),
     });
 
-    Alert.alert("Success", "Knowledge item successfully saved!");
+    Alert.alert("Success", `Saved to library! Auto-detected format: ${detectedType.toUpperCase()}`);
     resetForm();
   };
 
@@ -172,7 +186,7 @@ export default function CaptureScreen() {
             Capture Knowledge
           </Text>
           <Text className="text-text-secondary text-sm leading-relaxed">
-            Quickly capture notes, code, links, or documents. Orio organizes and indexes them automatically.
+            Type or paste notes, links, code snippets, or error logs. Orio organizes and indexes them automatically.
           </Text>
         </View>
 
@@ -212,50 +226,23 @@ export default function CaptureScreen() {
           })}
         </View>
 
-        {/* Typed Input Form Section */}
+        {/* Unified Universal Text Area (ChatGPT Style) */}
         {selectedMode === "text" && (
           <View className="mb-10">
-            {/* Content Type Selector Pills */}
-            <Text className="text-text-muted text-xs font-bold uppercase tracking-wider mb-2.5">
-              Content Format Type
-            </Text>
-            <View className="flex-row gap-2 mb-5">
-              {CONTENT_TYPES.map((type) => {
-                const isActive = selectedType === type.id;
-                return (
-                  <Pressable
-                    key={type.id}
-                    onPress={() => setSelectedType(type.id)}
-                    className={`px-4 py-2.5 rounded-xl border flex-1 items-center ${
-                      isActive
-                        ? "bg-primary border-primary"
-                        : "bg-surface border-border"
-                    }`}
-                  >
-                    <Text
-                      className={`text-xs font-bold ${
-                        isActive ? "text-white" : "text-text-secondary"
-                      }`}
-                    >
-                      {type.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            {/* Input Fields with Comfortable Standard Padding */}
             <Input
-              label="TITLE"
-              placeholder={`E.g., ${
-                selectedType === "error"
-                  ? "FastAPI Connection Pool Timeout"
-                  : selectedType === "code"
-                  ? "Docker Multi-stage Build script"
-                  : selectedType === "url"
-                  ? "React Native Interop Documentation"
-                  : "Database Migration Guidelines"
-              }`}
+              label="INPUT CONTENT (NOTE, LINK, CODE, OR ERROR)"
+              placeholder="Paste or type anything here... e.g. notes, URLs (https://...), code snippets, or error tracebacks."
+              value={content}
+              onChangeText={setContent}
+              multiline
+              numberOfLines={8}
+              containerStyle="h-44 mb-5"
+              style={{ textAlignVertical: "top", paddingTop: 12, fontSize: 15 }}
+            />
+
+            <Input
+              label="TITLE (OPTIONAL - AUTO GENERATED IF BLANK)"
+              placeholder="E.g., Database Migration Guidelines"
               value={title}
               onChangeText={setTitle}
             />
@@ -268,37 +255,10 @@ export default function CaptureScreen() {
             />
 
             <Input
-              label="TAGS (COMMA SEPARATED)"
+              label="TAGS (OPTIONAL, COMMA SEPARATED)"
               placeholder="E.g., docker, cache, postgres"
               value={tagsText}
               onChangeText={setTagsText}
-            />
-
-            <Input
-              label={
-                selectedType === "code"
-                  ? "CODE SNIPPET"
-                  : selectedType === "url"
-                  ? "URL / LINK / RESOURCE DETAILS"
-                  : selectedType === "error"
-                  ? "ERROR LOG & STACKTRACE"
-                  : "NOTE / DESCRIPTION"
-              }
-              placeholder={
-                selectedType === "code"
-                  ? "Paste code snippet here..."
-                  : selectedType === "url"
-                  ? "Paste URL (https://...) or reference link..."
-                  : selectedType === "error"
-                  ? "Paste error message and fix details..."
-                  : "Type content details here..."
-              }
-              value={content}
-              onChangeText={setContent}
-              multiline
-              numberOfLines={8}
-              containerStyle="h-40 mb-6"
-              style={{ textAlignVertical: "top", paddingTop: 10, fontSize: 14 }}
             />
 
             <Button onPress={handleFormSubmit} size="lg" className="mb-8">
