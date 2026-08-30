@@ -1,45 +1,26 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, ScrollView, Pressable, SafeAreaView, Alert } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert, Pressable } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import colors from "../../constants/colors";
-import Input from "../../components/ui/Input";
-import Button from "../../components/ui/Button";
-import Card from "../../components/ui/Card";
 import ProcessingIndicator from "../../components/knowledge/ProcessingIndicator";
 import useKnowledgeStore from "../../store/knowledgeStore";
-
-const CAPTURE_MODES = [
-  { id: "text", label: "Typed Input", icon: "pencil", desc: "Notes, Code, Links & Errors" },
-  { id: "pdf", label: "PDF Document", icon: "document-text", desc: "Upload PDF documentation" },
-  { id: "image", label: "Image / Screenshot", icon: "image", desc: "OCR text extraction from photo" },
-];
+import Card from "../../components/ui/Card";
+import Tag from "../../components/ui/Tag";
 
 export default function CaptureScreen() {
   const store = useKnowledgeStore();
   const params = useLocalSearchParams();
-  const [selectedMode, setSelectedMode] = useState("text"); // text, pdf, image
+  const [inputText, setInputText] = useState("");
   const [processingState, setProcessingState] = useState(null);
+  const [recentSaved, setRecentSaved] = useState([]);
 
-  // Unified Form states
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [project, setProject] = useState("");
-  const [tagsText, setTagsText] = useState("");
-
-  // Handle external quick action redirects
   useEffect(() => {
-    if (params.selectType) {
-      if (params.selectType === "pdf") {
-        handlePdfUpload();
-      } else if (params.selectType === "image") {
-        handleImageUpload();
-      } else {
-        setSelectedMode("text");
-      }
-    }
+    if (params.selectType === "pdf") handlePdfUpload();
+    if (params.selectType === "image") handleImageUpload();
   }, [params.selectType]);
 
   // Smart automatic content type detector
@@ -91,76 +72,61 @@ export default function CaptureScreen() {
   };
 
   const triggerIngestionFlow = (itemTitle, itemType, rawContent) => {
-    setProcessingState({ progress: 15, message: "Uploading document payload to backend..." });
+    setProcessingState({ progress: 15, message: "Uploading document payload..." });
 
     let currentProgress = 15;
     const interval = setInterval(() => {
-      currentProgress += 20;
+      currentProgress += 25;
       
-      let message = "Extracting text payload...";
-      if (currentProgress > 40) message = "Cleaning markup and tokens...";
-      if (currentProgress > 70) message = "AI categorization and tag generation...";
-      if (currentProgress > 90) message = "Generating 1536-dim vector embeddings...";
+      let message = "Parsing text payload...";
+      if (currentProgress > 40) message = "AI classification & tagging...";
+      if (currentProgress > 80) message = "Generating vector embeddings...";
 
       if (currentProgress >= 100) {
         clearInterval(interval);
         setProcessingState(null);
         
-        store.addKnowledgeItem({
+        const newItem = {
           title: itemTitle,
           contentType: itemType,
-          summary: `Automatically parsed ${itemType} file representing developer documentation.`,
+          summary: `Captured ${itemType} item in library.`,
           tags: ["imported", itemType],
-          technologies: [],
           project: "Personal Projects",
           rawContent,
-        });
+        };
 
-        Alert.alert("Success", `${itemTitle} uploaded and cataloged automatically!`);
+        store.addKnowledgeItem(newItem);
+        setRecentSaved((prev) => [newItem, ...prev]);
+        Alert.alert("Saved to Library", `"${itemTitle}" was cataloged successfully.`);
       } else {
         setProcessingState({ progress: currentProgress, message });
       }
-    }, 500);
+    }, 400);
   };
 
-  const handleFormSubmit = () => {
-    if (!content.trim()) {
-      Alert.alert("Content Required", "Please enter or paste your content.");
-      return;
-    }
+  const handleCapture = () => {
+    if (!inputText.trim()) return;
 
-    const detectedType = detectContentType(content);
-    
-    // Auto-generate title if left blank
-    let finalTitle = title.trim();
-    if (!finalTitle) {
-      const firstLine = content.trim().split("\n")[0];
-      finalTitle = firstLine.slice(0, 45) + (firstLine.length > 45 ? "..." : "");
-    }
+    const raw = inputText.trim();
+    const detectedType = detectContentType(raw);
 
-    const tagsArr = tagsText
-      ? tagsText.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean)
-      : [];
+    // Auto generate clean title from the first line or content snippet
+    const firstLine = raw.split("\n")[0].replace(/^[#*-\s]+/, "");
+    const generatedTitle = firstLine.slice(0, 40) + (firstLine.length > 40 ? "..." : "");
 
-    store.addKnowledgeItem({
-      title: finalTitle,
+    const newItem = {
+      title: generatedTitle,
       contentType: detectedType,
-      summary: content.slice(0, 120) + (content.length > 120 ? "..." : ""),
-      tags: tagsArr.length > 0 ? tagsArr : ["custom", detectedType],
-      technologies: detectedType === "code" || detectedType === "error" ? [project || "General"] : [],
-      project: project.trim() || "Personal Projects",
-      rawContent: content.trim(),
-    });
+      summary: raw.slice(0, 120) + (raw.length > 120 ? "..." : ""),
+      tags: ["quick-capture", detectedType],
+      technologies: [],
+      project: "Personal Projects",
+      rawContent: raw,
+    };
 
-    Alert.alert("Success", `Saved to library! Auto-detected format: ${detectedType.toUpperCase()}`);
-    resetForm();
-  };
-
-  const resetForm = () => {
-    setTitle("");
-    setContent("");
-    setProject("");
-    setTagsText("");
+    store.addKnowledgeItem(newItem);
+    setRecentSaved((prev) => [newItem, ...prev]);
+    setInputText("");
   };
 
   if (processingState) {
@@ -175,140 +141,110 @@ export default function CaptureScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
-      <ScrollView className="flex-1 px-5 pt-6" showsVerticalScrollIndicator={false}>
-        {/* Screen Title Header */}
-        <View className="mb-6">
-          <Text className="text-primary-light text-xs font-bold uppercase tracking-widest mb-1">
-            Ingestion Engine
-          </Text>
-          <Text className="text-white text-3xl font-black mb-1">
-            Capture Knowledge
-          </Text>
-          <Text className="text-text-secondary text-sm leading-relaxed">
-            Type or paste notes, links, code snippets, or error logs. Orio organizes and indexes them automatically.
-          </Text>
-        </View>
-
-        {/* Generalized Capture Mode Selector */}
-        <View className="flex-row gap-2 mb-6">
-          {CAPTURE_MODES.map((mode) => {
-            const isSelected = selectedMode === mode.id;
-            return (
-              <Pressable
-                key={mode.id}
-                onPress={() => {
-                  setSelectedMode(mode.id);
-                  if (mode.id === "pdf") handlePdfUpload();
-                  if (mode.id === "image") handleImageUpload();
-                }}
-                className={`flex-1 p-3.5 rounded-2xl border items-center justify-center ${
-                  isSelected
-                    ? "bg-primary/20 border-primary"
-                    : "bg-card border-border"
-                }`}
-              >
-                <Ionicons
-                  name={mode.icon}
-                  size={22}
-                  color={isSelected ? colors.primaryLight : colors.text.secondary}
-                  className="mb-1.5"
-                />
-                <Text
-                  className={`text-xs font-bold text-center ${
-                    isSelected ? "text-white" : "text-text-secondary"
-                  }`}
-                >
-                  {mode.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {/* Unified Universal Text Area (ChatGPT Style) */}
-        {selectedMode === "text" && (
-          <View className="mb-10">
-            <Input
-              label="INPUT CONTENT (NOTE, LINK, CODE, OR ERROR)"
-              placeholder="Paste or type anything here... e.g. notes, URLs (https://...), code snippets, or error tracebacks."
-              value={content}
-              onChangeText={setContent}
-              multiline
-              numberOfLines={8}
-              containerStyle="h-44 mb-5"
-              style={{ textAlignVertical: "top", paddingTop: 12, fontSize: 15 }}
-            />
-
-            <Input
-              label="TITLE (OPTIONAL - AUTO GENERATED IF BLANK)"
-              placeholder="E.g., Database Migration Guidelines"
-              value={title}
-              onChangeText={setTitle}
-            />
-
-            <Input
-              label="ASSOCIATE PROJECT (OPTIONAL)"
-              placeholder="E.g., Personal Projects, Orio App"
-              value={project}
-              onChangeText={setProject}
-            />
-
-            <Input
-              label="TAGS (OPTIONAL, COMMA SEPARATED)"
-              placeholder="E.g., docker, cache, postgres"
-              value={tagsText}
-              onChangeText={setTagsText}
-            />
-
-            <Button onPress={handleFormSubmit} size="lg" className="mb-8">
-              Save Knowledge Item
-            </Button>
+    <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        className="flex-1 justify-between"
+      >
+        <ScrollView className="flex-1 px-5 pt-10" showsVerticalScrollIndicator={false}>
+          {/* Centered Hero Section */}
+          <View className="items-center mt-8 mb-10">
+            <View className="w-16 h-16 rounded-3xl bg-primary/10 border border-primary/20 items-center justify-center mb-5 shadow-lg">
+              <Ionicons name="sparkles" size={30} color={colors.primaryLight} />
+            </View>
+            <Text className="text-white text-3xl font-black text-center mb-2 tracking-tight">
+              Where should we begin?
+            </Text>
+            <Text className="text-text-secondary text-sm text-center max-w-[300px] leading-relaxed">
+              Capture any text, code snippet, link, or document instantly into your AI library.
+            </Text>
           </View>
-        )}
 
-        {/* PDF & Image Upload Shortcut Cards */}
-        {selectedMode !== "text" && (
-          <Card className="p-6 mb-10 items-center justify-center border-dashed border-2 border-primary/40 bg-primary/5">
-            <Ionicons
-              name={selectedMode === "pdf" ? "document-text" : "image"}
-              size={48}
-              color={colors.primaryLight}
-              className="mb-3"
-            />
-            <Text className="text-white text-base font-bold mb-1">
-              Upload {selectedMode === "pdf" ? "PDF Document" : "Screenshot / Image"}
-            </Text>
-            <Text className="text-text-secondary text-xs text-center mb-5 max-w-[260px]">
-              {selectedMode === "pdf"
-                ? "Select a PDF file from your device to extract text and generate AI summaries."
-                : "Select an image from your photo library for automated OCR text extraction."}
-            </Text>
-            <Button
-              onPress={selectedMode === "pdf" ? handlePdfUpload : handleImageUpload}
-              size="md"
+          {/* Quick Action Badges */}
+          <View className="flex-row justify-center gap-2 mb-10">
+            <TouchableOpacity
+              onPress={handlePdfUpload}
+              className="flex-row items-center bg-card border border-border px-3.5 py-2 rounded-full"
             >
-              Choose File
-            </Button>
-          </Card>
-        )}
+              <Ionicons name="document-text-outline" size={16} color={colors.primaryLight} className="mr-2" />
+              <Text className="text-text-secondary text-xs font-semibold">Upload PDF</Text>
+            </TouchableOpacity>
 
-        {/* Sync Status Banner */}
-        <Text className="text-white text-xs font-bold uppercase tracking-wider mb-3">
-          Offline Queue Status
-        </Text>
-        <Card className="p-4 mb-10 flex-row items-center justify-between border border-border">
-          <View className="flex-row items-center">
-            <Ionicons name="cloud-done-outline" size={22} color={colors.success} className="mr-3" />
-            <Text className="text-text-secondary text-xs font-semibold">
-              All items synchronized with server
-            </Text>
+            <TouchableOpacity
+              onPress={handleImageUpload}
+              className="flex-row items-center bg-card border border-border px-3.5 py-2 rounded-full"
+            >
+              <Ionicons name="image-outline" size={16} color={colors.primaryLight} className="mr-2" />
+              <Text className="text-text-secondary text-xs font-semibold">Upload Screenshot</Text>
+            </TouchableOpacity>
           </View>
-          <Text className="text-xs font-bold text-success uppercase">
-            Synced
-          </Text>
-        </Card>
-      </ScrollView>
+
+          {/* Recently Captured Feedback List */}
+          {recentSaved.length > 0 && (
+            <View className="mb-8">
+              <Text className="text-text-muted text-xs font-bold uppercase tracking-wider mb-3 px-1">
+                Just Captured
+              </Text>
+              <View className="gap-2">
+                {recentSaved.slice(0, 3).map((item, idx) => (
+                  <Card key={idx} className="p-3.5 flex-row items-center justify-between border border-border/80 bg-card">
+                    <View className="flex-1 mr-3">
+                      <Text className="text-white text-xs font-bold" numberOfLines={1}>
+                        {item.title}
+                      </Text>
+                      <Text className="text-text-muted text-[11px] mt-0.5" numberOfLines={1}>
+                        {item.summary}
+                      </Text>
+                    </View>
+                    <Tag text={item.contentType} size="sm" />
+                  </Card>
+                ))}
+              </View>
+            </View>
+          )}
+        </ScrollView>
+
+        {/* ChatGPT / Gemini Single Floating Input Bar */}
+        <View className="p-4 bg-background border-t border-border/30">
+          <View className="flex-row items-center bg-card border border-border/90 rounded-3xl p-2.5 px-4 shadow-xl">
+            {/* Attachment Button */}
+            <TouchableOpacity
+              onPress={() => {
+                Alert.alert("Upload Source File", "Choose file type to ingest:", [
+                  { text: "PDF Document", onPress: handlePdfUpload },
+                  { text: "Screenshot / Photo", onPress: handleImageUpload },
+                  { text: "Cancel", style: "cancel" },
+                ]);
+              }}
+              className="w-10 h-10 rounded-full bg-surface items-center justify-center mr-2 border border-border/60"
+            >
+              <Ionicons name="add" size={24} color={colors.primaryLight} />
+            </TouchableOpacity>
+
+            {/* Expanding Multi-line Text Area */}
+            <TextInput
+              value={inputText}
+              onChangeText={setInputText}
+              placeholder="Capture anything... notes, URLs, code, or logs"
+              placeholderTextColor={colors.text.muted}
+              className="flex-1 text-white text-base max-h-32 px-1"
+              multiline
+              style={{ paddingTop: Platform.OS === "ios" ? 8 : 4, paddingBottom: Platform.OS === "ios" ? 8 : 4 }}
+            />
+
+            {/* Send / Capture Circular Pill */}
+            <TouchableOpacity
+              onPress={handleCapture}
+              disabled={!inputText.trim()}
+              className={`w-10 h-10 rounded-full items-center justify-center ml-2 ${
+                inputText.trim() ? "bg-primary" : "bg-surface-hover opacity-40"
+              }`}
+            >
+              <Ionicons name="arrow-up" size={22} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
