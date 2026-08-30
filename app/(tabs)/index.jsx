@@ -20,9 +20,11 @@ const QUICK_ACTIONS = [
 ];
 
 import Logo from "../../components/ui/Logo";
+import useThemeStore from "../../store/themeStore";
 
 export default function HomeScreen() {
   const { user } = useAuth();
+  const { colors: themeColors } = useThemeStore();
   const { useGetItems } = useKnowledge();
   const { conversations } = useChat();
   const { data: knowledgeItems = [] } = useGetItems();
@@ -60,7 +62,7 @@ export default function HomeScreen() {
   const aiInsights = insightsList.map(insight => insight.message || "");
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <SafeAreaView style={{ backgroundColor: themeColors.background }} className="flex-1">
       <ScrollView className="flex-1 px-5 pt-6" showsVerticalScrollIndicator={false}>
         {/* User Greeting Header */}
         <View className="flex-row items-center justify-between mb-6">

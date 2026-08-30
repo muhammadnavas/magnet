@@ -13,7 +13,7 @@ import useThemeStore from "../../store/themeStore";
 export default function SettingsScreen() {
   const { user } = useAuth();
   const store = useKnowledgeStore();
-  const { theme, setTheme } = useThemeStore();
+  const { theme, setTheme, colors: themeColors } = useThemeStore();
   const [githubConnected, setGithubConnected] = useState(false);
   const [provider, setProvider] = useState("gemini");
   const [offlineSync, setOfflineSync] = useState(true);
@@ -39,7 +39,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <SafeAreaView style={{ backgroundColor: themeColors.background }} className="flex-1">
       <ScrollView className="flex-1 px-5 pt-6" showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View className="mb-6">

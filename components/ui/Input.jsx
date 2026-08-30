@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import colors from "../../constants/colors";
+import useThemeStore from "../../store/themeStore";
 
 export const Input = ({
   label,
@@ -12,6 +12,7 @@ export const Input = ({
   containerStyle = "",
   ...props
 }) => {
+  const { colors: themeColors } = useThemeStore();
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
@@ -20,24 +21,29 @@ export const Input = ({
   return (
     <View className={`mb-4 w-full ${containerStyle}`}>
       {label && (
-        <Text className="text-text-muted text-xs font-bold uppercase tracking-wider mb-2 ml-1">
+        <Text
+          style={{ color: themeColors.text.muted }}
+          className="text-xs font-bold uppercase tracking-wider mb-2 ml-1"
+        >
           {label}
         </Text>
       )}
       <View
-        className={`flex-row items-center bg-surface border rounded-2xl px-4 h-13 w-full ${
-          isFocused ? "border-primary" : error ? "border-error" : "border-border"
-        }`}
+        style={{
+          backgroundColor: themeColors.card,
+          borderColor: isFocused ? themeColors.primary : error ? themeColors.error : themeColors.border,
+        }}
+        className="flex-row items-center border rounded-2xl px-4 h-13 w-full"
       >
         {iconLeft && <View className="mr-3">{iconLeft}</View>}
-        
+
         <TextInput
-          placeholderTextColor={colors.text.muted}
+          placeholderTextColor={themeColors.text.muted}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           secureTextEntry={secureTextEntry && !isPasswordVisible}
-          className={`flex-1 text-white text-base h-full ${style}`}
-          style={{ paddingVertical: 0 }}
+          className={`flex-1 text-base h-full ${style}`}
+          style={{ color: themeColors.text.primary, paddingVertical: 0 }}
           {...props}
         />
 
@@ -50,13 +56,13 @@ export const Input = ({
             <Ionicons
               name={isPasswordVisible ? "eye-off" : "eye"}
               size={20}
-              color={colors.text.secondary}
+              color={themeColors.text.secondary}
             />
           </TouchableOpacity>
         )}
       </View>
       {error && (
-        <Text className="text-error text-xs font-medium mt-1 ml-1">
+        <Text style={{ color: themeColors.error }} className="text-xs font-medium mt-1 ml-1">
           {error}
         </Text>
       )}

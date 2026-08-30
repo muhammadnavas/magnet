@@ -12,9 +12,11 @@ import Card from "../../components/ui/Card";
 import Tag from "../../components/ui/Tag";
 
 import Logo from "../../components/ui/Logo";
+import useThemeStore from "../../store/themeStore";
 
 export default function CaptureScreen() {
   const store = useKnowledgeStore();
+  const { colors: themeColors } = useThemeStore();
   const params = useLocalSearchParams();
   const [inputText, setInputText] = useState("");
   const [processingState, setProcessingState] = useState(null);
@@ -143,7 +145,7 @@ export default function CaptureScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
+    <SafeAreaView style={{ backgroundColor: themeColors.background }} className="flex-1" edges={["top", "left", "right"]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         className="flex-1 justify-between"

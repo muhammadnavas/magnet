@@ -15,9 +15,11 @@ const SUGGESTED_QUESTIONS = [
 ];
 
 import Logo from "../../components/ui/Logo";
+import useThemeStore from "../../store/themeStore";
 
 export default function AskScreen() {
   const [inputText, setInputText] = useState("");
+  const { colors: themeColors } = useThemeStore();
   const { messages, sendMessage, isSending, isTyping, clearChat } = useChat();
   const scrollViewRef = useRef(null);
 
@@ -34,7 +36,7 @@ export default function AskScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
+    <SafeAreaView style={{ backgroundColor: themeColors.background }} className="flex-1" edges={["top", "left", "right"]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         className="flex-1"
