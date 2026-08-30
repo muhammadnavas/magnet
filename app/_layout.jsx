@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import useAuthStore from "../store/authStore";
+import useThemeStore from "../store/themeStore";
 import "../global.css";
 
 const queryClient = new QueryClient({
@@ -33,9 +34,11 @@ function AuthGuard() {
 
 export default function RootLayout() {
   const initializeAuth = useAuthStore((state) => state.initializeAuth);
+  const initTheme = useThemeStore((state) => state.initTheme);
 
   useEffect(() => {
     initializeAuth();
+    initTheme(); // Restore saved theme from AsyncStorage (mobile) or localStorage (web)
   }, []);
 
   return (

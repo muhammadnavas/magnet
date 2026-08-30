@@ -1,33 +1,18 @@
 import React from "react";
 import { View, Pressable } from "react-native";
-import useThemeStore from "../../store/themeStore";
+import { useAppTheme } from "../../store/themeStore";
 
-export const Card = ({
-  children,
-  onPress,
-  className = "",
-  style = {},
-  ...props
-}) => {
-  const { colors: themeColors } = useThemeStore();
+export const Card = ({ children, onPress, className = "", style = {}, ...props }) => {
+  const { themeColors } = useAppTheme();
 
-  const dynamicStyle = {
-    backgroundColor: themeColors.card,
-    borderColor: themeColors.border,
-  };
-
-  const cardStyle = "border rounded-2xl overflow-hidden";
+  const dynamicStyle = { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1 };
 
   if (onPress) {
     return (
       <Pressable
         onPress={onPress}
-        style={({ pressed }) => [
-          dynamicStyle,
-          style,
-          pressed ? { opacity: 0.9, transform: [{ scale: 0.98 }] } : {}
-        ]}
-        className={`${cardStyle} ${className}`}
+        style={({ pressed }) => [dynamicStyle, style, pressed ? { opacity: 0.85, transform: [{ scale: 0.98 }] } : {}]}
+        className={`rounded-2xl overflow-hidden ${className}`}
         {...props}
       >
         {children}
@@ -36,7 +21,7 @@ export const Card = ({
   }
 
   return (
-    <View style={[dynamicStyle, style]} className={`${cardStyle} ${className}`} {...props}>
+    <View style={[dynamicStyle, style]} className={`rounded-2xl overflow-hidden ${className}`} {...props}>
       {children}
     </View>
   );
