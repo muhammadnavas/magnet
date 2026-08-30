@@ -17,10 +17,10 @@ export const Logo = ({
   const logoSource = theme === "dark" ? logoLight : logoDark;
 
   const dimensions = {
-    sm: { width: 28, height: 28, textSize: "text-base" },
-    md: { width: 36, height: 36, textSize: "text-xl" },
-    lg: { width: 52, height: 52, textSize: "text-3xl" },
-  }[size] || { width: 36, height: 36, textSize: "text-xl" };
+    sm: { width: 28, height: 28, textSize: 14 },
+    md: { width: 42, height: 42, textSize: 28 },
+    lg: { width: 60, height: 60, textSize: 36 },
+  }[size] || { width: 42, height: 42, textSize: 28 };
 
   return (
     <View className={`flex-row items-center ${className}`} style={style}>
@@ -30,9 +30,15 @@ export const Logo = ({
         resizeMode="contain"
       />
       {showText && (
-        <Text className={`font-black tracking-tight ml-2.5 ${dimensions.textSize} ${
-          theme === "dark" ? "text-white" : "text-slate-900"
-        }`}>
+        <Text
+          style={{
+            fontSize: dimensions.textSize,
+            fontWeight: "900",
+            letterSpacing: -0.5,
+            marginLeft: 10,
+            color: theme === "dark" ? "#FFFFFF" : "#0F172A",
+          }}
+        >
           Orio
         </Text>
       )}
