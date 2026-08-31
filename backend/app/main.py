@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.routers import auth, knowledge, search, chat, projects, insights, github, sync
+from app.routers import auth, knowledge, search, chat, projects, insights, github, sync, tasks
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -55,6 +55,7 @@ app.include_router(projects.router, prefix="/api/v1")
 app.include_router(insights.router, prefix="/api/v1")
 app.include_router(github.router, prefix="/api/v1")
 app.include_router(sync.router, prefix="/api/v1")
+app.include_router(tasks.router, prefix="/api/v1")
 
 @app.get("/health", tags=["Healthcheck"])
 def health_check():

@@ -62,15 +62,14 @@ async def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    # Overwrite sqlalchemy.url dynamically with settings config
     from app.config import settings
-    configuration = config.get_section(config.config_ini_section) or {}
-    configuration["sqlalchemy.url"] = settings.DATABASE_URL
-
-    connectable = async_engine_from_config(
-        configuration,
-        prefix="sqlalchemy.",
+    from sqlalchemy.ext.asyncio import create_async_engine
+    
+    url = settings.DATABASE_URL.replace(":6543/", ":5432/")
+    connectable = create_async_engine(
+        url,
         poolclass=pool.NullPool,
+        connect_args={"statement_cache_size": 0},
     )
 
     async with connectable.connect() as connection:

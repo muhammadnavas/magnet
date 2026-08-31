@@ -3,6 +3,7 @@ from app.models.user import User
 from app.models.knowledge import KnowledgeItem, KnowledgeChunk, Tag, Entity, Relationship, knowledge_tags
 from app.models.project import Project, knowledge_projects
 from app.models.conversation import Conversation, Message, GitHubConnection, ProcessingJob, SyncQueue
+from app.models.task import Task, TaskPriority, TaskStatus
 
 __all__ = [
     "Base",
@@ -19,5 +20,8 @@ __all__ = [
     "Message",
     "GitHubConnection",
     "ProcessingJob",
-    "SyncQueue"
+    "SyncQueue",
+    "Task",
+    "TaskPriority",
+    "TaskStatus"
 ]
