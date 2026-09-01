@@ -31,6 +31,8 @@ export function useBackendStatus(autoCheck = true) {
   useEffect(() => {
     if (autoCheck) {
       checkConnection();
+      const interval = setInterval(checkConnection, 30000); // Auto ping every 30s
+      return () => clearInterval(interval);
     }
   }, [autoCheck, checkConnection]);
 

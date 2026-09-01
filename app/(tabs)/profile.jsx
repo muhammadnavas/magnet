@@ -188,32 +188,6 @@ export default function SettingsScreen() {
                 </Text>
               </View>
             </View>
-
-            {/* Test Connection Button */}
-            <Pressable
-              onPress={checkConnection}
-              disabled={isChecking}
-              style={{
-                backgroundColor: isConnected ? "#10B98115" : themeColors.surfaceHover,
-                borderColor: isConnected ? "#10B98140" : themeColors.border,
-                borderWidth: 1,
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderRadius: 100,
-                flexDirection: "row",
-                alignItems: "center",
-              }}
-            >
-              <Ionicons
-                name={isChecking ? "sync" : "refresh-outline"}
-                size={14}
-                color={isConnected ? "#10B981" : themeColors.primary}
-                style={{ marginRight: 4 }}
-              />
-              <Text style={{ color: isConnected ? "#10B981" : themeColors.primary, fontSize: 11, fontWeight: "700" }}>
-                {isChecking ? "Checking" : "Test"}
-              </Text>
-            </Pressable>
           </View>
 
           <View style={{ borderTopColor: themeColors.border, borderTopWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 14 }}>
