@@ -8,11 +8,13 @@ import config from "../../constants/config";
 import useAuth from "../../hooks/useAuth";
 import useKnowledgeStore from "../../store/knowledgeStore";
 import { useAppTheme } from "../../store/themeStore";
+import useBackendStatus from "../../hooks/useBackendStatus";
 
 export default function SettingsScreen() {
   const { user } = useAuth();
   const store = useKnowledgeStore();
   const { theme, setTheme, themeColors } = useAppTheme();
+  const { isConnected, isChecking, latency, checkConnection } = useBackendStatus();
   const [githubConnected, setGithubConnected] = useState(false);
   const [provider, setProvider] = useState("gemini");
   const [offlineSync, setOfflineSync] = useState(true);
@@ -139,8 +141,82 @@ export default function SettingsScreen() {
         </Card>
 
         {/* Backend */}
+        {/* Backend Connection */}
         <Text style={{ color: themeColors.text.muted }} className="text-xs font-bold uppercase tracking-wider mb-3">Backend Connection</Text>
         <Card className="p-5 mb-10">
+
+          {/* Connection Status Row with Marker Light */}
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              {/* Marker Light Dot */}
+              <View
+                style={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: 6,
+                  backgroundColor: isChecking
+                    ? "#F59E0B"
+                    : isConnected
+                    ? "#10B981"
+                    : "#EF4444",
+                  marginRight: 10,
+                  shadowColor: isChecking
+                    ? "#F59E0B"
+                    : isConnected
+                    ? "#10B981"
+                    : "#EF4444",
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: 0.9,
+                  shadowRadius: 6,
+                  elevation: 6,
+                }}
+              />
+              <View>
+                <Text style={{ color: themeColors.text.primary, fontWeight: "700", fontSize: 14 }}>
+                  {isChecking
+                    ? "Connecting..."
+                    : isConnected
+                    ? "Backend Connected"
+                    : "Backend Offline"}
+                </Text>
+                <Text style={{ color: themeColors.text.muted, fontSize: 11, marginTop: 1 }}>
+                  {isChecking
+                    ? "Waking up Render server (up to 45s)..."
+                    : isConnected
+                    ? `Online · Latency ${latency ? `${latency}ms` : "OK"}`
+                    : "Unable to reach API server"}
+                </Text>
+              </View>
+            </View>
+
+            {/* Test Connection Button */}
+            <Pressable
+              onPress={checkConnection}
+              disabled={isChecking}
+              style={{
+                backgroundColor: isConnected ? "#10B98115" : themeColors.surfaceHover,
+                borderColor: isConnected ? "#10B98140" : themeColors.border,
+                borderWidth: 1,
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 100,
+                flexDirection: "row",
+                alignItems: "center",
+              }}
+            >
+              <Ionicons
+                name={isChecking ? "sync" : "refresh-outline"}
+                size={14}
+                color={isConnected ? "#10B981" : themeColors.primary}
+                style={{ marginRight: 4 }}
+              />
+              <Text style={{ color: isConnected ? "#10B981" : themeColors.primary, fontSize: 11, fontWeight: "700" }}>
+                {isChecking ? "Checking" : "Test"}
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* API Endpoint display */}
           <Text style={{ color: themeColors.text.muted }} className="text-xs font-bold uppercase tracking-wider mb-2">API Endpoint</Text>
           <View style={{ backgroundColor: themeColors.surfaceHover, borderColor: themeColors.border, borderWidth: 1, padding: 12, borderRadius: 10, marginBottom: 16 }}>
             <Text style={{ color: themeColors.text.primary, fontFamily: "monospace", fontSize: 12 }}>{config.API_URL}</Text>

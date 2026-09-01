@@ -58,5 +58,6 @@ app.include_router(sync.router, prefix="/api/v1")
 app.include_router(tasks.router, prefix="/api/v1")
 
 @app.get("/health", tags=["Healthcheck"])
+@app.get("/api/v1/health", tags=["Healthcheck"])
 def health_check():
     return {"status": "ok", "app": "Orio Backend API", "version": "1.0.0"}
