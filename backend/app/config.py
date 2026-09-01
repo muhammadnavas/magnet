@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgrespassword@db:5432/orio"
     SUPABASE_URL: str = "https://kvxfxnztcwyygkfsciim.supabase.co"
     SUPABASE_ANON_KEY: str = ""
+    MONGODB_URL: str = "mongodb+srv://navasns0409:rx4Fvt8un1dCovaz@cluster0.lz452k4.mongodb.net/"
     REDIS_URL: str = "redis://redis:6379/0"
     
     OPENAI_API_KEY: str = "mock-key-for-phase-1"
