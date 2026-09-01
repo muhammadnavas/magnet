@@ -14,7 +14,7 @@ async def lifespan(app: FastAPI):
     
     async with async_session() as db:
         try:
-            result = await db.execute(select(User).where(User.email == "personal-app@orio.local"))
+            result = await db.execute(select(User).where(User.email == "personal-app@orio.com"))
             user = result.scalars().first()
             if not user:
                 user = User(
