@@ -216,12 +216,6 @@ export default function SettingsScreen() {
             </Pressable>
           </View>
 
-          {/* API Endpoint display */}
-          <Text style={{ color: themeColors.text.muted }} className="text-xs font-bold uppercase tracking-wider mb-2">API Endpoint</Text>
-          <View style={{ backgroundColor: themeColors.surfaceHover, borderColor: themeColors.border, borderWidth: 1, padding: 12, borderRadius: 10, marginBottom: 16 }}>
-            <Text style={{ color: themeColors.text.primary, fontFamily: "monospace", fontSize: 12 }}>{config.API_URL}</Text>
-          </View>
-
           <View style={{ borderTopColor: themeColors.border, borderTopWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 14 }}>
             <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
               <View style={{ backgroundColor: themeColors.surfaceHover, width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", marginRight: 12 }}>
