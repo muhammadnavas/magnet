@@ -12,8 +12,8 @@ class Conversation(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(255), default="New Conversation")
     
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), onupdate=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     # Relationships
     user = relationship("User", back_populates="conversations")
@@ -28,7 +28,7 @@ class Message(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     
     sources: Mapped[list] = mapped_column(JSON, default=list, nullable=True) # list of source dicts (id, title, type)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     # Relationships
     conversation = relationship("Conversation", back_populates="messages")
@@ -41,7 +41,7 @@ class GitHubConnection(Base):
     access_token_encrypted: Mapped[str] = mapped_column(String(1024), nullable=False)
     github_username: Mapped[str] = mapped_column(String(255), nullable=True)
     
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
 class ProcessingJob(Base):
     __tablename__ = "processing_jobs"
@@ -52,7 +52,7 @@ class ProcessingJob(Base):
     progress: Mapped[int] = mapped_column(Integer, default=0)
     error_message: Mapped[str] = mapped_column(Text, nullable=True)
     
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
 class SyncQueue(Base):
     __tablename__ = "sync_queue"
@@ -63,4 +63,4 @@ class SyncQueue(Base):
     payload: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     
     synced_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))

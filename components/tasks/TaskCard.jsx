@@ -1,6 +1,6 @@
 import React, { useRef } from "react";
 import {
-  View, Text, TouchableOpacity, Animated, Alert
+  View, Text, TouchableOpacity, Animated, Alert, Platform
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAppTheme } from "../../store/themeStore";
@@ -35,11 +35,18 @@ export default function TaskCard({ task }) {
   };
 
   const handleDelete = () => {
-    Alert.alert("Delete Task", `Delete "${task.title}"?`, [
-      { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: () => deleteTask.mutate(task.id) },
-    ]);
+    if (Platform.OS === "web") {
+      if (typeof window !== "undefined" && window.confirm(`Delete "${task.title}"?`)) {
+        deleteTask.mutate(task.id);
+      }
+    } else {
+      Alert.alert("Delete Task", `Delete "${task.title}"?`, [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete", style: "destructive", onPress: () => deleteTask.mutate(task.id) },
+      ]);
+    }
   };
+
 
   let deadlineText = null;
   if (task.deadline) {

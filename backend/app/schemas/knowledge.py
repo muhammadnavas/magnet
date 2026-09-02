@@ -15,6 +15,24 @@ class TagOut(TagBase):
     class Config:
         from_attributes = True
 
+class ProjectBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    technologies: List[str] = []
+    github_url: Optional[str] = None
+    status: str = "active"
+
+class ProjectCreate(ProjectBase):
+    pass
+
+class ProjectOut(ProjectBase):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
 class KnowledgeItemBase(BaseModel):
     title: str
     content_type: str
@@ -36,9 +54,10 @@ class KnowledgeItemOut(KnowledgeItemBase):
     is_favorite: bool
     is_archived: bool
     file_path: Optional[str] = None
-    created_at: datetime
-    updated_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     tags: List[TagOut] = []
+    projects: List[ProjectOut] = []
 
     class Config:
         from_attributes = True
@@ -49,25 +68,7 @@ class KnowledgeChunkOut(BaseModel):
     chunk_index: int
     content: str
     token_count: int
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-class ProjectBase(BaseModel):
-    name: str
-    description: Optional[str] = None
-    technologies: List[str] = []
-    github_url: Optional[str] = None
-    status: str = "active"
-
-class ProjectCreate(ProjectBase):
-    pass
-
-class ProjectOut(ProjectBase):
-    id: uuid.UUID
-    user_id: uuid.UUID
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

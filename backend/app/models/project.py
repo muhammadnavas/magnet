@@ -25,7 +25,7 @@ class Project(Base):
     github_url: Mapped[str] = mapped_column(String(2048), nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="active") # active, archived, completed
     
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     # Relationships
     user = relationship("User", back_populates="projects")

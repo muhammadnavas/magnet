@@ -52,15 +52,33 @@ export function useUpdateTask() {
       const res = await api.patch(`/tasks/${id}`, payload);
       return res.data;
     },
-    onSuccess: async (task) => {
+    onMutate: async ({ id, ...payload }) => {
+      await qc.cancelQueries({ queryKey: TASKS_KEY });
+      const previousQueries = qc.getQueriesData({ queryKey: TASKS_KEY });
+
+      qc.setQueriesData({ queryKey: TASKS_KEY }, (oldData) => {
+        if (!Array.isArray(oldData)) return oldData;
+        return oldData.map((t) => (t.id === id ? { ...t, ...payload } : t));
+      });
+
+      return { previousQueries };
+    },
+    onError: (err, newMeta, context) => {
+      if (context?.previousQueries) {
+        context.previousQueries.forEach(([key, data]) => {
+          qc.setQueryData(key, data);
+        });
+      }
+    },
+    onSettled: async (task) => {
       qc.invalidateQueries({ queryKey: TASKS_KEY });
-      if (task.status === "completed") {
-        // Cancel all reminders for this task
+      if (task && task.status === "completed") {
         await cancelTaskReminder(task.id);
       }
     },
   });
 }
+
 
 // ─── Delete a task ───────────────────────────────────────────────────────────
 export function useDeleteTask() {
@@ -70,9 +88,28 @@ export function useDeleteTask() {
       await api.delete(`/tasks/${id}`);
       return id;
     },
-    onSuccess: async (id) => {
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: TASKS_KEY });
+      const previousQueries = qc.getQueriesData({ queryKey: TASKS_KEY });
+
+      qc.setQueriesData({ queryKey: TASKS_KEY }, (oldData) => {
+        if (!Array.isArray(oldData)) return oldData;
+        return oldData.filter((t) => t.id !== id);
+      });
+
+      return { previousQueries };
+    },
+    onError: (err, id, context) => {
+      if (context?.previousQueries) {
+        context.previousQueries.forEach(([key, data]) => {
+          qc.setQueryData(key, data);
+        });
+      }
+    },
+    onSettled: async (id) => {
       qc.invalidateQueries({ queryKey: TASKS_KEY });
-      await cancelTaskReminder(id);
+      if (id) await cancelTaskReminder(id);
     },
   });
 }
+

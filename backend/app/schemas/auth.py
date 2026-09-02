@@ -18,10 +18,11 @@ class UserOut(UserBase):
     id: uuid.UUID
     avatar_url: Optional[str] = None
     is_active: bool
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+
 
 class Token(BaseModel):
     access_token: str

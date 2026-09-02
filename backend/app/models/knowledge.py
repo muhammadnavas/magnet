@@ -43,8 +43,8 @@ class KnowledgeItem(Base):
     source_url: Mapped[str] = mapped_column(String(2048), nullable=True)
     file_path: Mapped[str] = mapped_column(String(1024), nullable=True)
     
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), onupdate=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     # Relationships
     user = relationship("User", back_populates="knowledge_items")
@@ -64,7 +64,7 @@ class KnowledgeChunk(Base):
     embedding = mapped_column(Vector(1536), nullable=True)
     token_count: Mapped[int] = mapped_column(Integer, default=0)
     
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     # Relationships
     item = relationship("KnowledgeItem", back_populates="chunks")
@@ -86,4 +86,4 @@ class Relationship(Base):
     relationship_type: Mapped[str] = mapped_column(String(50), nullable=False) # uses, discusses, occurred_in, related_to
     meta: Mapped[dict] = mapped_column(JSON, default=dict, nullable=True)
     
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))

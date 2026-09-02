@@ -18,7 +18,7 @@ from app.utils.ai import get_embedding, analyze_document
 logger = logging.getLogger(__name__)
 
 def extract_pdf_text(filepath: str) -> str:
-    """Extract text pages from PDF using pdfplumber."""
+    """Extract text pages from PDF using pdfplumber with fallback for plain text."""
     text = ""
     try:
         with pdfplumber.open(filepath) as pdf:
@@ -28,7 +28,13 @@ def extract_pdf_text(filepath: str) -> str:
                     text += page_text + "\n"
     except Exception as e:
         logger.error(f"Error parsing PDF file at {filepath}: {e}")
+        try:
+            with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+                text = f.read()
+        except Exception as ex:
+            logger.error(f"Fallback plain text read failed: {ex}")
     return text
+
 
 async def extract_url_content(url: str) -> str:
     """Fetch URL response and strip HTML tags to retrieve raw body text."""

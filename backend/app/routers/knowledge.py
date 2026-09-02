@@ -1,6 +1,7 @@
 import os
 import uuid
 import logging
+import asyncio
 from typing import List, Optional
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status
 from sqlalchemy.future import select
@@ -17,6 +18,8 @@ from app.models.project import Project
 from app.models.conversation import ProcessingJob
 from app.schemas.knowledge import KnowledgeItemOut
 from app.config import settings
+from app.workers.tasks import process_document
+
 
 logger = logging.getLogger(__name__)
 
@@ -64,12 +67,13 @@ async def list_knowledge(
 
 @router.post("/upload", response_model=KnowledgeItemOut, status_code=status.HTTP_201_CREATED)
 async def upload_knowledge(
-    title: str = Form(...),
-    content_type: str = Form(...),
+    title: str = Form("Untitled Item"),
+    content_type: str = Form("note"),
     raw_content: Optional[str] = Form(None),
     project: Optional[str] = Form(None),
     tags: Optional[str] = Form(None), # Comma separated
     file: Optional[UploadFile] = File(None),
+
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -95,8 +99,11 @@ async def upload_knowledge(
         content_type=content_type.lower(),
         raw_content=raw_content,
         file_path=file_path,
-        processing_status="pending"
+        processing_status="pending",
+        projects=[],
+        tags=[]
     )
+
     db.add(new_item)
     await db.flush() # Populate ID
 
@@ -137,25 +144,24 @@ async def upload_knowledge(
     db.add(job)
     await db.commit()
 
-    # Trigger background worker task
+    target_id = new_item.id
+
+    # Trigger background worker task (Redis Queue or Inline Async Fallback)
     try:
         pool = await create_pool(RedisSettings.from_dsn(settings.REDIS_URL))
-        await pool.enqueue_job("process_document", str(new_item.id))
+        await pool.enqueue_job("process_document", str(target_id))
     except Exception as e:
-        logger.error(f"Failed to queue arq worker job: {e}")
-        # Mark processing job failed if broker is down
-        job.status = "failed"
-        job.error_message = f"Queue broker down: {str(e)}"
-        new_item.processing_status = "failed"
-        await db.commit()
+        logger.warning(f"Redis worker queue offline ({e}). Running background process_document task inline...")
+        asyncio.create_task(process_document(None, str(target_id)))
 
     # Retrieve fully populated response
     res = await db.execute(
         select(KnowledgeItem)
-        .where(KnowledgeItem.id == new_item.id)
+        .where(KnowledgeItem.id == target_id)
         .options(selectinload(KnowledgeItem.tags), selectinload(KnowledgeItem.projects))
     )
     return res.scalars().first()
+
 
 @router.get("/{id}", response_model=KnowledgeItemOut)
 async def get_knowledge_item(

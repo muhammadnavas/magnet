@@ -36,8 +36,9 @@ export const KnowledgeCard = ({ item }) => {
           </View>
           <Text style={{ color: themeColors.text.muted }} className="text-[10px] font-bold uppercase tracking-widest">{contentType}</Text>
         </View>
-        {processingStatus !== "completed" && <Badge status={processingStatus} />}
+        <Badge status={processingStatus === "completed" ? "completed" : processingStatus} />
       </View>
+
 
       <Text style={{ color: themeColors.text.primary }} className="text-base font-bold mb-1.5 leading-snug">{title}</Text>
       <Text numberOfLines={2} style={{ color: themeColors.text.secondary }} className="text-xs leading-relaxed mb-3">{summary}</Text>

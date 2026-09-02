@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { Platform } from "react-native";
 import api from "../lib/api";
 
 const normalizeItem = (item) => {
@@ -82,7 +83,7 @@ export const useKnowledgeStore = create((set, get) => ({
     
     // Construct FormData for multipart upload
     const formData = new FormData();
-    formData.append("title", item.title);
+    formData.append("title", item.title || "Untitled Item");
     formData.append("content_type", item.contentType || "note");
     
     if (item.rawContent) formData.append("raw_content", item.rawContent);
@@ -94,13 +95,27 @@ export const useKnowledgeStore = create((set, get) => ({
     }
     
     if (item.file) {
-      // Handles React Native/Expo file structure
-      formData.append("file", {
-        uri: item.file.uri,
-        name: item.file.name || "upload.pdf",
-        type: item.file.type || item.file.mimeType || "application/pdf"
-      });
+      if (Platform.OS === "web") {
+        if (typeof File !== "undefined" && item.file.file instanceof File) {
+          formData.append("file", item.file.file, item.file.name || "upload.pdf");
+        } else if (item.file.uri) {
+          try {
+            const resp = await fetch(item.file.uri);
+            const blob = await resp.blob();
+            formData.append("file", blob, item.file.name || "upload.pdf");
+          } catch (e) {
+            console.error("Failed to convert web uri to blob:", e);
+          }
+        }
+      } else {
+        formData.append("file", {
+          uri: item.file.uri,
+          name: item.file.name || "upload.pdf",
+          type: item.file.type || item.file.mimeType || "application/pdf"
+        });
+      }
     }
+
 
     if (!isOnline) {
       // Save offline and serialize content properties

@@ -33,11 +33,16 @@ export default function CaptureScreen() {
     return "note";
   };
 
+  useEffect(() => {
+    store.fetchItems();
+  }, []);
+
+
   const handlePdfUpload = async () => {
     try {
       const res = await DocumentPicker.getDocumentAsync({ type: "application/pdf" });
       if (!res.canceled && res.assets?.length > 0) {
-        triggerIngestionFlow(res.assets[0].name, "pdf", `Extracted content from PDF: ${res.assets[0].name}`);
+        triggerIngestionFlow(res.assets[0].name, "pdf", `Extracted content from PDF: ${res.assets[0].name}`, res.assets[0]);
       }
     } catch (err) { console.error(err); }
   };
@@ -49,41 +54,53 @@ export default function CaptureScreen() {
       const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 1 });
       if (!res.canceled && res.assets?.length > 0) {
         const filename = res.assets[0].uri.split("/").pop();
-        triggerIngestionFlow(filename || "screenshot.png", "image", "OCR extracted from uploaded image.");
+        triggerIngestionFlow(filename || "screenshot.png", "image", "OCR extracted from uploaded image.", res.assets[0]);
       }
     } catch (err) { console.error(err); }
   };
 
-  const triggerIngestionFlow = (title, type, rawContent) => {
-    setProcessingState({ progress: 15, message: "Uploading..." });
-    let progress = 15;
-    const iv = setInterval(() => {
-      progress += 25;
-      const messages = ["Parsing text...", "AI classification...", "Generating embeddings..."];
-      if (progress >= 100) {
-        clearInterval(iv);
-        setProcessingState(null);
-        const item = { title, contentType: type, summary: `Captured ${type} item.`, tags: ["imported", type], project: "Personal Projects", rawContent };
-        store.addKnowledgeItem(item);
-        setRecentSaved(prev => [item, ...prev]);
-        Alert.alert("Saved!", `"${title}" was cataloged.`);
-      } else {
-        setProcessingState({ progress, message: messages[Math.floor(progress / 30)] || "Processing..." });
-      }
-    }, 400);
+  const triggerIngestionFlow = async (title, type, rawContent, fileAsset = null) => {
+    setProcessingState({ progress: 20, message: "Uploading document to server..." });
+    try {
+      const item = {
+        title,
+        contentType: type,
+        summary: `Captured ${type} item.`,
+        tags: ["imported", type],
+        project: "Personal Projects",
+        rawContent,
+        file: fileAsset ? {
+          uri: fileAsset.uri,
+          name: fileAsset.name || title,
+          type: fileAsset.mimeType || "application/pdf"
+        } : null
+      };
+
+      setProcessingState({ progress: 65, message: "Extracting text & generating vector embeddings..." });
+      await store.addKnowledgeItem(item);
+      setRecentSaved(prev => [item, ...prev]);
+      setProcessingState({ progress: 100, message: "Completed!" });
+      setTimeout(() => setProcessingState(null), 400);
+      Alert.alert("Cataloged!", `"${title}" has been saved, vectorized, and is ready for AI Q&A.`);
+    } catch (e) {
+      console.error("Ingestion failed:", e);
+      setProcessingState(null);
+      Alert.alert("Upload Error", "Could not complete document ingestion.");
+    }
   };
 
-  const handleCapture = () => {
+  const handleCapture = async () => {
     if (!inputText.trim()) return;
     const raw = inputText.trim();
     const type = detectContentType(raw);
     const firstLine = raw.split("\n")[0].replace(/^[#*-\s]+/, "");
     const title = firstLine.slice(0, 50) + (firstLine.length > 50 ? "..." : "");
     const item = { title, contentType: type, summary: raw.slice(0, 120) + (raw.length > 120 ? "..." : ""), tags: ["quick-capture", type], project: "Personal Projects", rawContent: raw };
-    store.addKnowledgeItem(item);
+    await store.addKnowledgeItem(item);
     setRecentSaved(prev => [item, ...prev]);
     setInputText("");
   };
+
 
   if (processingState) {
     return (
