@@ -78,6 +78,7 @@ async def upload_knowledge(
     db: AsyncSession = Depends(get_db)
 ):
     file_path = None
+    gdrive_meta = {}
     if file:
         try:
             os.makedirs("uploads", exist_ok=True)
@@ -86,6 +87,18 @@ async def upload_knowledge(
             with open(file_path, "wb") as f:
                 content = await file.read()
                 f.write(content)
+                
+            # Upload to Google Drive
+            from app.services.gdrive import upload_file_to_gdrive
+            gdrive_res = upload_file_to_gdrive(file_path, file.filename, file.content_type)
+            if "error" not in gdrive_res:
+                gdrive_meta = {
+                    "gdrive_file_id": gdrive_res.get("id"),
+                    "gdrive_web_view_link": gdrive_res.get("webViewLink")
+                }
+            else:
+                logger.error(f"GDrive upload failed: {gdrive_res.get('error')}")
+
         except Exception as e:
             logger.error(f"Failed to save file: {e}")
             raise HTTPException(
@@ -100,12 +113,14 @@ async def upload_knowledge(
         raw_content=raw_content,
         file_path=file_path,
         processing_status="pending",
+        meta=gdrive_meta,
         projects=[],
         tags=[]
     )
 
     db.add(new_item)
     await db.flush() # Populate ID
+
 
     # Associate Project if specified
     if project and project.strip():

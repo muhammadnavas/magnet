@@ -1,12 +1,19 @@
-import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import useChatStore from "../store/chatStore";
 import api from "../lib/api";
 
 export const useChat = () => {
   const queryClient = useQueryClient();
-  const [currentConversationId, setCurrentConversationId] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [isTyping, setIsTyping] = useState(false);
+  const { 
+    messages, 
+    setMessages, 
+    addMessage, 
+    currentConversationId, 
+    setCurrentConversationId, 
+    isTyping, 
+    setIsTyping, 
+    clearChat 
+  } = useChatStore();
 
   // Fetch list of all conversations
   const fetchConversations = useQuery({
@@ -46,7 +53,7 @@ export const useChat = () => {
         content: text,
         created_at: new Date().toISOString()
       };
-      setMessages((prev) => [...prev, userMessage]);
+      addMessage(userMessage);
       setIsTyping(true);
 
       // 2. Call backend chat API
@@ -61,7 +68,7 @@ export const useChat = () => {
     onSuccess: (data) => {
       setIsTyping(false);
       // Append real assistant response from server
-      setMessages((prev) => [...prev, data]);
+      addMessage(data);
       // Save current conversation ID
       if (data.conversation_id) {
         setCurrentConversationId(data.conversation_id);
@@ -73,22 +80,14 @@ export const useChat = () => {
       setIsTyping(false);
       console.error("Send message error:", err);
       // Append mock/error message so UI doesn't hang
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Math.random().toString(),
-          role: "assistant",
-          content: "System Alert: I could not contact the Orio API service. Please verify your connection status.",
-          sources: []
-        }
-      ]);
+      addMessage({
+        id: Math.random().toString(),
+        role: "assistant",
+        content: "System Alert: I could not contact the Orio API service. Please verify your connection status.",
+        sources: []
+      });
     }
   });
-
-  const clearChat = () => {
-    setMessages([]);
-    setCurrentConversationId(null);
-  };
 
   return {
     messages,

@@ -29,20 +29,26 @@ const normalizeItem = (item) => {
 };
 
 export const useSearch = (initialQuery = "") => {
-  const [searchQuery, setSearchQuery] = useState(initialQuery);
-  const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
   const store = useKnowledgeStore();
+  
+  // Set initial query if one is provided and store is empty
+  useEffect(() => {
+    if (initialQuery && store.searchQuery === "") {
+      store.setSearchQuery(initialQuery);
+    }
+  }, []);
+
+  const [debouncedQuery, setDebouncedQuery] = useState(store.searchQuery);
 
   useEffect(() => {
     const handler = setTimeout(() => {
-      setDebouncedQuery(searchQuery);
-      store.setSearchQuery(searchQuery);
+      setDebouncedQuery(store.searchQuery);
     }, 300);
 
     return () => {
       clearTimeout(handler);
     };
-  }, [searchQuery]);
+  }, [store.searchQuery]);
 
   const searchQueryResults = useQuery({
     queryKey: ["search", "results", debouncedQuery],
@@ -61,8 +67,8 @@ export const useSearch = (initialQuery = "") => {
   });
 
   return {
-    searchQuery,
-    setSearchQuery,
+    searchQuery: store.searchQuery,
+    setSearchQuery: store.setSearchQuery,
     results: searchQueryResults.data || [],
     isLoading: searchQueryResults.isLoading,
     isError: searchQueryResults.isError,

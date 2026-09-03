@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     
     OLLAMA_API_URL: str = "http://localhost:11434"
     OLLAMA_MODEL: str = "llama3.1"
+    
+    # Google Drive Integration
+    GOOGLE_APPLICATION_CREDENTIALS: str = ""
+    GDRIVE_UPLOAD_FOLDER_ID: str = ""
 
     model_config = ConfigDict(
         env_file=".env",

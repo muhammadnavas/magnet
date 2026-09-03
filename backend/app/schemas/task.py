@@ -31,3 +31,13 @@ class TaskOut(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+class TaskParseRequest(BaseModel):
+    raw_text: str
+    current_time: str
+
+class TaskParseResponse(BaseModel):
+    title: str
+    priority: str
+    deadline: Optional[datetime] = None
+    reminder_interval_hours: int

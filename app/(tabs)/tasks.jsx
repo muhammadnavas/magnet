@@ -5,70 +5,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useGetTasks, useCreateTask } from "../../hooks/useTasks";
+import { useGetTasks, useCreateTask, useParseTask } from "../../hooks/useTasks";
 import { useAppTheme } from "../../store/themeStore";
 import { requestNotificationPermissions } from "../../lib/notifications";
 import TaskCard from "../../components/tasks/TaskCard";
 
-// ──────────────────────────────────────────────────────────────
-// Natural language parser — runs on-device, no API call needed
-// ──────────────────────────────────────────────────────────────
-function parseTask(text) {
-  const lower = text.toLowerCase();
-
-  // Priority detection
-  let priority = "medium";
-  if (/urgent|asap|critical|high priority|important/.test(lower)) priority = "high";
-  else if (/low priority|whenever|not urgent|eventually/.test(lower)) priority = "low";
-
-  // Deadline detection — weekday names
-  let deadline = null;
-  const DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-  const today = new Date();
-  for (let i = 0; i < DAYS.length; i++) {
-    if (lower.includes(DAYS[i])) {
-      const diff = (i - today.getDay() + 7) % 7 || 7;
-      deadline = new Date(today);
-      deadline.setDate(today.getDate() + diff);
-      deadline.setHours(23, 59, 0, 0);
-      break;
-    }
-  }
-
-  // "tomorrow"
-  if (!deadline && lower.includes("tomorrow")) {
-    deadline = new Date(today);
-    deadline.setDate(today.getDate() + 1);
-    deadline.setHours(23, 59, 0, 0);
-  }
-
-  // "today"
-  if (!deadline && lower.includes("today")) {
-    deadline = new Date(today);
-    deadline.setHours(23, 59, 0, 0);
-  }
-
-  // "in X days"
-  const inDays = lower.match(/in (\d+) days?/);
-  if (!deadline && inDays) {
-    deadline = new Date(today);
-    deadline.setDate(today.getDate() + parseInt(inDays[1]));
-    deadline.setHours(23, 59, 0, 0);
-  }
-
-  // Clean up title — remove common deadline/priority phrases
-  let title = text
-    .replace(/by (monday|tuesday|wednesday|thursday|friday|saturday|sunday)/gi, "")
-    .replace(/by tomorrow|by today/gi, "")
-    .replace(/in \d+ days?/gi, "")
-    .replace(/urgent|asap|high priority|low priority|not urgent/gi, "")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  if (!title) title = text.trim(); // fallback
-
-  return { title, priority, deadline };
-}
 
 // ──────────────────────────────────────────────────────────────
 const FILTERS = [
@@ -85,18 +26,31 @@ export default function TasksScreen() {
 
   const { data: tasks = [], isLoading } = useGetTasks(filter);
   const createTask = useCreateTask();
+  const parseTask = useParseTask();
 
   useEffect(() => {
     requestNotificationPermissions();
   }, []);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const trimmed = input.trim();
     if (!trimmed) return;
-    const { title, priority, deadline } = parseTask(trimmed);
-    createTask.mutate({ title, priority, deadline, reminder_interval_hours: 24 });
-    setInput("");
-    inputRef.current?.blur();
+    
+    try {
+      // 1. AI Parse
+      const parsedData = await parseTask.mutateAsync(trimmed);
+      // 2. Create Task
+      createTask.mutate(parsedData);
+      
+      setInput("");
+      inputRef.current?.blur();
+    } catch (error) {
+      console.error("Failed to parse task via AI:", error);
+      // Fallback if AI fails completely
+      createTask.mutate({ title: trimmed, priority: "medium", deadline: null, reminder_interval_hours: 24 });
+      setInput("");
+      inputRef.current?.blur();
+    }
   };
 
   const completedCount = tasks.filter((t) => t.status === "completed").length;
@@ -228,14 +182,14 @@ export default function TasksScreen() {
             />
             <TouchableOpacity
               onPress={handleSend}
-              disabled={!input.trim() || createTask.isPending}
+              disabled={!input.trim() || createTask.isPending || parseTask.isPending}
               style={{
                 width: 36, height: 36, borderRadius: 18, marginLeft: 8,
                 backgroundColor: input.trim() ? themeColors.primary : themeColors.border,
                 alignItems: "center", justifyContent: "center",
               }}
             >
-              {createTask.isPending
+              {createTask.isPending || parseTask.isPending
                 ? <ActivityIndicator size="small" color="#FFF" />
                 : <Ionicons name="arrow-up" size={18} color="#FFF" />
               }

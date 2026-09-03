@@ -1,5 +1,5 @@
-import React from "react";
-import { View, Text, ScrollView, Pressable, SafeAreaView } from "react-native";
+import React, { useState } from "react";
+import { View, Text, ScrollView, Pressable, SafeAreaView, Platform, Modal } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import colors from "../../constants/colors";
@@ -9,11 +9,15 @@ import Tag from "../../components/ui/Tag";
 import LoadingState from "../../components/ui/LoadingState";
 import useKnowledge from "../../hooks/useKnowledge";
 import { formatDate } from "../../utils/formatting";
+import { useAppTheme } from "../../store/themeStore";
 
 export default function KnowledgeDetailScreen() {
   const { id } = useLocalSearchParams();
-  const { useGetItemDetail, toggleFavorite } = useKnowledge();
+  const { useGetItemDetail, toggleFavorite, deleteItem } = useKnowledge();
   const { data: item, isLoading, error } = useGetItemDetail(id);
+  const { themeColors } = useAppTheme();
+  
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   if (isLoading) {
     return <LoadingState message="Fetching item details..." fullScreen />;
@@ -21,8 +25,8 @@ export default function KnowledgeDetailScreen() {
 
   if (error || !item) {
     return (
-      <SafeAreaView className="flex-1 bg-background justify-center p-6">
-        <Text className="text-white text-center text-base font-bold mb-4">
+      <SafeAreaView style={{ backgroundColor: themeColors.background }} className="flex-1 justify-center p-6">
+        <Text style={{ color: themeColors.text.primary }} className="text-center text-base font-bold mb-4">
           Error Loading Item
         </Text>
         <Button onPress={() => router.back()}>Go Back</Button>
@@ -34,6 +38,10 @@ export default function KnowledgeDetailScreen() {
 
   const handleFavoriteToggle = () => {
     toggleFavorite(id);
+  };
+
+  const handleDelete = () => {
+    deleteItem(id, { onSuccess: () => router.back() });
   };
 
   const getHeaderIcon = () => {
@@ -49,42 +57,79 @@ export default function KnowledgeDetailScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <SafeAreaView style={{ backgroundColor: themeColors.background }} className="flex-1">
+      
+      {/* Delete Confirmation Modal */}
+      <Modal visible={showDeleteConfirm} transparent animationType="fade">
+        <View style={{ backgroundColor: "rgba(0,0,0,0.5)" }} className="flex-1 justify-center items-center px-6">
+          <View style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }} className="w-full max-w-sm rounded-3xl p-6 border shadow-xl">
+            <View style={{ backgroundColor: `${themeColors.error || "#EF4444"}15` }} className="w-14 h-14 rounded-full items-center justify-center self-center mb-4">
+              <Ionicons name="warning" size={28} color={themeColors.error || "#EF4444"} />
+            </View>
+            <Text style={{ color: themeColors.text.primary }} className="text-xl font-black text-center mb-2">Delete Item?</Text>
+            <Text style={{ color: themeColors.text.secondary }} className="text-sm text-center mb-6 leading-relaxed">
+              Are you sure you want to permanently delete this item? This action cannot be undone.
+            </Text>
+            <View className="flex-row gap-3">
+              <Pressable
+                onPress={() => setShowDeleteConfirm(false)}
+                style={{ backgroundColor: themeColors.surfaceHover }}
+                className="flex-1 py-3.5 rounded-2xl items-center"
+              >
+                <Text style={{ color: themeColors.text.primary }} className="font-bold">Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleDelete}
+                style={{ backgroundColor: themeColors.error || "#EF4444" }}
+                className="flex-1 py-3.5 rounded-2xl items-center"
+              >
+                <Text className="font-bold text-white">Delete</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Detail Header */}
-      <View className="flex-row items-center justify-between px-5 py-4 border-b border-border/40 bg-surface">
+      <View style={{ backgroundColor: themeColors.surface, borderBottomColor: themeColors.border }} className="flex-row items-center justify-between px-5 py-4 border-b">
         <Pressable onPress={() => router.back()} className="p-1">
-          <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+          <Ionicons name="arrow-back" size={20} color={themeColors.text.primary} />
         </Pressable>
-        <Text className="text-white text-sm font-bold uppercase tracking-wider">
+        <Text style={{ color: themeColors.text.primary }} className="text-sm font-bold uppercase tracking-wider">
           {contentType} detail
         </Text>
-        <Pressable onPress={handleFavoriteToggle} className="p-1">
-          <Ionicons
-            name={isFavorite ? "star" : "star-outline"}
-            size={20}
-            color={isFavorite ? colors.warning : "#FFFFFF"}
-          />
-        </Pressable>
+        <View className="flex-row items-center">
+          <Pressable onPress={() => setShowDeleteConfirm(true)} className="p-1 mr-3">
+            <Ionicons name="trash-outline" size={20} color={themeColors.error || "#EF4444"} />
+          </Pressable>
+          <Pressable onPress={handleFavoriteToggle} className="p-1">
+            <Ionicons
+              name={isFavorite ? "star" : "star-outline"}
+              size={20}
+              color={isFavorite ? themeColors.warning : themeColors.text.primary}
+            />
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView className="flex-1 px-5 pt-4" showsVerticalScrollIndicator={false}>
         {/* Core Title Info */}
         <View className="mb-5">
           <View className="flex-row items-center mb-2">
-            <Ionicons name={getHeaderIcon()} size={16} color={colors.primaryLight} className="mr-2" />
-            <Text className="text-text-muted text-[10px] font-bold uppercase tracking-widest">
+            <Ionicons name={getHeaderIcon()} size={16} color={themeColors.primaryLight} className="mr-2" />
+            <Text style={{ color: themeColors.text.muted }} className="text-[10px] font-bold uppercase tracking-widest">
               Created {formatDate(createdAt)}
             </Text>
           </View>
-          <Text className="text-white text-xl font-black mb-3 leading-snug">
+          <Text style={{ color: themeColors.text.primary }} className="text-xl font-black mb-3 leading-snug">
             {title}
           </Text>
 
           {/* Project & Tag Badges */}
           <View className="flex-row flex-wrap gap-1.5 items-center">
-            <View className="bg-primary/10 border border-primary/20 px-3 py-1 rounded-full flex-row items-center mr-1.5">
-              <Ionicons name="folder-outline" size={10} color={colors.primaryLight} className="mr-1" />
-              <Text className="text-primary-light text-[9px] font-bold uppercase tracking-wider">{project}</Text>
+            <View style={{ backgroundColor: `${themeColors.primary}18`, borderColor: `${themeColors.primary}30` }} className="border px-3 py-1 rounded-full flex-row items-center mr-1.5">
+              <Ionicons name="folder-outline" size={10} color={themeColors.primaryLight} className="mr-1" />
+              <Text style={{ color: themeColors.primaryLight }} className="text-[9px] font-bold uppercase tracking-wider">{project}</Text>
             </View>
             {tags.map((tag) => (
               <Tag key={tag} text={tag} />
@@ -93,11 +138,11 @@ export default function KnowledgeDetailScreen() {
         </View>
 
         {/* AI Summary Section */}
-        <Text className="text-white text-xs font-bold uppercase tracking-widest mb-2.5">
+        <Text style={{ color: themeColors.text.primary }} className="text-xs font-bold uppercase tracking-widest mb-2.5">
           AI Summary
         </Text>
-        <Card className="p-4 mb-5 border-l-4 border-l-primary bg-primary/5">
-          <Text className="text-text-secondary text-xs leading-relaxed font-medium">
+        <Card style={{ backgroundColor: `${themeColors.primary}10`, borderLeftColor: themeColors.primary, borderLeftWidth: 4 }} className="p-4 mb-5">
+          <Text style={{ color: themeColors.text.secondary }} className="text-xs leading-relaxed font-medium">
             {summary}
           </Text>
         </Card>
@@ -105,14 +150,14 @@ export default function KnowledgeDetailScreen() {
         {/* Key Points Checklist */}
         {keyPoints && keyPoints.length > 0 && (
           <View className="mb-5">
-            <Text className="text-white text-xs font-bold uppercase tracking-widest mb-2.5">
+            <Text style={{ color: themeColors.text.primary }} className="text-xs font-bold uppercase tracking-widest mb-2.5">
               Key Insights
             </Text>
             <Card className="p-4">
               {keyPoints.map((point, index) => (
                 <View key={index} className="flex-row items-start mb-2.5 last:mb-0">
-                  <Ionicons name="checkmark-circle-outline" size={14} color={colors.success} className="mr-2.5 mt-0.5" />
-                  <Text className="text-text-secondary text-xs flex-1 leading-normal font-medium">
+                  <Ionicons name="checkmark-circle-outline" size={14} color={themeColors.success} className="mr-2.5 mt-0.5" />
+                  <Text style={{ color: themeColors.text.secondary }} className="text-xs flex-1 leading-normal font-medium">
                     {point}
                   </Text>
                 </View>
@@ -124,14 +169,14 @@ export default function KnowledgeDetailScreen() {
         {/* Technologies / Entities Extracted */}
         {technologies && technologies.length > 0 && (
           <View className="mb-5">
-            <Text className="text-white text-xs font-bold uppercase tracking-widest mb-2.5">
+            <Text style={{ color: themeColors.text.primary }} className="text-xs font-bold uppercase tracking-widest mb-2.5">
               Identified Tech Stack
             </Text>
             <View className="flex-row flex-wrap gap-2">
               {technologies.map((tech) => (
-                <View key={tech} className="bg-surface border border-border px-3 py-1.5 rounded-xl items-center flex-row">
-                  <Ionicons name="hardware-chip-outline" size={12} color={colors.accent} className="mr-1.5" />
-                  <Text className="text-white text-[10px] font-bold">{tech}</Text>
+                <View key={tech} style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }} className="border px-3 py-1.5 rounded-xl items-center flex-row">
+                  <Ionicons name="hardware-chip-outline" size={12} color={themeColors.accent} className="mr-1.5" />
+                  <Text style={{ color: themeColors.text.primary }} className="text-[10px] font-bold">{tech}</Text>
                 </View>
               ))}
             </View>
@@ -139,14 +184,14 @@ export default function KnowledgeDetailScreen() {
         )}
 
         {/* Original Content block */}
-        <Text className="text-white text-xs font-bold uppercase tracking-widest mb-2.5">
+        <Text style={{ color: themeColors.text.primary }} className="text-xs font-bold uppercase tracking-widest mb-2.5">
           Original Payload
         </Text>
-        <Card className="p-4 bg-surface-hover mb-5">
+        <Card style={{ backgroundColor: themeColors.surfaceHover }} className="p-4 mb-5">
           <Text
             selectable
-            className="text-text-secondary text-xs leading-relaxed font-mono"
-            style={{ fontFamily: Platform.OS === "ios" ? "CourierNewPSMT" : "monospace" }}
+            style={{ color: themeColors.text.secondary, fontFamily: Platform.OS === "ios" ? "CourierNewPSMT" : "monospace" }}
+            className="text-xs leading-relaxed font-mono"
           >
             {rawContent}
           </Text>
@@ -155,7 +200,7 @@ export default function KnowledgeDetailScreen() {
         {/* Related Knowledge links */}
         {relatedItems && relatedItems.length > 0 && (
           <View className="mb-10">
-            <Text className="text-white text-xs font-bold uppercase tracking-widest mb-2.5">
+            <Text style={{ color: themeColors.text.primary }} className="text-xs font-bold uppercase tracking-widest mb-2.5">
               Related Connections
             </Text>
             {relatedItems.map((rel) => (
@@ -164,10 +209,10 @@ export default function KnowledgeDetailScreen() {
                 onPress={() => router.push(`/knowledge/${rel.id}`)}
                 className="mb-2"
               >
-                <Card className="p-3 flex-row items-center justify-between border-dashed border border-border/80">
+                <Card style={{ borderStyle: 'dashed' }} className="p-3 flex-row items-center justify-between border">
                   <View className="flex-row items-center">
-                    <Ionicons name="link-outline" size={14} color={colors.primaryLight} className="mr-2" />
-                    <Text className="text-white text-xs font-bold">{rel.title}</Text>
+                    <Ionicons name="link-outline" size={14} color={themeColors.primaryLight} className="mr-2" />
+                    <Text style={{ color: themeColors.text.primary }} className="text-xs font-bold">{rel.title}</Text>
                   </View>
                   <Tag text={rel.type} />
                 </Card>
@@ -179,4 +224,3 @@ export default function KnowledgeDetailScreen() {
     </SafeAreaView>
   );
 }
-import { Platform } from "react-native";

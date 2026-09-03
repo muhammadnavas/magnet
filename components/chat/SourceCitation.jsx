@@ -2,10 +2,11 @@ import React from "react";
 import { Pressable, Text } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import colors from "../../constants/colors";
+import { useAppTheme } from "../../store/themeStore";
 
 export const SourceCitation = ({ source }) => {
   const { id, title, type } = source;
+  const { themeColors } = useAppTheme();
 
   const handlePress = () => {
     if (id) {
@@ -33,12 +34,13 @@ export const SourceCitation = ({ source }) => {
     <Pressable
       onPress={handlePress}
       style={({ pressed }) => [
+        { backgroundColor: themeColors.surfaceHover, borderColor: themeColors.border, borderWidth: 1 },
         pressed ? { opacity: 0.8 } : {}
       ]}
-      className="flex-row items-center bg-surface-hover border border-border px-2.5 py-1.5 rounded-lg mr-1.5 mb-1"
+      className="flex-row items-center px-2.5 py-1.5 rounded-lg mr-1.5 mb-1"
     >
-      <Ionicons name={getSourceIcon()} size={12} color={colors.primaryLight} className="mr-1.5" />
-      <Text className="text-[10px] font-semibold text-text-primary max-w-[120px]" numberOfLines={1}>
+      <Ionicons name={getSourceIcon()} size={12} color={themeColors.primaryLight} className="mr-1.5" />
+      <Text style={{ color: themeColors.text.primary }} className="text-[10px] font-semibold max-w-[120px]" numberOfLines={1}>
         {title}
       </Text>
     </Pressable>

@@ -113,3 +113,14 @@ export function useDeleteTask() {
   });
 }
 
+// ─── Parse task using AI ─────────────────────────────────────────────────────
+export function useParseTask() {
+  return useMutation({
+    mutationFn: async (raw_text) => {
+      const current_time = new Date().toISOString();
+      const res = await api.post("/tasks/parse", { raw_text, current_time });
+      return res.data; // { title, priority, deadline, reminder_interval_hours }
+    }
+  });
+}
+

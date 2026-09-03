@@ -108,6 +108,17 @@ export const useKnowledge = () => {
     },
   });
 
+  // Delete mutation
+  const deleteItemMutation = useMutation({
+    mutationFn: async (id) => {
+      await store.deleteItem(id);
+      return { success: true };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["knowledge"] });
+    },
+  });
+
   return {
     useGetItems,
     useGetItemDetail,
@@ -115,6 +126,7 @@ export const useKnowledge = () => {
     isAdding: addItemMutation.isPending,
     toggleFavorite: toggleFavoriteMutation.mutate,
     archiveItem: archiveItemMutation.mutate,
+    deleteItem: deleteItemMutation.mutate,
     items: store.items,
     projects: store.projects,
     tags: store.tags,

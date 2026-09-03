@@ -10,10 +10,37 @@ from app.database import get_db
 from app.routers.auth import get_current_user
 from app.models.user import User
 from app.models.task import Task
-from app.schemas.task import TaskCreate, TaskUpdate, TaskOut
+from app.schemas.task import TaskCreate, TaskUpdate, TaskOut, TaskParseRequest, TaskParseResponse
+from app.utils.ai import parse_task_intent
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
+
+@router.post("/parse", response_model=TaskParseResponse)
+async def parse_task(
+    payload: TaskParseRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Parse a natural language task description into structured data using AI.
+    """
+    result = await parse_task_intent(payload.raw_text, payload.current_time)
+    
+    # Ensure deadline is parsed to datetime if it's a string, or kept None
+    deadline_dt = None
+    if result.get("deadline"):
+        try:
+            deadline_dt = datetime.fromisoformat(result["deadline"].replace("Z", "+00:00"))
+        except Exception:
+            deadline_dt = None
+
+    return TaskParseResponse(
+        title=result.get("title", payload.raw_text),
+        priority=result.get("priority", "medium"),
+        deadline=deadline_dt,
+        reminder_interval_hours=int(result.get("reminder_interval_hours", 24))
+    )
+
 
 
 @router.get("", response_model=List[TaskOut])

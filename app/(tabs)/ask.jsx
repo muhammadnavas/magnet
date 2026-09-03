@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingVi
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import ChatMessage from "../../components/chat/ChatMessage";
+import TypingIndicator from "../../components/chat/TypingIndicator";
 import Card from "../../components/ui/Card";
 import useChat from "../../hooks/useChat";
 import Logo from "../../components/ui/Logo";
@@ -85,13 +86,7 @@ export default function AskScreen() {
             messages.map((msg) => <ChatMessage key={msg.id} message={msg} />)
           )}
 
-          {isTyping && (
-            <View style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }} className="flex-row items-center mb-4 self-start border rounded-2xl px-4 py-3 ml-2">
-              <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: themeColors.text.muted, marginRight: 4 }} />
-              <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: themeColors.text.muted, marginRight: 4 }} />
-              <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: themeColors.text.muted }} />
-            </View>
-          )}
+          {isTyping && <TypingIndicator />}
         </ScrollView>
 
         {/* Bottom Input Bar */}
