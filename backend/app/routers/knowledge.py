@@ -88,8 +88,10 @@ async def upload_knowledge(
                 f.write(content)
                 
             # Upload to Google Drive
+            import urllib.parse
+            decoded_filename = urllib.parse.unquote(file.filename)
             from app.services.gdrive import upload_file_to_gdrive
-            gdrive_res = upload_file_to_gdrive(file_path, file.filename, file.content_type)
+            gdrive_res = upload_file_to_gdrive(file_path, decoded_filename, file.content_type)
             if "error" not in gdrive_res:
                 gdrive_meta = {
                     "gdrive_file_id": gdrive_res.get("id"),
