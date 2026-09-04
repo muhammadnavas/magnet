@@ -41,7 +41,7 @@ async def get_embedding(text: str) -> List[float]:
             response = await asyncio.to_thread(
                 genai.embed_content,
                 model=settings.GEMINI_EMBEDDING_MODEL,
-                contents=text,
+                content=text,
                 task_type="retrieval_document"
             )
             emb = response.get("embedding", [])
