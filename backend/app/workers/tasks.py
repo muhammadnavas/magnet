@@ -111,40 +111,35 @@ async def process_document(ctx, knowledge_id: str):
             job.progress = 10
         await db.commit()
 
-        # Step 0: Upload to Google Drive (if not done)
-        if item.file_path and item.meta and "original_filename" in item.meta:
-            try:
-                # Run the upload synchronously in a thread
-                from app.services.gdrive import upload_file_to_gdrive
-                logger.info(f"Uploading {item.file_path} to Google Drive...")
-                gdrive_res = await asyncio.to_thread(
-                    upload_file_to_gdrive, 
-                    item.file_path, 
-                    item.meta.get("original_filename"), 
-                    item.meta.get("mime_type")
-                )
-                if "error" not in gdrive_res:
-                    meta = dict(item.meta)
-                    meta["gdrive_file_id"] = gdrive_res.get("id")
-                    meta["gdrive_web_view_link"] = gdrive_res.get("webViewLink")
-                    item.meta = meta
-                    logger.info("Successfully uploaded to GDrive in background.")
-                else:
-                    logger.error(f"GDrive upload failed in background: {gdrive_res.get('error')}")
-                
-                job.progress = 15
-                await db.commit()
-            except Exception as e:
-                logger.error(f"Failed to upload to Google Drive in background: {e}")
-
         # Step 1: Text extraction
         text = ""
+        temp_file_path = None
         try:
-            if item.content_type == "pdf" and item.file_path:
+            target_path = item.file_path
+            
+            # If local file was deleted but we have GDrive ID, download it
+            if not target_path and item.meta and item.meta.get("gdrive_file_id"):
+                import os
+                import uuid
+                from app.services.gdrive import download_file_from_gdrive
+                os.makedirs("uploads", exist_ok=True)
+                temp_file_path = f"uploads/{uuid.uuid4()}_temp.pdf"
+                logger.info(f"Downloading {item.meta.get('gdrive_file_id')} from GDrive to {temp_file_path} for processing...")
+                success = await asyncio.to_thread(
+                    download_file_from_gdrive, 
+                    item.meta.get("gdrive_file_id"), 
+                    temp_file_path
+                )
+                if success:
+                    target_path = temp_file_path
+                else:
+                    logger.error("Failed to download file from GDrive for processing.")
+
+            if item.content_type == "pdf" and target_path:
                 job.progress = 20
                 await db.commit()
                 # Run CPU heavy extraction in thread pool
-                text = await asyncio.to_thread(extract_pdf_text, item.file_path)
+                text = await asyncio.to_thread(extract_pdf_text, target_path)
             elif item.content_type == "url" and item.source_url:
                 job.progress = 20
                 await db.commit()
@@ -159,6 +154,14 @@ async def process_document(ctx, knowledge_id: str):
             item.extracted_text = text
             job.progress = 40
             await db.commit()
+            
+            # Cleanup temp file
+            if temp_file_path:
+                try:
+                    import os
+                    os.remove(temp_file_path)
+                except OSError:
+                    pass
         except Exception as e:
             logger.error(f"Error during document text extraction: {e}")
             job.status = "failed"

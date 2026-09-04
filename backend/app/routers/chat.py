@@ -94,6 +94,7 @@ async def ask_chat(
         for chunk in chunks:
             context_parts.append(
                 f"Source Document: {chunk.item.title} (Type: {chunk.item.content_type})\n"
+                f"Document Summary: {chunk.item.summary or 'No summary available.'}\n"
                 f"Snippet:\n{chunk.content}"
             )
             if chunk.item.id not in seen_items:

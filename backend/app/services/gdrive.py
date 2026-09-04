@@ -116,3 +116,27 @@ def upload_file_to_gdrive(file_path: str, filename: str, mime_type: Optional[str
     except Exception as e:
         logger.error(f"Error uploading file to Google Drive: {e}")
         return {"error": str(e)}
+
+def download_file_from_gdrive(file_id: str, dest_path: str) -> bool:
+    """
+    Downloads a file from Google Drive by its ID and saves it to dest_path.
+    """
+    import io
+    from googleapiclient.http import MediaIoBaseDownload
+    
+    service = get_gdrive_service()
+    if not service:
+        logger.error("Google Drive service not configured for download.")
+        return False
+        
+    try:
+        request = service.files().get_media(fileId=file_id)
+        with io.FileIO(dest_path, 'wb') as fh:
+            downloader = MediaIoBaseDownload(fh, request)
+            done = False
+            while done is False:
+                status, done = downloader.next_chunk()
+        return True
+    except Exception as e:
+        logger.error(f"Error downloading file {file_id} from Google Drive: {e}")
+        return False
