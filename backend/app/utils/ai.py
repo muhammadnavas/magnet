@@ -1,42 +1,27 @@
 import json
 import logging
 import asyncio
-from typing import List, Dict, Any, Optional
-import httpx
-from openai import AsyncOpenAI
+from typing import List, Dict, Any
 import google.generativeai as genai
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Check mock status
-is_gemini_mock = "mock" in settings.GEMINI_API_KEY.lower() or not settings.GEMINI_API_KEY
-is_openai_mock = "mock" in settings.OPENAI_API_KEY.lower() or not settings.OPENAI_API_KEY
-
 # Configure clients
-if not is_gemini_mock:
+if settings.GEMINI_API_KEY:
     genai.configure(api_key=settings.GEMINI_API_KEY)
     logger.info("Gemini AI API configured successfully.")
 else:
-    logger.warning("GEMINI_API_KEY is mock. Gemini client disabled.")
-
-if not is_openai_mock:
-    openai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-    logger.info("OpenAI API configured successfully.")
-else:
-    openai_client = None
-    logger.warning("OPENAI_API_KEY is mock. OpenAI client disabled.")
+    logger.warning("GEMINI_API_KEY is missing. Gemini client disabled.")
 
 async def get_embedding(text: str) -> List[float]:
     """
-    Generate 1536-dimension vector embedding for the input text.
-    Order of preference: Gemini -> OpenAI -> Ollama -> Hashed Dummy.
+    Generate 1536-dimension vector embedding for the input text using Gemini.
     """
     if not text:
         return [0.0] * 1536
 
-    # 1. Try Gemini
-    if not is_gemini_mock:
+    if settings.GEMINI_API_KEY:
         try:
             response = await asyncio.to_thread(
                 genai.embed_content,
@@ -46,60 +31,23 @@ async def get_embedding(text: str) -> List[float]:
             )
             emb = response.get("embedding", [])
             if emb:
-                # text-embedding-004 is 768 dimensions. We must pad or slice it to match our DB column Vector(1536).
+                # text-embedding-004/embedding-001 is 768 dimensions. We must pad or slice it to match our DB column Vector(1536).
                 if len(emb) < 1536:
                     emb = emb + [0.0] * (1536 - len(emb))
                 else:
                     emb = emb[:1536]
                 return emb
         except Exception as e:
-            logger.error(f"Gemini embedding failed: {e}. Trying OpenAI.")
+            logger.error(f"Gemini embedding failed: {e}")
 
-    # 2. Try OpenAI
-    if openai_client:
-        try:
-            response = await openai_client.embeddings.create(
-                model=settings.EMBEDDING_MODEL,
-                input=text
-            )
-            return response.data[0].embedding
-        except Exception as e:
-            logger.error(f"OpenAI embedding failed: {e}. Trying Ollama.")
-
-    # 3. Try Ollama Fallback
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.post(
-                f"{settings.OLLAMA_API_URL}/api/embeddings",
-                json={"model": settings.OLLAMA_MODEL, "prompt": text}
-            )
-            if response.status_code == 200:
-                emb = response.json().get("embedding", [])
-                if emb:
-                    if len(emb) < 1536:
-                        emb = emb + [0.0] * (1536 - len(emb))
-                    else:
-                        emb = emb[:1536]
-                    return emb
-    except Exception as e:
-        logger.warning(f"Ollama embedding fallback failed: {e}")
-
-    # 4. Simulate Deterministic Fallback Vector
-    import hashlib
-    h = hashlib.sha256(text.encode("utf-8")).digest()
-    dummy_vector = []
-    for i in range(1536):
-        val = ((h[i % 32] + i) % 256) / 256.0 - 0.5
-        dummy_vector.append(val)
-    return dummy_vector
+    logger.warning("Returning empty vector because Gemini failed or is not configured.")
+    return [0.0] * 1536
 
 async def get_completion(system_prompt: str, user_prompt: str) -> str:
     """
-    Generate LLM completion.
-    Order of preference: Gemini -> OpenAI -> Ollama -> Simulated.
+    Generate LLM completion using Gemini exclusively.
     """
-    # 1. Try Gemini
-    if not is_gemini_mock:
+    if settings.GEMINI_API_KEY:
         try:
             # We configure GenerativeModel. Gemini uses system_instruction parameter for the system prompt.
             model = genai.GenerativeModel(
@@ -111,63 +59,9 @@ async def get_completion(system_prompt: str, user_prompt: str) -> str:
             )
             return response.text or ""
         except Exception as e:
-            logger.error(f"Gemini completion failed: {e}. Trying OpenAI.")
+            logger.error(f"Gemini completion failed: {e}")
 
-    # 2. Try OpenAI
-    if openai_client:
-        try:
-            response = await openai_client.chat.completions.create(
-                model=settings.LLM_MODEL,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                temperature=0.3
-            )
-            return response.choices[0].message.content or ""
-        except Exception as e:
-            logger.error(f"OpenAI Chat Completion failed: {e}. Trying Ollama.")
-
-    # 3. Try Ollama Fallback
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                f"{settings.OLLAMA_API_URL}/api/chat",
-                json={
-                    "model": settings.OLLAMA_MODEL,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    "stream": False
-                }
-            )
-            if response.status_code == 200:
-                return response.json().get("message", {}).get("content", "")
-    except Exception as e:
-        logger.warning(f"Ollama Chat Completion fallback failed: {e}")
-
-    # 4. Smart RAG Fallback when AI Key is invalid or offline
-    text_lower = user_prompt.lower()
-    if "Retrieved Context:" in system_prompt:
-        ctx = system_prompt.split("Retrieved Context:")[1].strip()
-        if ctx and ctx != "[No matching knowledge snippets found in Orio]":
-            return (
-                f"Based on your Orio Knowledge Base records:\n\n{ctx}"
-            )
-        else:
-            return (
-                f"I searched your Orio Knowledge Base for **\"{user_prompt}\"**, but didn't find specific matching notes or documents yet.\n\n"
-                "💡 **Tip**: Capture notes or upload PDFs in the **Capture** tab to build your AI knowledge base!"
-            )
-
-    if "docker" in text_lower:
-        return "In your Docker Compose setup, you utilize multi-stage builds. Stage 1 compiles dependencies using a python builder image, and Stage 2 runs Alpine with copied wheels to minimize container footprint."
-    elif "redis" in text_lower:
-        return "Based on your caching parameters, your Redis key eviction uses volatile-lfu with a limit of 512MB to evict expired tokens first."
-    elif "fastapi" in text_lower:
-        return "For database sessions, FastAPI closes sessions asynchronously. The operational Pool Exhaustion was fixed by setting pool_size=20, max_overflow=10."
-    return f"Orio queried your knowledge base for **'{user_prompt}'**. Add a valid `GEMINI_API_KEY` in `backend/.env` for generative AI responses."
+    return "AI is currently unavailable. Please check your Gemini configuration."
 
 
 async def analyze_document(text: str) -> Dict[str, Any]:

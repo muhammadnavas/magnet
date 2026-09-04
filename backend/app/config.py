@@ -13,16 +13,9 @@ class Settings(BaseSettings):
     MONGODB_URL: str = "mongodb+srv://navasns0409:rx4Fvt8un1dCovaz@cluster0.lz452k4.mongodb.net/"
     REDIS_URL: str = "redis://redis:6379/0"
     
-    OPENAI_API_KEY: str = "mock-key-for-phase-1"
-    EMBEDDING_MODEL: str = "text-embedding-3-small"
-    LLM_MODEL: str = "gpt-4o-mini"
-    
-    GEMINI_API_KEY: str = "mock-key-for-phase-1"
+    GEMINI_API_KEY: str = ""
     GEMINI_EMBEDDING_MODEL: str = "models/embedding-001"
     GEMINI_LLM_MODEL: str = "gemini-1.5-flash"
-    
-    OLLAMA_API_URL: str = "http://localhost:11434"
-    OLLAMA_MODEL: str = "llama3.1"
     
     # Google Drive Integration
     GOOGLE_APPLICATION_CREDENTIALS: str = ""
