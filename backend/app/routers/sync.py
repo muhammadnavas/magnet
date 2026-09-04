@@ -3,8 +3,7 @@ from typing import List, Dict, Any
 from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from arq import create_pool
-from arq.connections import RedisSettings
+from fastapi import BackgroundTasks
 
 from app.database import get_db
 from app.routers.auth import get_current_user
@@ -21,6 +20,7 @@ router = APIRouter(prefix="/sync", tags=["Offline Synchronization"])
 @router.post("", status_code=status.HTTP_200_OK)
 async def process_sync_queue(
     queue: List[Dict[str, Any]],
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -29,11 +29,6 @@ async def process_sync_queue(
     Format: [{"operation": "create"|"update"|"delete", "payload": {...}}]
     """
     processed_count = 0
-    pool = None
-    try:
-        pool = await create_pool(RedisSettings.from_dsn(settings.REDIS_URL))
-    except Exception as e:
-        logger.error(f"Sync queue: Redis broker connection failed: {e}")
 
     for idx, item_op in enumerate(queue):
         op = item_op.get("operation")
@@ -92,9 +87,8 @@ async def process_sync_queue(
                 db.add(job)
                 await db.flush()
 
-                # Dispatch worker task
-                if pool:
-                    await pool.enqueue_job("process_document", str(new_item.id))
+                # Dispatch worker task directly in the background
+                background_tasks.add_task(process_document, None, str(new_item.id))
                     
                 processed_count += 1
                 

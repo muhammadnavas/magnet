@@ -3,12 +3,10 @@ import uuid
 import logging
 import asyncio
 from typing import List, Optional
-from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status, BackgroundTasks
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from arq import create_pool
-from arq.connections import RedisSettings
 
 from app.database import get_db
 from app.routers.auth import get_current_user
@@ -73,6 +71,7 @@ async def upload_knowledge(
     project: Optional[str] = Form(None),
     tags: Optional[str] = Form(None), # Comma separated
     file: Optional[UploadFile] = File(None),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
 
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -161,13 +160,8 @@ async def upload_knowledge(
 
     target_id = new_item.id
 
-    # Trigger background worker task (Redis Queue or Inline Async Fallback)
-    try:
-        pool = await create_pool(RedisSettings.from_dsn(settings.REDIS_URL))
-        await pool.enqueue_job("process_document", str(target_id))
-    except Exception as e:
-        logger.warning(f"Redis worker queue offline ({e}). Running background process_document task inline...")
-        asyncio.create_task(process_document(None, str(target_id)))
+    # Trigger background worker task directly in the background
+    background_tasks.add_task(process_document, None, str(target_id))
 
     # Retrieve fully populated response
     res = await db.execute(

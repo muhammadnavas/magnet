@@ -17,25 +17,39 @@ def get_gdrive_service():
     creds = None
     token_path = 'token.json'
     
-    # The file token.json stores the user's access and refresh tokens
-    if os.path.exists(token_path):
+    token_env = os.environ.get("GDRIVE_TOKEN_JSON")
+    if token_env:
+        import json
+        try:
+            token_data = json.loads(token_env)
+            creds = Credentials.from_authorized_user_info(token_data, SCOPES)
+        except Exception as e:
+            logger.error(f"Failed to load credentials from GDRIVE_TOKEN_JSON env var: {e}")
+            
+    # Fallback to local file (for development)
+    if not creds and os.path.exists(token_path):
         try:
             creds = Credentials.from_authorized_user_file(token_path, SCOPES)
         except Exception as e:
-            logger.error(f"Failed to load token.json: {e}")
+            logger.error(f"Failed to load token.json file: {e}")
             
     # If there are no (valid) credentials available, log an error
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             try:
                 creds.refresh(Request())
-                with open(token_path, 'w') as token:
-                    token.write(creds.to_json())
+                
+                # Update local file if it exists or if we aren't using env vars
+                if os.path.exists(token_path) or not token_env:
+                    with open(token_path, 'w') as token:
+                        token.write(creds.to_json())
+                else:
+                    logger.info("Token refreshed in memory. Update your GDRIVE_TOKEN_JSON env var to persist.")
             except Exception as e:
                 logger.error(f"Failed to refresh token: {e}")
                 return None
         else:
-            logger.warning("Google Drive token.json not found or invalid. Please run 'python setup_gdrive_auth.py' in the terminal.")
+            logger.warning("Google Drive credentials not found or invalid. Set GDRIVE_TOKEN_JSON env var or run 'python setup_gdrive_auth.py'.")
             return None
 
     try:
