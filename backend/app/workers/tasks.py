@@ -111,6 +111,32 @@ async def process_document(ctx, knowledge_id: str):
             job.progress = 10
         await db.commit()
 
+        # Step 0: Upload to Google Drive (if not done)
+        if item.file_path and item.meta and "original_filename" in item.meta:
+            try:
+                # Run the upload synchronously in a thread
+                from app.services.gdrive import upload_file_to_gdrive
+                logger.info(f"Uploading {item.file_path} to Google Drive...")
+                gdrive_res = await asyncio.to_thread(
+                    upload_file_to_gdrive, 
+                    item.file_path, 
+                    item.meta.get("original_filename"), 
+                    item.meta.get("mime_type")
+                )
+                if "error" not in gdrive_res:
+                    meta = dict(item.meta)
+                    meta["gdrive_file_id"] = gdrive_res.get("id")
+                    meta["gdrive_web_view_link"] = gdrive_res.get("webViewLink")
+                    item.meta = meta
+                    logger.info("Successfully uploaded to GDrive in background.")
+                else:
+                    logger.error(f"GDrive upload failed in background: {gdrive_res.get('error')}")
+                
+                job.progress = 15
+                await db.commit()
+            except Exception as e:
+                logger.error(f"Failed to upload to Google Drive in background: {e}")
+
         # Step 1: Text extraction
         text = ""
         try:

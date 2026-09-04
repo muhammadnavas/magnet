@@ -87,18 +87,13 @@ async def upload_knowledge(
                 content = await file.read()
                 f.write(content)
                 
-            # Upload to Google Drive
+            # Save metadata for background GDrive upload
             import urllib.parse
             decoded_filename = urllib.parse.unquote(file.filename)
-            from app.services.gdrive import upload_file_to_gdrive
-            gdrive_res = upload_file_to_gdrive(file_path, decoded_filename, file.content_type)
-            if "error" not in gdrive_res:
-                gdrive_meta = {
-                    "gdrive_file_id": gdrive_res.get("id"),
-                    "gdrive_web_view_link": gdrive_res.get("webViewLink")
-                }
-            else:
-                logger.error(f"GDrive upload failed: {gdrive_res.get('error')}")
+            gdrive_meta = {
+                "original_filename": decoded_filename,
+                "mime_type": file.content_type
+            }
 
         except Exception as e:
             logger.error(f"Failed to save file: {e}")
