@@ -15,11 +15,12 @@ export const Badge = ({
       case "completed":
       case "done":
       case "synced":
+      case "ready":
         return {
           bg: isLight ? "#DCFCE7" : "rgba(5, 150, 105, 0.2)",
           dot: "#059669",
           text: isLight ? "#166534" : "#10B981",
-          label: "RAG Ready"
+          label: "READY"
         };
       case "processing":
       case "syncing":
@@ -27,7 +28,7 @@ export const Badge = ({
           bg: isLight ? "#E0F2FE" : "rgba(2, 132, 199, 0.2)",
           dot: "#0284C7",
           text: isLight ? "#075985" : "#38BDF8",
-          label: "processing"
+          label: "PROCESSING"
         };
       case "failed":
       case "error":
@@ -35,16 +36,17 @@ export const Badge = ({
           bg: isLight ? "#FEE2E2" : "rgba(220, 38, 38, 0.2)",
           dot: "#DC2626",
           text: isLight ? "#991B1B" : "#F87171",
-          label: "failed"
+          label: "FAILED"
         };
       case "pending":
+      case "queued":
       case "offline":
       default:
         return {
           bg: isLight ? "#FEF3C7" : "rgba(217, 119, 6, 0.2)",
           dot: "#D97706",
           text: isLight ? "#92400E" : "#FBBF24",
-          label: status || "pending"
+          label: "PENDING"
         };
     }
   };

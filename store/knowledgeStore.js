@@ -20,11 +20,18 @@ const normalizeItem = (item) => {
     tags: Array.isArray(item.tags)
       ? item.tags.map((t) => (typeof t === "string" ? t : (t && t.name ? t.name : ""))).filter(Boolean)
       : [],
-    project: Array.isArray(item.projects) && item.projects.length > 0 && item.projects[0]
-      ? (item.projects[0].name || "Personal Projects")
-      : (item.project || "Personal Projects"),
     technologies: item.meta?.technologies || item.technologies || [],
   };
+};
+
+const deduplicateById = (arr) => {
+  if (!Array.isArray(arr)) return [];
+  const seen = new Set();
+  return arr.filter((item) => {
+    if (!item || !item.id || seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
 };
 
 export const useKnowledgeStore = create((set, get) => ({
@@ -67,7 +74,7 @@ export const useKnowledgeStore = create((set, get) => ({
       ].filter(Boolean);
 
       set({
-        items: normalized,
+        items: deduplicateById(normalized),
         tags: dynamicTags.length > 0 ? dynamicTags : get().tags,
         projects: dynamicProjects.length > 0 ? dynamicProjects : get().projects,
         syncStatus: "synced",
@@ -158,7 +165,7 @@ export const useKnowledgeStore = create((set, get) => ({
       
       const normalized = normalizeItem(response.data);
       set((state) => ({
-        items: [normalized, ...state.items],
+        items: deduplicateById([normalized, ...state.items]),
         syncStatus: "synced",
       }));
       

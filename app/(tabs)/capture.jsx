@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
@@ -21,8 +21,13 @@ export default function CaptureScreen() {
   const [recentSaved, setRecentSaved] = useState([]);
 
   useEffect(() => {
-    if (params.selectType === "pdf") handlePdfUpload();
-    if (params.selectType === "image") handleImageUpload();
+    if (params.selectType === "pdf") {
+      router.setParams({ selectType: undefined });
+      handlePdfUpload();
+    } else if (params.selectType === "image") {
+      router.setParams({ selectType: undefined });
+      handleImageUpload();
+    }
   }, [params.selectType]);
 
   const detectContentType = (rawText) => {

@@ -1,6 +1,7 @@
-import React, { useState } from "react";
-import { View, FlatList, Text, ScrollView, Pressable } from "react-native";
+import React, { useState, useEffect, useCallback } from "react";
+import { View, FlatList, Text, ScrollView, Pressable, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import SearchBar from "../../components/ui/SearchBar";
 import EmptyState from "../../components/ui/EmptyState";
@@ -16,6 +17,35 @@ export default function KnowledgeScreen() {
   const { themeColors } = useAppTheme();
   const { searchQuery, setSearchQuery } = useSearch();
   const [showFilters, setShowFilters] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Refresh items on focus
+  useFocusEffect(
+    useCallback(() => {
+      store.fetchItems();
+    }, [])
+  );
+
+  // Poll for background worker updates when any item is pending or processing
+  useEffect(() => {
+    const hasActiveJobs = store.items.some(
+      (item) => item.processingStatus === "pending" || item.processingStatus === "processing"
+    );
+
+    if (!hasActiveJobs) return;
+
+    const interval = setInterval(() => {
+      store.fetchItems();
+    }, 3500);
+
+    return () => clearInterval(interval);
+  }, [store.items]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await store.fetchItems();
+    setRefreshing(false);
+  };
 
   const filteredItems = store.getFilteredItems();
 
@@ -65,6 +95,9 @@ export default function KnowledgeScreen() {
           renderItem={({ item }) => <KnowledgeCard item={item} />}
           contentContainerStyle={{ padding: 20 }}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={themeColors.primary} colors={[themeColors.primary]} />
+          }
         />
       )}
     </SafeAreaView>

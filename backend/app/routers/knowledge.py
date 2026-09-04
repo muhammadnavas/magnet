@@ -4,6 +4,7 @@ import logging
 import asyncio
 from typing import List, Optional
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status, BackgroundTasks
+from sqlalchemy import delete
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -11,7 +12,7 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.routers.auth import get_current_user
 from app.schemas.auth import UserOut as User
-from app.models.knowledge import KnowledgeItem, Tag
+from app.models.knowledge import KnowledgeItem, KnowledgeChunk, Tag
 from app.models.project import Project
 from app.models.conversation import ProcessingJob
 from app.schemas.knowledge import KnowledgeItemOut
@@ -237,5 +238,9 @@ async def delete_knowledge_item(
     if not item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
         
+    # Explicitly delete all chunks/embeddings and jobs associated with this knowledge item
+    await db.execute(delete(KnowledgeChunk).where(KnowledgeChunk.knowledge_id == id))
+    await db.execute(delete(ProcessingJob).where(ProcessingJob.knowledge_id == id))
+    
     await db.delete(item)
     await db.commit()

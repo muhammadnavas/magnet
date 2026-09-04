@@ -109,6 +109,7 @@ async def process_document(ctx, knowledge_id: str):
         else:
             job.status = "processing"
             job.progress = 10
+        item.processing_status = "processing"
         await db.commit()
 
         # Step 1: Text extraction

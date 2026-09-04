@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { View, Text, ScrollView, Pressable, SafeAreaView, Platform, Modal } from "react-native";
+import { View, Text, ScrollView, Pressable, Platform, Modal } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import colors from "../../constants/colors";
@@ -25,7 +26,7 @@ export default function KnowledgeDetailScreen() {
 
   if (error || !item) {
     return (
-      <SafeAreaView style={{ backgroundColor: themeColors.background }} className="flex-1 justify-center p-6">
+      <SafeAreaView style={{ backgroundColor: themeColors.background }} className="flex-1 justify-center p-6" edges={["top", "left", "right"]}>
         <Text style={{ color: themeColors.text.primary }} className="text-center text-base font-bold mb-4">
           Error Loading Item
         </Text>
@@ -57,7 +58,7 @@ export default function KnowledgeDetailScreen() {
   };
 
   return (
-    <SafeAreaView style={{ backgroundColor: themeColors.background }} className="flex-1">
+    <SafeAreaView style={{ backgroundColor: themeColors.background }} className="flex-1" edges={["top", "left", "right"]}>
       
       {/* Delete Confirmation Modal */}
       <Modal visible={showDeleteConfirm} transparent animationType="fade">
@@ -91,21 +92,31 @@ export default function KnowledgeDetailScreen() {
       </Modal>
 
       {/* Detail Header */}
-      <View style={{ backgroundColor: themeColors.surface, borderBottomColor: themeColors.border }} className="flex-row items-center justify-between px-5 py-4 border-b">
-        <Pressable onPress={() => router.back()} className="p-1">
-          <Ionicons name="arrow-back" size={20} color={themeColors.text.primary} />
+      <View style={{ backgroundColor: themeColors.surface, borderBottomColor: themeColors.border }} className="flex-row items-center justify-between px-5 py-3 border-b">
+        <Pressable onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} className="p-1 -ml-1">
+          <Ionicons name="arrow-back" size={22} color={themeColors.text.primary} />
         </Pressable>
-        <Text style={{ color: themeColors.text.primary }} className="text-sm font-bold uppercase tracking-wider">
+        <Text style={{ color: themeColors.text.primary }} className="text-xs font-bold uppercase tracking-wider text-center flex-1 px-2" numberOfLines={1}>
           {contentType} detail
         </Text>
-        <View className="flex-row items-center">
-          <Pressable onPress={() => setShowDeleteConfirm(true)} className="p-1 mr-3">
-            <Ionicons name="trash-outline" size={20} color={themeColors.error || "#EF4444"} />
+        <View className="flex-row items-center gap-2">
+          <Pressable 
+            onPress={() => setShowDeleteConfirm(true)} 
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={{ backgroundColor: `${themeColors.error || '#EF4444'}18` }} 
+            className="w-9 h-9 rounded-full items-center justify-center"
+          >
+            <Ionicons name="trash-outline" size={18} color={themeColors.error || "#EF4444"} />
           </Pressable>
-          <Pressable onPress={handleFavoriteToggle} className="p-1">
+          <Pressable 
+            onPress={handleFavoriteToggle} 
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={{ backgroundColor: isFavorite ? `${themeColors.warning}18` : themeColors.surfaceHover }}
+            className="w-9 h-9 rounded-full items-center justify-center"
+          >
             <Ionicons
               name={isFavorite ? "star" : "star-outline"}
-              size={20}
+              size={18}
               color={isFavorite ? themeColors.warning : themeColors.text.primary}
             />
           </Pressable>
