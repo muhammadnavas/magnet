@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.routers.auth import get_current_user
-from app.models.user import User
+from app.schemas.auth import UserOut as User
 from app.models.knowledge import KnowledgeItem, Tag
 from app.models.project import Project
 from app.models.conversation import ProcessingJob
@@ -31,7 +31,7 @@ async def list_knowledge(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    query = select(KnowledgeItem).where(KnowledgeItem.user_id == current_user.id).options(
+    query = select(KnowledgeItem).where(True).options(
         selectinload(KnowledgeItem.tags),
         selectinload(KnowledgeItem.projects)
     )
@@ -106,7 +106,7 @@ async def upload_knowledge(
             )
 
     new_item = KnowledgeItem(
-        user_id=current_user.id,
+        
         title=title,
         content_type=content_type.lower(),
         raw_content=raw_content,
@@ -125,11 +125,11 @@ async def upload_knowledge(
     if project and project.strip():
         project_name = project.strip()
         proj_sel = await db.execute(
-            select(Project).where(Project.name == project_name, Project.user_id == current_user.id)
+            select(Project).where(Project.name == project_name)
         )
         db_project = proj_sel.scalars().first()
         if not db_project:
-            db_project = Project(name=project_name, user_id=current_user.id, status="active")
+            db_project = Project(name=project_name, status="active")
             db.add(db_project)
             await db.flush()
         new_item.projects.append(db_project)
@@ -141,13 +141,13 @@ async def upload_knowledge(
             if not tag_name:
                 continue
             tag_sel = await db.execute(
-                select(Tag).where(Tag.name == tag_name, Tag.user_id == current_user.id)
+                select(Tag).where(Tag.name == tag_name)
             )
             db_tag = tag_sel.scalars().first()
             if not db_tag:
                 import random
                 color = f"#{random.randint(100,250):02X}{random.randint(100,250):02X}{random.randint(100,250):02X}"
-                db_tag = Tag(name=tag_name, color=color, user_id=current_user.id)
+                db_tag = Tag(name=tag_name, color=color)
                 db.add(db_tag)
                 await db.flush()
             if db_tag not in new_item.tags:
@@ -180,7 +180,7 @@ async def get_knowledge_item(
 ):
     result = await db.execute(
         select(KnowledgeItem)
-        .where(KnowledgeItem.id == id, KnowledgeItem.user_id == current_user.id)
+        .where(KnowledgeItem.id == id)
         .options(selectinload(KnowledgeItem.tags), selectinload(KnowledgeItem.projects))
     )
     item = result.scalars().first()
@@ -198,7 +198,7 @@ async def update_knowledge_item(
 ):
     result = await db.execute(
         select(KnowledgeItem)
-        .where(KnowledgeItem.id == id, KnowledgeItem.user_id == current_user.id)
+        .where(KnowledgeItem.id == id)
         .options(selectinload(KnowledgeItem.tags), selectinload(KnowledgeItem.projects))
     )
     item = result.scalars().first()
@@ -222,7 +222,7 @@ async def delete_knowledge_item(
 ):
     result = await db.execute(
         select(KnowledgeItem)
-        .where(KnowledgeItem.id == id, KnowledgeItem.user_id == current_user.id)
+        .where(KnowledgeItem.id == id)
     )
     item = result.scalars().first()
     if not item:

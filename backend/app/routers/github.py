@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Dict, Any
 from app.routers.auth import get_current_user
-from app.models.user import User
+from app.schemas.auth import UserOut as User
 
 router = APIRouter(prefix="/github", tags=["GitHub Integration"])
 

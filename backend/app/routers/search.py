@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.routers.auth import get_current_user
-from app.models.user import User
+from app.schemas.auth import UserOut as User
 from app.models.knowledge import KnowledgeItem, KnowledgeChunk
 from app.schemas.knowledge import KnowledgeItemOut
 from app.utils.ai import get_embedding
@@ -26,7 +26,7 @@ async def search_keyword(
     query = (
         select(KnowledgeItem)
         .where(
-            KnowledgeItem.user_id == current_user.id,
+            
             KnowledgeItem.is_archived == False,
             or_(
                 KnowledgeItem.title.ilike(f"%{q}%"),
@@ -57,7 +57,7 @@ async def search_semantic(
             select(KnowledgeChunk)
             .join(KnowledgeChunk.item)
             .where(
-                KnowledgeItem.user_id == current_user.id,
+                
                 KnowledgeItem.is_archived == False,
                 KnowledgeItem.processing_status == "completed"
             )

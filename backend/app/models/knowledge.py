@@ -20,13 +20,11 @@ class Tag(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(50), index=True, nullable=False)
     color: Mapped[str] = mapped_column(String(7), default="#6C63FF") # Hex color
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
 class KnowledgeItem(Base):
     __tablename__ = "knowledge_items"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(512), nullable=False)
     content_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True) # note, pdf, image, url, code, error
     
@@ -47,7 +45,6 @@ class KnowledgeItem(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), onupdate=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     # Relationships
-    user = relationship("User", back_populates="knowledge_items")
     chunks = relationship("KnowledgeChunk", back_populates="item", cascade="all, delete-orphan")
     tags = relationship("Tag", secondary=knowledge_tags)
     projects = relationship("Project", secondary="knowledge_projects", back_populates="knowledge_items")
@@ -75,7 +72,6 @@ class Entity(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
     entity_type: Mapped[str] = mapped_column(String(50), nullable=False) # technology, concept, project, person, keyword
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
 class Relationship(Base):
     __tablename__ = "relationships"

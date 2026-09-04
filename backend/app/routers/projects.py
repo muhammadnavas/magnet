@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.routers.auth import get_current_user
-from app.models.user import User
+from app.schemas.auth import UserOut as User
 from app.models.project import Project
 from app.schemas.knowledge import ProjectCreate, ProjectOut
 
@@ -17,7 +17,7 @@ async def list_projects(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    query = select(Project).where(Project.user_id == current_user.id).order_by(Project.name.asc())
+    query = select(Project).where(True).order_by(Project.name.asc())
     result = await db.execute(query)
     return result.scalars().all()
 
@@ -28,7 +28,7 @@ async def create_project(
     db: AsyncSession = Depends(get_db)
 ):
     new_project = Project(
-        user_id=current_user.id,
+        
         name=payload.name,
         description=payload.description,
         technologies=payload.technologies,
@@ -47,7 +47,7 @@ async def get_project(
     db: AsyncSession = Depends(get_db)
 ):
     result = await db.execute(
-        select(Project).where(Project.id == id, Project.user_id == current_user.id)
+        select(Project).where(Project.id == id)
     )
     project = result.scalars().first()
     if not project:
@@ -62,7 +62,7 @@ async def update_project(
     db: AsyncSession = Depends(get_db)
 ):
     result = await db.execute(
-        select(Project).where(Project.id == id, Project.user_id == current_user.id)
+        select(Project).where(Project.id == id)
     )
     project = result.scalars().first()
     if not project:
@@ -85,7 +85,7 @@ async def delete_project(
     db: AsyncSession = Depends(get_db)
 ):
     result = await db.execute(
-        select(Project).where(Project.id == id, Project.user_id == current_user.id)
+        select(Project).where(Project.id == id)
     )
     project = result.scalars().first()
     if not project:

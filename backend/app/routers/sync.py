@@ -7,7 +7,7 @@ from fastapi import BackgroundTasks
 
 from app.database import get_db
 from app.routers.auth import get_current_user
-from app.models.user import User
+from app.schemas.auth import UserOut as User
 from app.models.knowledge import KnowledgeItem, Tag
 from app.models.project import Project
 from app.models.conversation import ProcessingJob
@@ -43,7 +43,7 @@ async def process_sync_queue(
                 tag_list = payload.get("tags", [])
                 
                 new_item = KnowledgeItem(
-                    user_id=current_user.id,
+                    
                     title=title,
                     content_type=content_type,
                     raw_content=raw_content,
@@ -55,11 +55,11 @@ async def process_sync_queue(
                 # Associate project
                 if project_name and project_name.strip():
                     proj_sel = await db.execute(
-                        select(Project).where(Project.name == project_name.strip(), Project.user_id == current_user.id)
+                        select(Project).where(Project.name == project_name.strip())
                     )
                     db_project = proj_sel.scalars().first()
                     if not db_project:
-                        db_project = Project(name=project_name.strip(), user_id=current_user.id)
+                        db_project = Project(name=project_name.strip())
                         db.add(db_project)
                         await db.flush()
                     new_item.projects.append(db_project)
@@ -70,13 +70,13 @@ async def process_sync_queue(
                     if not tag_name:
                         continue
                     tag_sel = await db.execute(
-                        select(Tag).where(Tag.name == tag_name, Tag.user_id == current_user.id)
+                        select(Tag).where(Tag.name == tag_name)
                     )
                     db_tag = tag_sel.scalars().first()
                     if not db_tag:
                         import random
                         color = f"#{random.randint(100,250):02X}{random.randint(100,250):02X}{random.randint(100,250):02X}"
-                        db_tag = Tag(name=tag_name, color=color, user_id=current_user.id)
+                        db_tag = Tag(name=tag_name, color=color)
                         db.add(db_tag)
                         await db.flush()
                     if db_tag not in new_item.tags:
@@ -99,7 +99,7 @@ async def process_sync_queue(
                 item_uuid = uuid.UUID(item_id_str)
                 
                 result = await db.execute(
-                    select(KnowledgeItem).where(KnowledgeItem.id == item_uuid, KnowledgeItem.user_id == current_user.id)
+                    select(KnowledgeItem).where(KnowledgeItem.id == item_uuid)
                 )
                 item = result.scalars().first()
                 if item:
@@ -116,7 +116,7 @@ async def process_sync_queue(
                 item_uuid = uuid.UUID(item_id_str)
                 
                 result = await db.execute(
-                    select(KnowledgeItem).where(KnowledgeItem.id == item_uuid, KnowledgeItem.user_id == current_user.id)
+                    select(KnowledgeItem).where(KnowledgeItem.id == item_uuid)
                 )
                 item = result.scalars().first()
                 if item:

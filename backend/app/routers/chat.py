@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 
 from app.database import get_db
 from app.routers.auth import get_current_user
-from app.models.user import User
+from app.schemas.auth import UserOut as User
 from app.models.conversation import Conversation, Message
 from app.models.knowledge import KnowledgeChunk, KnowledgeItem
 from app.schemas.chat import MessageCreate, MessageOut, ConversationOut
@@ -26,7 +26,7 @@ async def list_conversations(
 ):
     query = (
         select(Conversation)
-        .where(Conversation.user_id == current_user.id)
+        .where(True)
         .order_by(Conversation.updated_at.desc())
     )
     result = await db.execute(query)
@@ -43,8 +43,7 @@ async def ask_chat(
     if payload.conversation_id:
         conv_sel = await db.execute(
             select(Conversation).where(
-                Conversation.id == payload.conversation_id,
-                Conversation.user_id == current_user.id
+                Conversation.id == payload.conversation_id
             )
         )
         conv = conv_sel.scalars().first()
@@ -53,7 +52,7 @@ async def ask_chat(
         # Create a new conversation with a default title based on message snippet
         words = payload.content.split()
         title = " ".join(words[:5]) + ("..." if len(words) > 5 else "")
-        conv = Conversation(user_id=current_user.id, title=title)
+        conv = Conversation( title=title)
         db.add(conv)
         await db.flush()
 
@@ -79,7 +78,7 @@ async def ask_chat(
             select(KnowledgeChunk)
             .join(KnowledgeChunk.item)
             .where(
-                KnowledgeItem.user_id == current_user.id,
+                
                 KnowledgeItem.is_archived == False,
                 KnowledgeItem.processing_status == "completed"
             )
@@ -151,7 +150,7 @@ async def get_messages(
 ):
     # Verify ownership of conversation
     conv_sel = await db.execute(
-        select(Conversation).where(Conversation.id == id, Conversation.user_id == current_user.id)
+        select(Conversation).where(Conversation.id == id)
     )
     conv = conv_sel.scalars().first()
     if not conv:
