@@ -28,7 +28,6 @@ class ConversationCreate(ConversationBase):
 
 class ConversationOut(ConversationBase):
     id: uuid.UUID
-    user_id: uuid.UUID
     created_at: datetime
     updated_at: datetime
 

@@ -27,7 +27,6 @@ class ProjectCreate(ProjectBase):
 
 class ProjectOut(ProjectBase):
     id: uuid.UUID
-    user_id: uuid.UUID
     created_at: Optional[datetime] = None
 
     class Config:
@@ -45,7 +44,6 @@ class KnowledgeItemCreate(KnowledgeItemBase):
 
 class KnowledgeItemOut(KnowledgeItemBase):
     id: uuid.UUID
-    user_id: uuid.UUID
     extracted_text: Optional[str] = None
     summary: Optional[str] = None
     key_points: List[str] = []
