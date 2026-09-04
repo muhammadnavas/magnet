@@ -59,6 +59,29 @@ def get_gdrive_service():
         logger.error(f"Failed to initialize Google Drive service: {e}")
         return None
 
+def get_or_create_orio_folder(service) -> Optional[str]:
+    """Finds or creates a folder named 'Orio' in the root of Google Drive."""
+    try:
+        # Search for a folder named 'Orio'
+        query = "name='Orio' and mimeType='application/vnd.google-apps.folder' and trashed=false"
+        results = service.files().list(q=query, spaces='drive', fields='files(id, name)').execute()
+        items = results.get('files', [])
+        
+        if items:
+            return items[0]['id']
+            
+        # If not found, create it
+        folder_metadata = {
+            'name': 'Orio',
+            'mimeType': 'application/vnd.google-apps.folder'
+        }
+        folder = service.files().create(body=folder_metadata, fields='id').execute()
+        logger.info(f"Created Orio folder in Google Drive with ID: {folder.get('id')}")
+        return folder.get('id')
+    except Exception as e:
+        logger.error(f"Failed to get or create Orio folder: {e}")
+        return None
+
 def upload_file_to_gdrive(file_path: str, filename: str, mime_type: Optional[str] = None) -> Dict[str, Any]:
     """
     Uploads a local file to Google Drive and returns the file metadata.
@@ -68,6 +91,8 @@ def upload_file_to_gdrive(file_path: str, filename: str, mime_type: Optional[str
         return {"error": "Google Drive service not configured."}
 
     folder_id = settings.GDRIVE_UPLOAD_FOLDER_ID
+    if not folder_id:
+        folder_id = get_or_create_orio_folder(service)
 
     file_metadata = {
         'name': filename

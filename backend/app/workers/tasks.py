@@ -194,16 +194,16 @@ async def process_document(ctx, knowledge_id: str):
                 tag_name = tag_name.strip().lower()
                 if not tag_name:
                     continue
-                # Check if tag already exists for this user
+                # Check if tag already exists
                 tag_sel = await db.execute(
-                    select(Tag).where(Tag.name == tag_name, Tag.user_id == item.user_id)
+                    select(Tag).where(Tag.name == tag_name)
                 )
                 tag = tag_sel.scalars().first()
                 if not tag:
                     # Generate random hex color for new tags
                     import random
                     color = f"#{random.randint(100,250):02X}{random.randint(100,250):02X}{random.randint(100,250):02X}"
-                    tag = Tag(name=tag_name, color=color, user_id=item.user_id)
+                    tag = Tag(name=tag_name, color=color)
                     db.add(tag)
                     await db.flush() # Populate tag ID
                 
