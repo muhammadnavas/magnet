@@ -236,7 +236,10 @@ async def parse_task_intent(text: str, current_time: str) -> dict:
         "- 'reminder_interval_hours' (int): The number of hours between reminders. Calculate this smartly: "
         "If the user asks for a specific number of reminders (e.g., 'set 3 reminders' or 'remind me 3 times'), "
         "calculate the total hours between the current time and the deadline, and divide it by the number of reminders "
-        "to space them out evenly (round to the nearest whole integer). If they specify an explicit interval (e.g., 'every 2 hours'), use that. "
+        "to space them out evenly (round to the nearest whole integer). "
+        "If they specify an exact date/time for the reminder (e.g., 'remind me tomorrow at 11 am'), "
+        "calculate the total hours between the current time and that exact time, and set it as the interval. "
+        "If they specify an explicit interval (e.g., 'every 2 hours'), use that. "
         "Otherwise, default to 24.\n"
         "DO NOT wrap your response in markdown code blocks, just raw JSON."
     )
