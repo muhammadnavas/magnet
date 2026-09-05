@@ -9,6 +9,7 @@ import KnowledgeCard from "../../components/knowledge/KnowledgeCard";
 import useKnowledgeStore from "../../store/knowledgeStore";
 import useSearch from "../../hooks/useSearch";
 import { useAppTheme } from "../../store/themeStore";
+import { filterMeaningfulTags } from "../../utils/formatting";
 
 const FILTERS = ["All", "Notes", "PDFs", "Images", "Code", "URLs", "Errors"];
 
@@ -51,10 +52,40 @@ export default function KnowledgeScreen() {
 
   const clearAll = () => { store.resetFilters(); setSearchQuery(""); };
 
+  const itemsList = store.items || [];
+  const uniqueProjectsCount = [...new Set(itemsList.map((i) => i.project))].filter(Boolean).length;
+  const rawTags = itemsList.flatMap((i) => i.tags || []);
+  const uniqueTagsCount = filterMeaningfulTags([...new Set(rawTags)]).length;
+
+  const stats = [
+    { label: "Knowledge", count: itemsList.length, icon: "bulb-outline" },
+    { label: "Documents", count: itemsList.filter((i) => (i.contentType || "").toLowerCase() === "pdf").length, icon: "document-text-outline" },
+    { label: "Projects", count: uniqueProjectsCount, icon: "folder-outline" },
+    { label: "Topics", count: uniqueTagsCount, icon: "pricetags-outline" },
+  ];
+
   return (
     <SafeAreaView style={{ backgroundColor: themeColors.background }} className="flex-1">
       <View style={{ borderBottomColor: themeColors.border }} className="px-5 pt-4 pb-2 border-b">
         <Text style={{ color: themeColors.text.primary }} className="text-xl font-black mb-3">Knowledge Library</Text>
+
+        {/* Library Stats */}
+        <View className="flex-row flex-wrap gap-2.5 mb-3">
+          {stats.map((stat) => (
+            <View
+              key={stat.label}
+              style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }}
+              className="w-[48%] border p-3 rounded-2xl"
+            >
+              <View className="flex-row items-center justify-between mb-1">
+                <Ionicons name={stat.icon} size={16} color={themeColors.primary} />
+                <Text style={{ color: themeColors.text.muted }} className="text-[10px] font-bold uppercase tracking-wider">{stat.label}</Text>
+              </View>
+              <Text style={{ color: themeColors.text.primary }} className="text-xl font-black">{stat.count}</Text>
+            </View>
+          ))}
+        </View>
+
         <View className="flex-row items-center">
           <SearchBar value={searchQuery} onChangeText={setSearchQuery} style="flex-1" />
           <Pressable

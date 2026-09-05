@@ -8,7 +8,6 @@ import Tag from "../../components/ui/Tag";
 import EmptyState from "../../components/ui/EmptyState";
 import useKnowledge from "../../hooks/useKnowledge";
 import useAuth from "../../hooks/useAuth";
-import useChat from "../../hooks/useChat";
 import { useQuery } from "@tanstack/react-query";
 import api from "../../lib/api";
 import Logo from "../../components/ui/Logo";
@@ -22,7 +21,7 @@ const QUICK_ACTIONS = [
 
 export default function HomeScreen() {
   const { user } = useAuth();
-  const { theme, themeColors } = useAppTheme();
+  const { themeColors } = useAppTheme();
   const { useGetItems } = useKnowledge();
   const { data: knowledgeItems = [] } = useGetItems();
 
@@ -39,16 +38,6 @@ export default function HomeScreen() {
   const username = user?.full_name || "Navas";
   const itemsList = Array.isArray(knowledgeItems) ? knowledgeItems : [];
   const insightsList = Array.isArray(insightsData) ? insightsData : [];
-
-  const uniqueProjectsCount = [...new Set(itemsList.map(i => i.project))].filter(Boolean).length;
-  const uniqueTagsCount = [...new Set(itemsList.flatMap(i => i.tags))].filter(Boolean).length;
-
-  const stats = [
-    { label: "Knowledge", count: itemsList.length, icon: "bulb-outline" },
-    { label: "Documents", count: itemsList.filter(i => i.contentType === "pdf").length, icon: "document-text-outline" },
-    { label: "Projects", count: uniqueProjectsCount, icon: "folder-outline" },
-    { label: "Topics", count: uniqueTagsCount, icon: "pricetags-outline" },
-  ];
 
   const recentItems = itemsList.slice(0, 3);
   const aiInsights = insightsList.map(insight => insight.message || "");
@@ -89,24 +78,6 @@ export default function HomeScreen() {
               </View>
               <Text style={{ color: themeColors.text.primary }} className="text-xs font-bold text-center">{action.label}</Text>
             </Pressable>
-          ))}
-        </View>
-
-        {/* Library Stats */}
-        <Text style={{ color: themeColors.text.muted }} className="text-xs font-bold uppercase tracking-wider mb-3">Library Stats</Text>
-        <View className="flex-row flex-wrap gap-3 mb-8">
-          {stats.map((stat) => (
-            <View
-              key={stat.label}
-              style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }}
-              className="w-[48%] border p-4 rounded-2xl"
-            >
-              <View className="flex-row items-center justify-between mb-3">
-                <Ionicons name={stat.icon} size={18} color={themeColors.primary} />
-                <Text style={{ color: themeColors.text.muted }} className="text-[10px] font-bold uppercase tracking-wider">{stat.label}</Text>
-              </View>
-              <Text style={{ color: themeColors.text.primary }} className="text-2xl font-black">{stat.count}</Text>
-            </View>
           ))}
         </View>
 
