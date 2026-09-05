@@ -30,6 +30,19 @@ export default function TasksScreen() {
 
   useEffect(() => {
     requestNotificationPermissions();
+
+    const handleDueAlert = (e) => {
+      setToast({
+        visible: true,
+        title: e.detail?.title || "📅 Task Due Now!",
+        message: e.detail?.message || "Your task is due now.",
+      });
+    };
+
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.addEventListener("orio:due-alert", handleDueAlert);
+      return () => window.removeEventListener("orio:due-alert", handleDueAlert);
+    }
   }, []);
 
   const handleInputFocus = () => {
