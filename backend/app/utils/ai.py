@@ -14,43 +14,46 @@ def _get_gemini_key() -> str:
     key = settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_GEMINI_API_KEY") or ""
     return key.strip()
 
-def _make_client(api_key: str) -> genai.Client:
-    """Create a google-genai client targeting the stable v1 API."""
-    return genai.Client(
-        api_key=api_key,
-        http_options={"api_version": "v1"},
-    )
+def _make_client() -> genai.Client:
+    """
+    Create a google-genai client.
+    Uses v1beta (the default) so that system_instruction works in generateContent.
+    Embedding models (gemini-embedding-001, gemini-embedding-2) are also available on v1beta.
+    """
+    api_key = _get_gemini_key()
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY is not set in environment variables.")
+    return genai.Client(api_key=api_key)   # default = v1beta
 
-# ---- Confirmed working models (from live probe) ----
-# Completion: gemini-2.5-flash, gemini-3.6-flash, gemini-3.5-flash-lite
-# Embedding:  text-embedding-004 (works on v1, failed on v1beta with old SDK)
 
+# ---- Confirmed working models for this API key (from ListModels probe) ----
 FREE_COMPLETION_MODELS = [
     "gemini-2.5-flash",
     "gemini-3.6-flash",
     "gemini-3.5-flash-lite",
+    "gemini-3.8-flash",
+    "gemini-3.7-flash",
 ]
 
 FREE_EMBEDDING_MODELS = [
-    "text-embedding-004",
-    "embedding-001",
-    "text-multilingual-embedding-002",
+    "gemini-embedding-001",   # confirmed present on v1 and v1beta
+    "gemini-embedding-2",     # confirmed present on v1 and v1beta
 ]
+
 
 async def get_embedding(text: str) -> List[float]:
     """
-    Generate a vector embedding for the input text using the new google-genai SDK (v1 API).
-    Returns a 768-dim vector (text-embedding-004 native dim), padded/truncated to 1536 for DB.
+    Generate a vector embedding using google-genai SDK (v1beta).
+    gemini-embedding-001 returns 768-dim; padded to 1536 to match DB column.
     """
     if not text:
         return [0.0] * 1536
 
-    api_key = _get_gemini_key()
-    if not api_key:
-        logger.warning("GEMINI_API_KEY missing – returning zero vector.")
+    try:
+        client = _make_client()
+    except ValueError as e:
+        logger.warning(str(e))
         return [0.0] * 1536
-
-    client = _make_client(api_key)
 
     for model_name in FREE_EMBEDDING_MODELS:
         try:
@@ -59,15 +62,14 @@ async def get_embedding(text: str) -> List[float]:
                 model=model_name,
                 contents=text,
             )
-            # New SDK returns EmbedContentResponse with .embeddings list
             values = response.embeddings[0].values if response.embeddings else []
             if values:
-                # Pad or truncate to 1536 to match DB column
+                values = list(values)
                 if len(values) < 1536:
-                    values = list(values) + [0.0] * (1536 - len(values))
+                    values += [0.0] * (1536 - len(values))
                 else:
-                    values = list(values)[:1536]
-                logger.info(f"Embedding generated with model '{model_name}', dim={len(values)}")
+                    values = values[:1536]
+                logger.info(f"Embedding OK: model='{model_name}' dim={len(values)}")
                 return values
         except Exception as e:
             err = str(e)
@@ -81,14 +83,13 @@ async def get_embedding(text: str) -> List[float]:
 
 async def get_completion(system_prompt: str, user_prompt: str) -> str:
     """
-    Generate LLM text completion using the new google-genai SDK (v1 API).
-    Falls back through confirmed working models automatically.
+    Generate LLM completion using google-genai SDK (v1beta).
+    system_instruction requires v1beta; falls back through confirmed working models.
     """
-    api_key = _get_gemini_key()
-    if not api_key:
-        return "AI unavailable: GEMINI_API_KEY missing in backend environment."
-
-    client = _make_client(api_key)
+    try:
+        client = _make_client()
+    except ValueError as e:
+        return f"AI unavailable: {e}"
 
     last_error = None
     for model_name in FREE_COMPLETION_MODELS:
@@ -102,7 +103,7 @@ async def get_completion(system_prompt: str, user_prompt: str) -> str:
                 ),
             )
             if response and response.text:
-                logger.info(f"Completion generated with model '{model_name}'")
+                logger.info(f"Completion OK: model='{model_name}'")
                 return response.text.strip()
         except Exception as e:
             err = str(e)
@@ -111,14 +112,12 @@ async def get_completion(system_prompt: str, user_prompt: str) -> str:
             if "429" in err or "RESOURCE_EXHAUSTED" in err:
                 await asyncio.sleep(1.0)
 
-    logger.error(f"All completion model attempts failed. Last error: {last_error}")
+    logger.error(f"All completion attempts failed. Last: {last_error}")
     return f"AI unavailable ({str(last_error) if last_error else 'all models failed'})."
 
 
 async def analyze_document(text: str) -> Dict[str, Any]:
-    """
-    Analyze document text with LLM to extract summary, key points, tags, and technologies.
-    """
+    """Analyze document text with LLM to extract summary, key points, tags, and technologies."""
     if not text:
         return {"summary": "Empty document", "key_points": [], "tags": [], "technologies": []}
 
@@ -128,15 +127,12 @@ async def analyze_document(text: str) -> Dict[str, Any]:
         "'tags' (list of lowercase str), 'technologies' (list of str). "
         "Output ONLY valid JSON — no markdown code fences."
     )
-    user_prompt = f"Document content:\n{text[:6000]}"
-
-    raw = await get_completion(system_prompt, user_prompt)
+    raw = await get_completion(system_prompt, f"Document content:\n{text[:6000]}")
 
     cleaned = raw.strip()
-    if cleaned.startswith("```json"):
-        cleaned = cleaned[7:]
-    if cleaned.startswith("```"):
-        cleaned = cleaned[3:]
+    for prefix in ("```json", "```"):
+        if cleaned.startswith(prefix):
+            cleaned = cleaned[len(prefix):]
     if cleaned.endswith("```"):
         cleaned = cleaned[:-3]
     cleaned = cleaned.strip()
@@ -150,7 +146,7 @@ async def analyze_document(text: str) -> Dict[str, Any]:
             "technologies": data.get("technologies", []),
         }
     except Exception:
-        logger.warning(f"Failed to parse AI JSON response: {raw[:200]}")
+        logger.warning(f"Failed to parse AI JSON. Raw: {raw[:200]}")
         return {
             "summary": " ".join(text.split()[:30]) + "...",
             "key_points": ["Document processed successfully."],
@@ -160,17 +156,12 @@ async def analyze_document(text: str) -> Dict[str, Any]:
 
 
 async def parse_task_intent(text: str, current_time: str) -> dict:
-    """
-    Parse natural language into structured task fields.
-    Returns: { "title", "priority", "deadline", "reminder_interval_hours" }
-    """
+    """Parse natural language into structured task fields."""
     if not text:
         return {"title": "Untitled Task", "priority": "medium", "deadline": None, "reminder_interval_hours": 24}
 
     system_prompt = (
-        "You are an expert NLP task parser. Analyze the user's input and extract task details. "
-        "The current time is provided so you can calculate exact deadlines (ISO 8601 format). "
-        "Output ONLY a valid JSON object with these keys:\n"
+        "You are an expert NLP task parser. Output ONLY a valid JSON object with these keys:\n"
         "- 'title' (str): concise action title.\n"
         "- 'priority' (str): 'low', 'medium', or 'high'.\n"
         "- 'deadline' (str or null): ISO 8601 deadline if mentioned, else null.\n"
@@ -180,15 +171,12 @@ async def parse_task_intent(text: str, current_time: str) -> dict:
         "If they say 'every N hours', use N. Default: 24.\n"
         "DO NOT wrap in markdown."
     )
-    user_prompt = f"Current Time: {current_time}\nUser Input: {text}"
-
-    raw = await get_completion(system_prompt, user_prompt)
+    raw = await get_completion(system_prompt, f"Current Time: {current_time}\nUser Input: {text}")
 
     cleaned = raw.strip()
-    if cleaned.startswith("```json"):
-        cleaned = cleaned[7:]
-    if cleaned.startswith("```"):
-        cleaned = cleaned[3:]
+    for prefix in ("```json", "```"):
+        if cleaned.startswith(prefix):
+            cleaned = cleaned[len(prefix):]
     if cleaned.endswith("```"):
         cleaned = cleaned[:-3]
     cleaned = cleaned.strip()
@@ -203,9 +191,4 @@ async def parse_task_intent(text: str, current_time: str) -> dict:
         }
     except Exception as e:
         logger.warning(f"Failed to parse task JSON: {e}. Raw: {raw[:200]}")
-        return {
-            "title": text.strip(),
-            "priority": "medium",
-            "deadline": None,
-            "reminder_interval_hours": 24,
-        }
+        return {"title": text.strip(), "priority": "medium", "deadline": None, "reminder_interval_hours": 24}
