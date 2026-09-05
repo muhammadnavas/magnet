@@ -16,6 +16,13 @@ from app.utils.ai import parse_task_intent
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
+def _make_naive(dt: Optional[datetime]) -> Optional[datetime]:
+    if dt is None:
+        return None
+    if dt.tzinfo is not None:
+        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
+
 @router.post("/parse", response_model=TaskParseResponse)
 async def parse_task(
     payload: TaskParseRequest,
@@ -26,11 +33,12 @@ async def parse_task(
     """
     result = await parse_task_intent(payload.raw_text, payload.current_time)
     
-    # Ensure deadline is parsed to datetime if it's a string, or kept None
+    # Ensure deadline is parsed to naive datetime if it's a string, or kept None
     deadline_dt = None
     if result.get("deadline"):
         try:
-            deadline_dt = datetime.fromisoformat(result["deadline"].replace("Z", "+00:00"))
+            dt = datetime.fromisoformat(str(result["deadline"]).replace("Z", "+00:00"))
+            deadline_dt = _make_naive(dt)
         except Exception:
             deadline_dt = None
 
@@ -64,11 +72,10 @@ async def create_task(
     db: AsyncSession = Depends(get_db),
 ):
     task = Task(
-        
         title=payload.title,
         description=payload.description,
         priority=payload.priority or "medium",
-        deadline=payload.deadline,
+        deadline=_make_naive(payload.deadline),
         reminder_interval_hours=payload.reminder_interval_hours or 24,
         status="pending",
     )
@@ -99,7 +106,7 @@ async def update_task(
     if payload.priority is not None:
         task.priority = payload.priority
     if payload.deadline is not None:
-        task.deadline = payload.deadline
+        task.deadline = _make_naive(payload.deadline)
     if payload.reminder_interval_hours is not None:
         task.reminder_interval_hours = payload.reminder_interval_hours
     if payload.status is not None:
@@ -112,7 +119,7 @@ async def update_task(
     task.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
     await db.commit()
     await db.refresh(task)
-    return task
+    return task"
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)

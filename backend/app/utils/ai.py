@@ -28,11 +28,10 @@ def _make_client() -> genai.Client:
 
 # ---- Confirmed working models for this API key (from ListModels probe) ----
 FREE_COMPLETION_MODELS = [
-    "gemini-3.6-flash",       # primary — confirmed working, lower demand
-    "gemini-3.5-flash-lite",  # fast lite fallback
-    "gemini-3.8-flash",       # next fallback
-    "gemini-3.7-flash",       # further fallback
-    "gemini-2.5-flash",       # last resort — showed 503 high demand
+    "gemini-2.5-flash",
+    "gemini-3.6-flash",
+    "gemini-3.5-flash",
+    "gemini-3.5-flash-lite",
 ]
 
 FREE_EMBEDDING_MODELS = [
