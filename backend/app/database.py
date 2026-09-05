@@ -9,6 +9,11 @@ if db_url.startswith("postgres://"):
 elif db_url.startswith("postgresql://") and not db_url.startswith("postgresql+asyncpg://"):
     db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
+import uuid
+
+def _prepared_statement_name_func(*args):
+    return f"__asyncpg_stmt_{uuid.uuid4().hex}__"
+
 engine = create_async_engine(
     db_url,
     echo=settings.ENVIRONMENT == "development",
@@ -16,6 +21,7 @@ engine = create_async_engine(
     connect_args={
         "statement_cache_size": 0,
         "prepared_statement_cache_size": 0,
+        "prepared_statement_name_func": _prepared_statement_name_func,
     },
 )
 
