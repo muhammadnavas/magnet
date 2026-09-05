@@ -12,10 +12,23 @@ def _get_gemini_key() -> str:
     key = settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_GEMINI_API_KEY") or os.getenv("GEMINI_KEY") or ""
     return key.strip()
 
+def _configure_genai(api_key: str):
+    if not api_key:
+        return
+    try:
+        # Use REST transport to enforce API key authentication and bypass gRPC service account ADC conflicts
+        genai.configure(api_key=api_key, transport="rest")
+    except Exception as e:
+        logger.error(f"Failed to configure Gemini client with REST transport: {e}")
+        try:
+            genai.configure(api_key=api_key)
+        except Exception:
+            pass
+
 # Initial client configuration check
 _initial_key = _get_gemini_key()
 if _initial_key:
-    genai.configure(api_key=_initial_key)
+    _configure_genai(_initial_key)
     logger.info("Gemini AI API configured successfully.")
 else:
     logger.warning("GEMINI_API_KEY is missing in environment settings.")
@@ -23,18 +36,15 @@ else:
 FREE_COMPLETION_MODELS = [
     settings.GEMINI_LLM_MODEL,
     "gemini-1.5-flash",
-    "gemini-1.5-flash-8b",
     "gemini-2.0-flash",
+    "gemini-1.5-flash-8b",
     "gemini-2.0-flash-lite",
     "gemini-2.0-flash-exp",
     "gemini-1.5-pro",
     "gemini-1.0-pro",
     "gemini-pro",
     "models/gemini-1.5-flash",
-    "models/gemini-1.5-flash-8b",
-    "models/gemini-2.0-flash",
-    "models/gemini-1.5-pro",
-    "models/gemini-pro"
+    "models/gemini-2.0-flash"
 ]
 
 FREE_EMBEDDING_MODELS = [
@@ -57,11 +67,7 @@ async def get_embedding(text: str) -> List[float]:
         logger.warning("GEMINI_API_KEY is missing for get_embedding. Returning zero vector.")
         return [0.0] * 1536
 
-    try:
-        genai.configure(api_key=api_key)
-    except Exception as e:
-        logger.error(f"Failed to configure Gemini client: {e}")
-        return [0.0] * 1536
+    _configure_genai(api_key)
 
     seen = set()
     models_to_try = [m for m in FREE_EMBEDDING_MODELS if m and not (m in seen or seen.add(m))]
@@ -100,10 +106,7 @@ async def get_completion(system_prompt: str, user_prompt: str) -> str:
         logger.error("GEMINI_API_KEY is missing in server environment variables.")
         return "AI is currently unavailable (GEMINI_API_KEY is missing in backend environment variables)."
 
-    try:
-        genai.configure(api_key=api_key)
-    except Exception as e:
-        logger.error(f"Failed to configure Gemini client: {e}")
+    _configure_genai(api_key)
 
     seen = set()
     models_to_try = [m for m in FREE_COMPLETION_MODELS if m and not (m in seen or seen.add(m))]
