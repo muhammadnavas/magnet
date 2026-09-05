@@ -4,6 +4,7 @@ import {
   scheduleTaskReminder,
   scheduleDeadlineAlert,
   cancelTaskReminder,
+  syncTaskNotifications,
 } from "../lib/notifications";
 
 const TASKS_KEY = ["tasks"];
@@ -15,7 +16,13 @@ export function useGetTasks(statusFilter = null) {
     queryFn: async () => {
       const params = statusFilter ? { status_filter: statusFilter } : {};
       const res = await api.get("/tasks", { params });
-      return res.data;
+      const tasks = res.data;
+      if (Array.isArray(tasks)) {
+        syncTaskNotifications(tasks).catch((err) =>
+          console.warn("Failed to sync task notifications:", err)
+        );
+      }
+      return tasks;
     },
     staleTime: 30_000,
   });
