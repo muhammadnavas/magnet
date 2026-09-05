@@ -111,18 +111,38 @@ async def ask_chat(
         logger.error(f"Error during RAG context retrieval: {e}")
         # Continue with empty context
 
-    # 4. Formulate LLM prompts and generate response
+    # 4. Fetch recent conversation history (multi-turn context)
+    history = []
+    try:
+        hist_sel = await db.execute(
+            select(Message)
+            .where(
+                Message.conversation_id == conv.id,
+                Message.id != user_msg.id
+            )
+            .order_by(Message.created_at.desc())
+            .limit(6)
+        )
+        recent_msgs = list(reversed(hist_sel.scalars().all()))
+        history = [{"role": m.role, "content": m.content} for m in recent_msgs]
+    except Exception as e:
+        logger.warning(f"Failed to fetch conversation history: {e}")
+
+    # 5. Formulate LLM prompts with synthesis instruction
     system_prompt = (
-        "You are Orio, a helpful technical AI assistant specialized in developer documentation. "
-        "The user has an indexed personal knowledge base. Below is some retrieved context relevant to the user query.\n"
-        "Please answer the user query as accurately as possible based on the retrieved context. Format code blocks using "
-        "proper markdown syntax. If the retrieved context is insufficient or irrelevant, provide your best general technical answer "
-        "but clearly mention that you did not find specific records in their Orio database.\n\n"
-        f"Retrieved Context:\n{context_text if context_text else '[No matching knowledge snippets found in Orio]'}"
+        "You are Orio, an advanced, highly intelligent developer co-pilot and AI companion. "
+        "Your goal is to provide insightful, synthesized, and highly conversational answers based on the user's personal knowledge base.\n\n"
+        "CRITICAL INSTRUCTIONS:\n"
+        "1. DO NOT simply copy-paste, extract, dump, or re-list raw document fields, contact details, or resumes line-by-line verbatim.\n"
+        "2. SYNTHESIZE all retrieved context into a natural, engaging, professional conversational response.\n"
+        "3. Provide direct, intelligent answers addressing the user's query. Highlight key insights, technical background, core concepts, or recommendations.\n"
+        "4. Format technical details, commands, or code using proper Markdown syntax.\n"
+        "5. Speak in a friendly, helpful, co-pilot tone. If retrieved context is missing or irrelevant, answer generally while mentioning you didn't find specific Orio records.\n\n"
+        f"Retrieved Knowledge Context from Orio Database:\n{context_text if context_text else '[No matching knowledge snippets found in Orio]'}"
     )
 
     try:
-        ai_reply = await get_completion(system_prompt, payload.content)
+        ai_reply = await get_completion(system_prompt, payload.content, history=history)
     except Exception as e:
         logger.error(f"Error during LLM response generation: {e}")
         ai_reply = f"Error generating response: {str(e)}"

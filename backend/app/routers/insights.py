@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import List, Dict, Any
 from fastapi import APIRouter, Depends
@@ -10,6 +11,7 @@ from app.routers.auth import get_current_user
 from app.schemas.auth import UserOut as User
 from app.models.knowledge import KnowledgeItem, Tag
 from app.models.project import Project
+from app.utils.ai import get_completion
 
 logger = logging.getLogger(__name__)
 
@@ -21,75 +23,100 @@ async def get_insights(
     db: AsyncSession = Depends(get_db)
 ):
     try:
-        # 1. Fetch total items count
-        cnt_sel = await db.execute(
-            select(func.count(KnowledgeItem.id)).where(True)
+        # 1. Fetch recent knowledge items
+        items_sel = await db.execute(
+            select(KnowledgeItem.title, KnowledgeItem.summary, KnowledgeItem.content_type)
+            .where(KnowledgeItem.is_archived == False)
+            .order_by(KnowledgeItem.created_at.desc())
+            .limit(10)
         )
-        total_items = cnt_sel.scalar() or 0
+        recent_items = items_sel.all()
 
-        # 2. Fetch tags count
+        # 2. Fetch tags
         tag_sel = await db.execute(
-            select(Tag.name, func.count(KnowledgeItem.id))
+            select(Tag.name)
             .join(KnowledgeItem.tags)
-            .where(True)
-            .group_by(Tag.name)
+            .where(KnowledgeItem.is_archived == False)
         )
-        tags_counts = tag_sel.all()
+        tags_list = [r[0] for r in tag_sel.all()]
 
-        # 3. Fetch projects count
+        # 3. Fetch projects
         proj_sel = await db.execute(
-            select(func.count(Project.id)).where(True)
+            select(Project.name).where(True)
         )
-        proj_count = proj_sel.scalar() or 0
+        projects_list = [r[0] for r in proj_sel.all()]
 
-        insights = []
-        
-        # summary message
-        insights.append({
+        if not recent_items:
+            return [
+                {
+                    "id": "1",
+                    "type": "summary",
+                    "message": "Welcome to Orio! Add your first note or document to unlock personalized AI insights."
+                },
+                {
+                    "id": "2",
+                    "type": "relation",
+                    "message": "Upload code snippets or documents to map your technical knowledge graphs."
+                },
+                {
+                    "id": "3",
+                    "type": "review",
+                    "message": "Create a project to organize tasks and developer notes in one workspace."
+                }
+            ]
+
+        # Formulate LLM prompt to generate dynamic, intelligent insights
+        items_summary = "\n".join([f"- Title: {title} | Type: {ctype} | Summary: {summary or 'N/A'}" for title, summary, ctype in recent_items])
+        tags_summary = ", ".join(list(set(tags_list))[:10]) or "None"
+        projects_summary = ", ".join(list(set(projects_list))[:5]) or "None"
+
+        system_prompt = (
+            "You are Orio AI Insights Engine. Analyze the user's indexed developer knowledge base, tags, and projects "
+            "and output a JSON array of 3 distinct, intelligent, personalized insights for their developer dashboard.\n\n"
+            "JSON structure: An array of 3 objects, each with:\n"
+            "- 'id' (str): '1', '2', '3'\n"
+            "- 'type' (str): 'summary' (overall knowledge focus), 'relation' (topic connection/pattern), 'review' (strategic learning/project recommendation)\n"
+            "- 'message' (str): A concise, engaging 1-2 sentence insight synthesized intelligently.\n\n"
+            "Output ONLY valid JSON — no markdown fences or extra commentary."
+        )
+
+        user_prompt = (
+            f"Indexed Knowledge Items ({len(recent_items)} recent):\n{items_summary}\n\n"
+            f"Active Topics/Tags: {tags_summary}\n"
+            f"Active Projects: {projects_summary}"
+        )
+
+        raw = await get_completion(system_prompt, user_prompt)
+        cleaned = raw.strip()
+        for prefix in ("```json", "```"):
+            if cleaned.startswith(prefix):
+                cleaned = cleaned[len(prefix):]
+        if cleaned.endswith("```"):
+            cleaned = cleaned[:-3]
+        cleaned = cleaned.strip()
+
+        insights_data = json.loads(cleaned)
+        if isinstance(insights_data, list) and len(insights_data) >= 1:
+            return insights_data
+
+    except Exception as e:
+        logger.error(f"Error compiling LLM insights: {e}")
+
+    # Fallback if DB is empty or LLM errors
+    return [
+        {
             "id": "1",
             "type": "summary",
-            "message": f"You have {total_items} developer notes and files indexed in your pgvector brain."
-        })
-
-        # relation message
-        if tags_counts:
-            # Sort tags by item count descending
-            sorted_tags = sorted(list(tags_counts), key=lambda x: x[1], reverse=True)
-            top_tag, top_count = sorted_tags[0]
-            insights.append({
-                "id": "2",
-                "type": "relation",
-                "message": f"Your most active topic is '{top_tag}' with {top_count} items linked."
-            })
-        else:
-            insights.append({
-                "id": "2",
-                "type": "relation",
-                "message": "Start adding tags (e.g. #docker, #fastapi) to map your knowledge graphs."
-            })
-
-        # projects message
-        if proj_count > 0:
-            insights.append({
-                "id": "3",
-                "type": "review",
-                "message": f"Analyzing code patterns across your {proj_count} tracked projects."
-            })
-        else:
-            insights.append({
-                "id": "3",
-                "type": "review",
-                "message": "No active projects found. Link notes to a project to see smart connections."
-            })
-
-        return insights
-    except Exception as e:
-        logger.error(f"Error compiling database insights: {e}")
-        # Graceful fallback to static list if database is empty/errors
-        return [
-            {
-                "id": "1",
-                "type": "summary",
-                "message": "Orio database is spinning up. Start indexing files to compile statistics."
-            }
-        ]
+            "message": "Your Orio knowledge base is indexed and ready for AI synthesis."
+        },
+        {
+            "id": "2",
+            "type": "relation",
+            "message": "Query Orio Chat to discover connections across your notes."
+        },
+        {
+            "id": "3",
+            "type": "review",
+            "message": "Keep adding technical notes and code snippets to sharpen your knowledge graph."
+        }
+    ]

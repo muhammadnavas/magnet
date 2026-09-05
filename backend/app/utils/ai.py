@@ -80,22 +80,33 @@ async def get_embedding(text: str) -> List[float]:
     return [0.0] * 1536
 
 
-async def get_completion(system_prompt: str, user_prompt: str) -> str:
+async def get_completion(system_prompt: str, user_prompt: str, history: List[Dict[str, str]] = None) -> str:
     """
     Generate LLM completion using google-genai SDK (v1beta).
     system_instruction requires v1beta; falls back through confirmed working models.
+    Supports multi-turn conversation context via history parameter.
     """
     try:
         client = _make_client()
     except ValueError as e:
         return f"AI unavailable: {e}"
 
+    full_user_content = ""
+    if history:
+        history_lines = []
+        for msg in history:
+            role_name = "User" if msg.get("role") == "user" else "Orio (AI)"
+            history_lines.append(f"{role_name}: {msg.get('content', '')}")
+        full_user_content += "Previous Conversation Context:\n" + "\n".join(history_lines) + "\n\n"
+
+    full_user_content += f"User Query: {user_prompt}"
+
     last_error = None
     for model_name in FREE_COMPLETION_MODELS:
         try:
             response = await client.aio.models.generate_content(
                 model=model_name,
-                contents=user_prompt,
+                contents=full_user_content,
                 config=types.GenerateContentConfig(
                     system_instruction=system_prompt,
                     temperature=0.4,
@@ -123,12 +134,13 @@ async def analyze_document(text: str) -> Dict[str, Any]:
         return {"summary": "Empty document", "key_points": [], "tags": [], "technologies": []}
 
     system_prompt = (
-        "You are an expert technical document classifier. Analyze the provided text and output a JSON object "
-        "with exactly these keys: 'summary' (str), 'key_points' (list of str, max 5), "
-        "'tags' (list of lowercase str for specific domain topics like 'resume', 'python', 'database'), "
-        "'technologies' (list of str). "
-        "DO NOT include generic tags like 'pdf', 'file', 'imported', 'doc', 'text', or file extension names. "
-        "Output ONLY valid JSON — no markdown code fences."
+        "You are an expert senior technical document analyst for Orio AI co-pilot. "
+        "Analyze the provided document text and output a JSON object with exactly these keys:\n"
+        "1. 'summary' (str): A well-crafted, synthesized 2-3 sentence overview explaining what this document is, its primary significance, key themes, and main value. DO NOT just copy or extract lines verbatim.\n"
+        "2. 'key_points' (list of str, max 5): Strategic takeaways, core technical components, or takeaways synthesized intelligently from the text.\n"
+        "3. 'tags' (list of lowercase str): Specific domain and topic tags (e.g. 'resume', 'python', 'fastapi', 'machine-learning'). NEVER include generic tags like 'pdf', 'file', 'imported', 'doc', 'text'.\n"
+        "4. 'technologies' (list of str): Frameworks, languages, tools, databases, or platforms mentioned.\n\n"
+        "Output ONLY valid JSON — no markdown code fences or extra commentary."
     )
     raw = await get_completion(system_prompt, f"Document content:\n{text[:6000]}")
 
