@@ -27,7 +27,17 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#6C63FF",
+          "sounds": [],
+          "androidMode": "default",
+          "androidCollapsedTitle": "Orio Reminder"
+        }
+      ]
     ],
     "extra": {
       "router": {},
