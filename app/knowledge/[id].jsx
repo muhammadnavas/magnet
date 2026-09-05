@@ -41,7 +41,9 @@ export default function KnowledgeDetailScreen() {
   };
 
   const handleDelete = () => {
-    deleteItem(id, { onSuccess: () => router.back() });
+    setShowDeleteConfirm(false);
+    deleteItem(id);
+    router.back();
   };
 
   const getHeaderIcon = () => {
@@ -60,11 +62,11 @@ export default function KnowledgeDetailScreen() {
     <SafeAreaView style={{ backgroundColor: themeColors.background }} className="flex-1" edges={["top", "left", "right"]}>
       
       {/* Delete Confirmation Modal */}
-      <Modal visible={showDeleteConfirm} transparent animationType="fade">
-        <View style={{ backgroundColor: "rgba(0,0,0,0.5)" }} className="flex-1 justify-center items-center px-6">
-          <View style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }} className="w-full max-w-sm rounded-3xl p-6 border shadow-xl">
-            <View style={{ backgroundColor: `${themeColors.error || "#EF4444"}15` }} className="w-14 h-14 rounded-full items-center justify-center self-center mb-4">
-              <Ionicons name="warning" size={28} color={themeColors.error || "#EF4444"} />
+      <Modal visible={showDeleteConfirm} transparent animationType="fade" onRequestClose={() => setShowDeleteConfirm(false)}>
+        <View style={{ backgroundColor: "rgba(0,0,0,0.7)" }} className="flex-1 justify-center items-center px-6">
+          <View style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }} className="w-full max-w-sm rounded-3xl p-6 border shadow-2xl">
+            <View style={{ backgroundColor: `${themeColors.error || "#EF4444"}18` }} className="w-14 h-14 rounded-full items-center justify-center self-center mb-4">
+              <Ionicons name="trash-outline" size={28} color={themeColors.error || "#EF4444"} />
             </View>
             <Text style={{ color: themeColors.text.primary }} className="text-xl font-black text-center mb-2">Delete Item?</Text>
             <Text style={{ color: themeColors.text.secondary }} className="text-sm text-center mb-6 leading-relaxed">
@@ -73,15 +75,15 @@ export default function KnowledgeDetailScreen() {
             <View className="flex-row gap-3">
               <Pressable
                 onPress={() => setShowDeleteConfirm(false)}
-                style={{ backgroundColor: themeColors.surfaceHover }}
-                className="flex-1 py-3.5 rounded-2xl items-center"
+                style={{ backgroundColor: themeColors.surfaceHover, borderColor: themeColors.border }}
+                className="flex-1 py-3.5 rounded-2xl items-center border"
               >
                 <Text style={{ color: themeColors.text.primary }} className="font-bold">Cancel</Text>
               </Pressable>
               <Pressable
                 onPress={handleDelete}
                 style={{ backgroundColor: themeColors.error || "#EF4444" }}
-                className="flex-1 py-3.5 rounded-2xl items-center"
+                className="flex-1 py-3.5 rounded-2xl items-center shadow-lg"
               >
                 <Text className="font-bold text-white">Delete</Text>
               </Pressable>

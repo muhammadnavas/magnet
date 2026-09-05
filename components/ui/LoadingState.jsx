@@ -1,6 +1,6 @@
 import React from "react";
 import { View, ActivityIndicator, Text } from "react-native";
-import colors from "../../constants/colors";
+import { useAppTheme } from "../../store/themeStore";
 
 export const LoadingState = ({
   message = "Loading data...",
@@ -8,16 +8,22 @@ export const LoadingState = ({
   className = "",
   ...props
 }) => {
+  const { themeColors } = useAppTheme();
+
   return (
     <View
-      className={`flex-1 items-center justify-center p-6 ${
-        fullScreen ? "h-full w-full bg-background" : ""
-      } ${className}`}
+      style={{
+        backgroundColor: fullScreen ? themeColors.background : "transparent",
+      }}
+      className={`flex-1 items-center justify-center p-6 ${className}`}
       {...props}
     >
-      <ActivityIndicator size="large" color={colors.primary} />
+      <ActivityIndicator size="large" color={themeColors.primary} />
       {message ? (
-        <Text className="text-text-secondary text-sm mt-4 font-medium">
+        <Text
+          style={{ color: themeColors.text.secondary }}
+          className="text-sm mt-4 font-medium"
+        >
           {message}
         </Text>
       ) : null}
