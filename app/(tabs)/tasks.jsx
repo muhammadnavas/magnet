@@ -9,9 +9,8 @@ import { useGetTasks, useCreateTask, useParseTask } from "../../hooks/useTasks";
 import { useAppTheme } from "../../store/themeStore";
 import { requestNotificationPermissions } from "../../lib/notifications";
 import TaskCard from "../../components/tasks/TaskCard";
+import Toast from "../../components/ui/Toast";
 
-
-// ──────────────────────────────────────────────────────────────
 const FILTERS = [
   { key: null, label: "All" },
   { key: "pending", label: "Pending" },
@@ -22,6 +21,7 @@ export default function TasksScreen() {
   const { themeColors } = useAppTheme();
   const [filter, setFilter] = useState(null);
   const [input, setInput] = useState("");
+  const [toast, setToast] = useState({ visible: false, title: "", message: "" });
   const inputRef = useRef(null);
 
   const { data: tasks = [], isLoading } = useGetTasks(filter);
@@ -32,22 +32,47 @@ export default function TasksScreen() {
     requestNotificationPermissions();
   }, []);
 
+  const handleInputFocus = () => {
+    requestNotificationPermissions();
+  };
+
   const handleSend = async () => {
     const trimmed = input.trim();
     if (!trimmed) return;
     
+    // Explicit user gesture request for browser notification permission on web
+    requestNotificationPermissions();
+
     try {
       // 1. AI Parse
       const parsedData = await parseTask.mutateAsync(trimmed);
       // 2. Create Task
-      createTask.mutate(parsedData);
+      createTask.mutate(parsedData, {
+        onSuccess: (data) => {
+          const interval = data.reminder_interval_hours || 24;
+          setToast({
+            visible: true,
+            title: "⏰ Reminder Set!",
+            message: `"${data.title}" — Reminding every ${interval}h.`,
+          });
+        },
+      });
       
       setInput("");
       inputRef.current?.blur();
     } catch (error) {
       console.error("Failed to parse task via AI:", error);
       // Fallback if AI fails completely
-      createTask.mutate({ title: trimmed, priority: "medium", deadline: null, reminder_interval_hours: 24 });
+      const fallbackTask = { title: trimmed, priority: "medium", deadline: null, reminder_interval_hours: 24 };
+      createTask.mutate(fallbackTask, {
+        onSuccess: () => {
+          setToast({
+            visible: true,
+            title: "⏰ Reminder Set!",
+            message: `"${trimmed}" — Reminding every 24h.`,
+          });
+        },
+      });
       setInput("");
       inputRef.current?.blur();
     }
@@ -58,6 +83,14 @@ export default function TasksScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: themeColors.background }} edges={["top", "left", "right"]}>
+      {/* Floating In-App Toast Banner */}
+      <Toast
+        visible={toast.visible}
+        title={toast.title}
+        message={toast.message}
+        onClose={() => setToast((prev) => ({ ...prev, visible: false }))}
+      />
+
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -168,6 +201,7 @@ export default function TasksScreen() {
               ref={inputRef}
               value={input}
               onChangeText={setInput}
+              onFocus={handleInputFocus}
               placeholder='e.g. "Submit assignment by Thursday"'
               placeholderTextColor={themeColors.text.muted}
               multiline
