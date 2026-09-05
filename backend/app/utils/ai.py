@@ -28,11 +28,11 @@ def _make_client() -> genai.Client:
 
 # ---- Confirmed working models for this API key (from ListModels probe) ----
 FREE_COMPLETION_MODELS = [
-    "gemini-2.5-flash",
-    "gemini-3.6-flash",
-    "gemini-3.5-flash-lite",
-    "gemini-3.8-flash",
-    "gemini-3.7-flash",
+    "gemini-3.6-flash",       # primary — confirmed working, lower demand
+    "gemini-3.5-flash-lite",  # fast lite fallback
+    "gemini-3.8-flash",       # next fallback
+    "gemini-3.7-flash",       # further fallback
+    "gemini-2.5-flash",       # last resort — showed 503 high demand
 ]
 
 FREE_EMBEDDING_MODELS = [
@@ -74,7 +74,7 @@ async def get_embedding(text: str) -> List[float]:
         except Exception as e:
             err = str(e)
             logger.warning(f"Embedding attempt with '{model_name}' failed: {err}")
-            if "429" in err or "RESOURCE_EXHAUSTED" in err:
+            if "429" in err or "503" in err or "RESOURCE_EXHAUSTED" in err or "UNAVAILABLE" in err:
                 await asyncio.sleep(1.0)
 
     logger.error("All embedding model attempts failed. Returning zero vector.")
@@ -109,7 +109,7 @@ async def get_completion(system_prompt: str, user_prompt: str) -> str:
             err = str(e)
             logger.warning(f"Completion attempt with '{model_name}' failed: {err}")
             last_error = e
-            if "429" in err or "RESOURCE_EXHAUSTED" in err:
+            if "429" in err or "503" in err or "RESOURCE_EXHAUSTED" in err or "UNAVAILABLE" in err:
                 await asyncio.sleep(1.0)
 
     logger.error(f"All completion attempts failed. Last: {last_error}")
