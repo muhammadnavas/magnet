@@ -15,6 +15,26 @@ export const truncateString = (str, num) => {
   return str.slice(0, num) + "...";
 };
 
+const REDUNDANT_TAGS = new Set([
+  "imported", "pdf", "file", "doc", "text", "document", "url",
+  "github", "image", "unknown", "screenshot", "code", "error"
+]);
+
+export const filterMeaningfulTags = (rawTags, contentType = "") => {
+  if (!Array.isArray(rawTags)) return [];
+  const typeLower = (contentType || "").trim().toLowerCase();
+  
+  return rawTags
+    .map((t) => (typeof t === "string" ? t : (t && t.name ? t.name : "")))
+    .filter((t) => {
+      if (!t) return false;
+      const lower = t.trim().toLowerCase();
+      if (REDUNDANT_TAGS.has(lower)) return false;
+      if (typeLower && lower === typeLower) return false;
+      return true;
+    });
+};
+
 export const formatDate = (dateString) => {
   try {
     const options = { year: "numeric", month: "short", day: "numeric" };
@@ -23,4 +43,5 @@ export const formatDate = (dateString) => {
     return dateString;
   }
 };
-export default { formatBytes, truncateString, formatDate };
+
+export default { formatBytes, truncateString, formatDate, filterMeaningfulTags };

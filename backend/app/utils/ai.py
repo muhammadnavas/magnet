@@ -115,6 +115,8 @@ async def get_completion(system_prompt: str, user_prompt: str) -> str:
     return f"AI unavailable ({str(last_error) if last_error else 'all models failed'})."
 
 
+REDUNDANT_TAGS = {"imported", "pdf", "file", "doc", "text", "document", "url", "github", "image", "unknown", "screenshot", "code", "error"}
+
 async def analyze_document(text: str) -> Dict[str, Any]:
     """Analyze document text with LLM to extract summary, key points, tags, and technologies."""
     if not text:
@@ -123,7 +125,9 @@ async def analyze_document(text: str) -> Dict[str, Any]:
     system_prompt = (
         "You are an expert technical document classifier. Analyze the provided text and output a JSON object "
         "with exactly these keys: 'summary' (str), 'key_points' (list of str, max 5), "
-        "'tags' (list of lowercase str), 'technologies' (list of str). "
+        "'tags' (list of lowercase str for specific domain topics like 'resume', 'python', 'database'), "
+        "'technologies' (list of str). "
+        "DO NOT include generic tags like 'pdf', 'file', 'imported', 'doc', 'text', or file extension names. "
         "Output ONLY valid JSON — no markdown code fences."
     )
     raw = await get_completion(system_prompt, f"Document content:\n{text[:6000]}")
@@ -138,10 +142,12 @@ async def analyze_document(text: str) -> Dict[str, Any]:
 
     try:
         data = json.loads(cleaned)
+        raw_tags = [str(t).lower().strip() for t in data.get("tags", [])]
+        clean_tags = [t for t in raw_tags if t and t not in REDUNDANT_TAGS]
         return {
             "summary": data.get("summary", text[:150] + "..."),
             "key_points": data.get("key_points", []),
-            "tags": [str(t).lower() for t in data.get("tags", [])],
+            "tags": clean_tags,
             "technologies": data.get("technologies", []),
         }
     except Exception:
@@ -149,7 +155,7 @@ async def analyze_document(text: str) -> Dict[str, Any]:
         return {
             "summary": " ".join(text.split()[:30]) + "...",
             "key_points": ["Document processed successfully."],
-            "tags": ["imported"],
+            "tags": [],
             "technologies": [],
         }
 

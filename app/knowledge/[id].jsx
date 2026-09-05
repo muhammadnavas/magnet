@@ -142,7 +142,7 @@ export default function KnowledgeDetailScreen() {
               <Ionicons name="folder-outline" size={10} color={themeColors.primaryLight} className="mr-1" />
               <Text style={{ color: themeColors.primaryLight }} className="text-[9px] font-bold uppercase tracking-wider">{project}</Text>
             </View>
-            {tags.map((tag) => (
+            {displayTags.map((tag) => (
               <Tag key={tag} text={tag} />
             ))}
           </View>

@@ -217,10 +217,10 @@ async def process_document(ctx, knowledge_id: str):
             item.meta = meta
             
             # Link tags
-            tags_to_add = []
+            REDUNDANT_TAGS = {"imported", "pdf", "file", "doc", "text", "document", "url", "github", "image", "unknown", "screenshot", "code", "error"}
             for tag_name in analysis.get("tags", []):
                 tag_name = tag_name.strip().lower()
-                if not tag_name:
+                if not tag_name or tag_name in REDUNDANT_TAGS or tag_name == (item.content_type or "").lower():
                     continue
                 # Check if tag already exists
                 tag_sel = await db.execute(

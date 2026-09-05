@@ -7,6 +7,7 @@ import Badge from "../ui/Badge";
 import Tag from "../ui/Tag";
 import { formatDistanceToNow } from "date-fns";
 import { useAppTheme } from "../../store/themeStore";
+import { filterMeaningfulTags } from "../../utils/formatting";
 
 export const KnowledgeCard = ({ item }) => {
   const { id, title, contentType, summary, tags, createdAt, processingStatus } = item;
@@ -27,6 +28,8 @@ export const KnowledgeCard = ({ item }) => {
   let formattedDate = "";
   try { formattedDate = formatDistanceToNow(new Date(createdAt), { addSuffix: true }); } catch (e) { formattedDate = ""; }
 
+  const displayTags = filterMeaningfulTags(tags, contentType);
+
   return (
     <Card onPress={() => router.push(`/knowledge/${id}`)} className="p-4 mb-3">
       <View className="flex-row items-center justify-between mb-2">
@@ -39,13 +42,12 @@ export const KnowledgeCard = ({ item }) => {
         <Badge status={processingStatus === "completed" ? "completed" : processingStatus} />
       </View>
 
-
       <Text style={{ color: themeColors.text.primary }} className="text-base font-bold mb-1.5 leading-snug">{title}</Text>
       <Text numberOfLines={2} style={{ color: themeColors.text.secondary }} className="text-xs leading-relaxed mb-3">{summary}</Text>
 
       <View style={{ borderTopColor: themeColors.border }} className="flex-row items-center justify-between border-t pt-3">
         <View className="flex-row flex-wrap gap-1.5 flex-1 mr-2">
-          {tags.slice(0, 3).map((tag, idx) => <Tag key={`${tag}-${idx}`} text={tag} />)}
+          {displayTags.slice(0, 3).map((tag, idx) => <Tag key={`${tag}-${idx}`} text={tag} />)}
         </View>
         <Text style={{ color: themeColors.text.muted }} className="text-[10px] font-semibold">{formattedDate}</Text>
       </View>
