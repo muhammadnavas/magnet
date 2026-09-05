@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import logging
 import asyncio
@@ -28,10 +29,9 @@ def _make_client() -> genai.Client:
 
 # ---- Confirmed working models for this API key (from ListModels probe) ----
 FREE_COMPLETION_MODELS = [
-    "gemini-2.5-flash",
-    "gemini-3.6-flash",
     "gemini-3.5-flash",
     "gemini-3.5-flash-lite",
+    "gemini-2.5-flash",
 ]
 
 FREE_EMBEDDING_MODELS = [
@@ -172,21 +172,77 @@ async def analyze_document(text: str) -> Dict[str, Any]:
         }
 
 
+from datetime import datetime, timedelta
+
+def _rule_based_task_parse(text: str, current_time: str) -> dict:
+    """Fallback rule-based parser for relative time phrases."""
+    try:
+        if current_time:
+            now_dt = datetime.fromisoformat(current_time.replace("Z", "+00:00")).replace(tzinfo=None)
+        else:
+            now_dt = datetime.now()
+    except Exception:
+        now_dt = datetime.now()
+
+    clean_title = text.strip()
+    deadline = None
+    reminder_interval = 24
+
+    min_match = re.search(r'(?:in|next|for)\s+(\d+)\s*(?:min|mins|minute|minutes)', text, re.IGNORECASE)
+    if not min_match:
+        min_match = re.search(r'(\d+)\s*(?:min|mins|minute|minutes)', text, re.IGNORECASE)
+
+    hour_match = re.search(r'(?:in|next|for)\s+(\d+)\s*(?:hr|hrs|hour|hours)', text, re.IGNORECASE)
+    if not hour_match and not min_match:
+        hour_match = re.search(r'(\d+)\s*(?:hr|hrs|hour|hours)', text, re.IGNORECASE)
+
+    day_match = re.search(r'(?:in|next|for)\s+(\d+)\s*(?:day|days)', text, re.IGNORECASE)
+
+    if min_match:
+        mins = int(min_match.group(1))
+        deadline = now_dt + timedelta(minutes=mins)
+        reminder_interval = max(1, mins // 60) if mins >= 60 else 1
+    elif hour_match:
+        hrs = int(hour_match.group(1))
+        deadline = now_dt + timedelta(hours=hrs)
+        reminder_interval = max(1, hrs)
+    elif day_match:
+        days = int(day_match.group(1))
+        deadline = now_dt + timedelta(days=days)
+        reminder_interval = 24
+    elif "tomorrow" in text.lower():
+        deadline = now_dt + timedelta(days=1)
+        reminder_interval = 24
+
+    # Strip trigger prefix and suffix
+    clean_title = re.sub(r'^(set\s+(?:a\s+)?(?:three\s+)?reminder\s+(?:for\s+)?|remind\s+me\s+to\s+|remind\s+me\s+)', '', clean_title, flags=re.IGNORECASE).strip()
+    clean_title = re.sub(r'\s*(?:for\s+next|in|next)\s+\d+\s*(?:min|mins|minute|minutes|hr|hrs|hour|hours|day|days)\b', '', clean_title, flags=re.IGNORECASE).strip()
+    
+    if not clean_title or clean_title.lower() in ("reminder", "reminders", "set a reminder", "set a three reminder"):
+        clean_title = "Reminder"
+
+    return {
+        "title": clean_title.capitalize(),
+        "priority": "medium",
+        "deadline": deadline.isoformat() if deadline else None,
+        "reminder_interval_hours": reminder_interval,
+    }
+
+
 async def parse_task_intent(text: str, current_time: str) -> dict:
     """Parse natural language into structured task fields."""
     if not text:
         return {"title": "Untitled Task", "priority": "medium", "deadline": None, "reminder_interval_hours": 24}
 
+    fallback = _rule_based_task_parse(text, current_time)
+
     system_prompt = (
-        "You are an expert NLP task parser. Output ONLY a valid JSON object with these keys:\n"
-        "- 'title' (str): concise action title.\n"
-        "- 'priority' (str): 'low', 'medium', or 'high'.\n"
-        "- 'deadline' (str or null): ISO 8601 deadline if mentioned, else null.\n"
-        "- 'reminder_interval_hours' (int): hours between reminders. "
-        "If user says '3 reminders', divide hours-to-deadline by 3. "
-        "If they say 'remind me at X', calculate hours from now to X. "
-        "If they say 'every N hours', use N. Default: 24.\n"
-        "DO NOT wrap in markdown."
+        "You are an expert NLP task parser. Analyze the user prompt and current ISO timestamp.\n"
+        "1. Extract a concise, clean action title (remove trigger phrases like 'set a reminder for', 'in 5 minutes').\n"
+        "2. Priority: 'low', 'medium', or 'high'.\n"
+        "3. Deadline: Calculate the exact target ISO 8601 deadline timestamp if a target date/time/duration is mentioned (e.g. 'next 5 minutes' -> current_time + 5 mins). If no time mentioned, return null.\n"
+        "4. reminder_interval_hours: int (default 24).\n\n"
+        "Output ONLY a valid JSON object with keys 'title', 'priority', 'deadline', 'reminder_interval_hours'. No markdown wrapping."
     )
     raw = await get_completion(system_prompt, f"Current Time: {current_time}\nUser Input: {text}")
 
@@ -200,12 +256,19 @@ async def parse_task_intent(text: str, current_time: str) -> dict:
 
     try:
         data = json.loads(cleaned)
+        parsed_title = str(data.get("title", "")).strip()
+        parsed_deadline = data.get("deadline", None)
+        
+        # If AI returned generic or unparsed title/null deadline when rule-based found a deadline, merge them
+        final_title = parsed_title if parsed_title and parsed_title.lower() not in ("untitled task", text.lower()) else fallback["title"]
+        final_deadline = parsed_deadline if parsed_deadline else fallback["deadline"]
+        
         return {
-            "title": data.get("title", text.strip()),
-            "priority": data.get("priority", "medium"),
-            "deadline": data.get("deadline", None),
-            "reminder_interval_hours": data.get("reminder_interval_hours", 24),
+            "title": final_title,
+            "priority": data.get("priority", fallback["priority"]),
+            "deadline": final_deadline,
+            "reminder_interval_hours": data.get("reminder_interval_hours", fallback["reminder_interval_hours"]),
         }
     except Exception as e:
-        logger.warning(f"Failed to parse task JSON: {e}. Raw: {raw[:200]}")
-        return {"title": text.strip(), "priority": "medium", "deadline": None, "reminder_interval_hours": 24}
+        logger.warning(f"Failed to parse task JSON: {e}. Using fallback rule parser.")
+        return fallback
