@@ -48,11 +48,9 @@ FREE_COMPLETION_MODELS = [
 ]
 
 FREE_EMBEDDING_MODELS = [
-    settings.GEMINI_EMBEDDING_MODEL,
     "models/text-embedding-004",
     "models/embedding-001",
-    "text-embedding-004",
-    "embedding-001"
+    settings.GEMINI_EMBEDDING_MODEL,
 ]
 
 async def get_embedding(text: str) -> List[float]:

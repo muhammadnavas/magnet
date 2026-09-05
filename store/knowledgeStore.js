@@ -226,7 +226,7 @@ export const useKnowledgeStore = create((set, get) => ({
     }
   },
 
-  deleteItem: async (id) => {
+  deleteItem: async (id, callbacks = {}) => {
     // Optimistic delete
     set((state) => ({
       items: state.items.filter((item) => item.id !== id),
@@ -234,12 +234,14 @@ export const useKnowledgeStore = create((set, get) => ({
 
     try {
       await api.delete(`/knowledge/${id}`);
+      if (callbacks.onSuccess) callbacks.onSuccess();
     } catch (e) {
       console.error("Failed to sync delete, queueing offline", e);
       get().queueOfflineCapture({
         operation: "delete",
         payload: { id },
       });
+      if (callbacks.onError) callbacks.onError(e);
     }
   },
 
