@@ -3,6 +3,7 @@ import logging
 import uuid
 import os
 import re
+import random
 import httpx
 import pdfplumber
 from sqlalchemy.future import select
@@ -120,8 +121,6 @@ async def process_document(ctx, knowledge_id: str):
             
             # If local file was deleted but we have GDrive ID, download it
             if not target_path and item.meta and item.meta.get("gdrive_file_id"):
-                import os
-                import uuid
                 from app.services.gdrive import download_file_from_gdrive
                 os.makedirs("uploads", exist_ok=True)
                 temp_file_path = f"uploads/{uuid.uuid4()}_temp.pdf"
@@ -159,7 +158,6 @@ async def process_document(ctx, knowledge_id: str):
             # Cleanup temp file
             if temp_file_path:
                 try:
-                    import os
                     os.remove(temp_file_path)
                 except OSError:
                     pass
@@ -231,7 +229,6 @@ async def process_document(ctx, knowledge_id: str):
                 tag = tag_sel.scalars().first()
                 if not tag:
                     # Generate random hex color for new tags
-                    import random
                     color = f"#{random.randint(100,250):02X}{random.randint(100,250):02X}{random.randint(100,250):02X}"
                     tag = Tag(name=tag_name, color=color)
                     db.add(tag)
