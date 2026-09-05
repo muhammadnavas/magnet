@@ -1,3 +1,4 @@
+import os
 import json
 import logging
 import asyncio
@@ -7,12 +8,17 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Configure clients
-if settings.GEMINI_API_KEY:
-    genai.configure(api_key=settings.GEMINI_API_KEY)
+def _get_gemini_key() -> str:
+    key = settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_GEMINI_API_KEY") or os.getenv("GEMINI_KEY") or ""
+    return key.strip()
+
+# Initial client configuration check
+_initial_key = _get_gemini_key()
+if _initial_key:
+    genai.configure(api_key=_initial_key)
     logger.info("Gemini AI API configured successfully.")
 else:
-    logger.warning("GEMINI_API_KEY is missing. Gemini client disabled.")
+    logger.warning("GEMINI_API_KEY is missing in environment settings.")
 
 async def get_embedding(text: str) -> List[float]:
     """
@@ -21,47 +27,91 @@ async def get_embedding(text: str) -> List[float]:
     if not text:
         return [0.0] * 1536
 
-    if settings.GEMINI_API_KEY:
+    api_key = _get_gemini_key()
+    if not api_key:
+        logger.warning("GEMINI_API_KEY is missing for get_embedding. Returning zero vector.")
+        return [0.0] * 1536
+
+    try:
+        genai.configure(api_key=api_key)
+    except Exception as e:
+        logger.error(f"Failed to configure Gemini client: {e}")
+        return [0.0] * 1536
+
+    models_to_try = [
+        settings.GEMINI_EMBEDDING_MODEL,
+        "models/text-embedding-004",
+        "models/embedding-001",
+        "text-embedding-004",
+        "embedding-001"
+    ]
+    seen = set()
+    models_to_try = [m for m in models_to_try if m and not (m in seen or seen.add(m))]
+
+    for model_name in models_to_try:
         try:
             response = await asyncio.to_thread(
                 genai.embed_content,
-                model=settings.GEMINI_EMBEDDING_MODEL,
+                model=model_name,
                 content=text,
                 task_type="retrieval_document"
             )
             emb = response.get("embedding", [])
             if emb:
-                # text-embedding-004/embedding-001 is 768 dimensions. We must pad or slice it to match our DB column Vector(1536).
+                # Pad or truncate to 1536 dimensions for DB schema alignment
                 if len(emb) < 1536:
                     emb = emb + [0.0] * (1536 - len(emb))
                 else:
                     emb = emb[:1536]
                 return emb
         except Exception as e:
-            logger.error(f"Gemini embedding failed: {e}")
+            logger.warning(f"Gemini embedding attempt with model {model_name} failed: {e}")
 
-    logger.warning("Returning empty vector because Gemini failed or is not configured.")
+    logger.error("All Gemini embedding model attempts failed. Returning zero vector.")
     return [0.0] * 1536
 
 async def get_completion(system_prompt: str, user_prompt: str) -> str:
     """
-    Generate LLM completion using Gemini exclusively.
+    Generate LLM completion using Gemini with automatic model fallback.
     """
-    if settings.GEMINI_API_KEY:
+    api_key = _get_gemini_key()
+    if not api_key:
+        logger.error("GEMINI_API_KEY is missing in server environment variables.")
+        return "AI is currently unavailable (GEMINI_API_KEY is missing in backend environment variables)."
+
+    try:
+        genai.configure(api_key=api_key)
+    except Exception as e:
+        logger.error(f"Failed to configure Gemini client: {e}")
+
+    models_to_try = [
+        settings.GEMINI_LLM_MODEL,
+        "gemini-1.5-flash",
+        "gemini-2.0-flash",
+        "gemini-1.5-pro",
+        "gemini-pro"
+    ]
+    seen = set()
+    models_to_try = [m for m in models_to_try if m and not (m in seen or seen.add(m))]
+
+    last_error = None
+    for model_name in models_to_try:
         try:
-            # We configure GenerativeModel. Gemini uses system_instruction parameter for the system prompt.
             model = genai.GenerativeModel(
-                model_name=settings.GEMINI_LLM_MODEL,
+                model_name=model_name,
                 system_instruction=system_prompt
             )
             response = await model.generate_content_async(
                 contents=user_prompt
             )
-            return response.text or ""
+            if response and response.text:
+                return response.text.strip()
         except Exception as e:
-            logger.error(f"Gemini completion failed: {e}")
+            logger.warning(f"Gemini completion attempt with model {model_name} failed: {e}")
+            last_error = e
 
-    return "AI is currently unavailable. Please check your Gemini configuration."
+    logger.error(f"All Gemini LLM model attempts failed. Last error: {last_error}")
+    return f"AI is currently unavailable ({str(last_error) if last_error else 'Gemini model request failed'})."
 
 
 async def analyze_document(text: str) -> Dict[str, Any]:

@@ -88,25 +88,21 @@ async def upload_knowledge(
                 content = await file.read()
                 f.write(content)
                 
-            # Upload to Google Drive
-            import urllib.parse
-            decoded_filename = urllib.parse.unquote(file.filename)
-            from app.services.gdrive import upload_file_to_gdrive
-            gdrive_res = upload_file_to_gdrive(file_path, decoded_filename, file.content_type)
-            if "error" not in gdrive_res:
-                gdrive_meta = {
-                    "gdrive_file_id": gdrive_res.get("id"),
-                    "gdrive_web_view_link": gdrive_res.get("webViewLink")
-                }
-            else:
-                logger.error(f"GDrive upload failed: {gdrive_res.get('error')}")
-
-            # Delete the local file to save space, background task will fetch from drive
+            # Optional Google Drive backup
             try:
-                os.remove(file_path)
-                file_path = None
-            except OSError:
-                pass
+                import urllib.parse
+                decoded_filename = urllib.parse.unquote(file.filename)
+                from app.services.gdrive import upload_file_to_gdrive
+                gdrive_res = upload_file_to_gdrive(file_path, decoded_filename, file.content_type)
+                if "error" not in gdrive_res:
+                    gdrive_meta = {
+                        "gdrive_file_id": gdrive_res.get("id"),
+                        "gdrive_web_view_link": gdrive_res.get("webViewLink")
+                    }
+                else:
+                    logger.warning(f"GDrive upload fallback (optional): {gdrive_res.get('error')}")
+            except Exception as ge:
+                logger.warning(f"GDrive integration skipped: {ge}")
 
         except Exception as e:
             logger.error(f"Failed to save file: {e}")
