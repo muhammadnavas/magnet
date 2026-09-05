@@ -20,9 +20,34 @@ if _initial_key:
 else:
     logger.warning("GEMINI_API_KEY is missing in environment settings.")
 
+FREE_COMPLETION_MODELS = [
+    settings.GEMINI_LLM_MODEL,
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-8b",
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-lite",
+    "gemini-2.0-flash-exp",
+    "gemini-1.5-pro",
+    "gemini-1.0-pro",
+    "gemini-pro",
+    "models/gemini-1.5-flash",
+    "models/gemini-1.5-flash-8b",
+    "models/gemini-2.0-flash",
+    "models/gemini-1.5-pro",
+    "models/gemini-pro"
+]
+
+FREE_EMBEDDING_MODELS = [
+    settings.GEMINI_EMBEDDING_MODEL,
+    "models/text-embedding-004",
+    "models/embedding-001",
+    "text-embedding-004",
+    "embedding-001"
+]
+
 async def get_embedding(text: str) -> List[float]:
     """
-    Generate 1536-dimension vector embedding for the input text using Gemini.
+    Generate 1536-dimension vector embedding for the input text using free Gemini models.
     """
     if not text:
         return [0.0] * 1536
@@ -38,15 +63,8 @@ async def get_embedding(text: str) -> List[float]:
         logger.error(f"Failed to configure Gemini client: {e}")
         return [0.0] * 1536
 
-    models_to_try = [
-        settings.GEMINI_EMBEDDING_MODEL,
-        "models/text-embedding-004",
-        "models/embedding-001",
-        "text-embedding-004",
-        "embedding-001"
-    ]
     seen = set()
-    models_to_try = [m for m in models_to_try if m and not (m in seen or seen.add(m))]
+    models_to_try = [m for m in FREE_EMBEDDING_MODELS if m and not (m in seen or seen.add(m))]
 
     for model_name in models_to_try:
         try:
@@ -65,14 +83,17 @@ async def get_embedding(text: str) -> List[float]:
                     emb = emb[:1536]
                 return emb
         except Exception as e:
-            logger.warning(f"Gemini embedding attempt with model {model_name} failed: {e}")
+            err_str = str(e)
+            logger.warning(f"Gemini embedding attempt with model '{model_name}' failed: {err_str}")
+            if "429" in err_str or "Quota" in err_str or "ResourceExhausted" in err_str:
+                await asyncio.sleep(0.5)
 
     logger.error("All Gemini embedding model attempts failed. Returning zero vector.")
     return [0.0] * 1536
 
 async def get_completion(system_prompt: str, user_prompt: str) -> str:
     """
-    Generate LLM completion using Gemini with automatic model fallback.
+    Generate LLM completion using free Gemini models with automatic 404 & 429 rate-limit fallback.
     """
     api_key = _get_gemini_key()
     if not api_key:
@@ -84,15 +105,8 @@ async def get_completion(system_prompt: str, user_prompt: str) -> str:
     except Exception as e:
         logger.error(f"Failed to configure Gemini client: {e}")
 
-    models_to_try = [
-        settings.GEMINI_LLM_MODEL,
-        "gemini-1.5-flash",
-        "gemini-2.0-flash",
-        "gemini-1.5-pro",
-        "gemini-pro"
-    ]
     seen = set()
-    models_to_try = [m for m in models_to_try if m and not (m in seen or seen.add(m))]
+    models_to_try = [m for m in FREE_COMPLETION_MODELS if m and not (m in seen or seen.add(m))]
 
     last_error = None
     for model_name in models_to_try:
@@ -107,10 +121,14 @@ async def get_completion(system_prompt: str, user_prompt: str) -> str:
             if response and response.text:
                 return response.text.strip()
         except Exception as e:
-            logger.warning(f"Gemini completion attempt with model {model_name} failed: {e}")
+            err_str = str(e)
+            logger.warning(f"Gemini completion attempt with model '{model_name}' failed: {err_str}")
             last_error = e
+            # Handle rate-limiting (429 / ResourceExhausted) by brief sleep and falling back to next free model
+            if "429" in err_str or "Quota" in err_str or "ResourceExhausted" in err_str:
+                await asyncio.sleep(0.5)
 
-    logger.error(f"All Gemini LLM model attempts failed. Last error: {last_error}")
+    logger.error(f"All free Gemini LLM model attempts failed. Last error: {last_error}")
     return f"AI is currently unavailable ({str(last_error) if last_error else 'Gemini model request failed'})."
 
 
