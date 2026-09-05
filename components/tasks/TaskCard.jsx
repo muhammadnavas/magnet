@@ -22,8 +22,6 @@ export default function TaskCard({ task }) {
 
   const isCompleted = task.status === "completed";
   const priority = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
-  const isOverdue = task.deadline && !isCompleted && isPast(new Date(task.deadline));
-
   const handleToggleComplete = () => {
     Animated.sequence([
       Animated.timing(scaleAnim, { toValue: 0.95, duration: 80, useNativeDriver: true }),
@@ -39,15 +37,38 @@ export default function TaskCard({ task }) {
     deleteTask.mutate(task.id);
   };
 
+  const parseDate = (val) => {
+    if (!val) return null;
+    if (val instanceof Date) return val;
+    if (typeof val === "string") {
+      const hasTz = val.endsWith("Z") || val.includes("+") || val.includes("-", 10);
+      const formatted = hasTz ? val : `${val}Z`;
+      const d = new Date(formatted);
+      return isNaN(d.getTime()) ? new Date(val) : d;
+    }
+    return new Date(val);
+  };
+
+  const createdAtRaw = task.created_at || task.createdAt;
+  let createdText = null;
+  if (createdAtRaw) {
+    const cd = parseDate(createdAtRaw);
+    if (cd && !isNaN(cd.getTime())) {
+      createdText = `Created ${format(cd, "MMM d, h:mm a")}`;
+    }
+  }
+
   let deadlineText = null;
-  if (task.deadline) {
-    const d = new Date(task.deadline);
+  const deadlineDate = parseDate(task.deadline);
+  const isOverdue = deadlineDate && !isCompleted && isPast(deadlineDate);
+
+  if (deadlineDate && !isNaN(deadlineDate.getTime())) {
     if (isCompleted) {
-      deadlineText = `Completed · Due ${format(d, "MMM d")}`;
+      deadlineText = `Completed · Due ${format(deadlineDate, "MMM d")}`;
     } else if (isOverdue) {
-      deadlineText = `Overdue · ${formatDistanceToNow(d, { addSuffix: true })}`;
+      deadlineText = `Overdue · ${formatDistanceToNow(deadlineDate, { addSuffix: true })}`;
     } else {
-      deadlineText = `Due ${formatDistanceToNow(d, { addSuffix: true })}`;
+      deadlineText = `Due ${formatDistanceToNow(deadlineDate, { addSuffix: true })}`;
     }
   }
 
@@ -138,6 +159,36 @@ export default function TaskCard({ task }) {
                     {priority.label}
                   </Text>
                 </View>
+
+                {/* Creation Date & Time chip */}
+                {createdText && (
+                  <View
+                    style={{
+                      backgroundColor: themeColors.surfaceHover,
+                      borderRadius: 100,
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      flexDirection: "row",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Ionicons
+                      name="calendar-outline"
+                      size={11}
+                      color={themeColors.text.muted}
+                      style={{ marginRight: 4 }}
+                    />
+                    <Text
+                      style={{
+                        color: themeColors.text.muted,
+                        fontSize: 11,
+                        fontWeight: "600",
+                      }}
+                    >
+                      {createdText}
+                    </Text>
+                  </View>
+                )}
 
                 {/* Deadline chip */}
                 {deadlineText && (
