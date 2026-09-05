@@ -12,7 +12,14 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 def _get_gemini_key() -> str:
-    key = settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_GEMINI_API_KEY") or ""
+    key = (
+        settings.GEMINI_API_KEY or
+        os.getenv("GEMINI_API_KEY") or
+        os.getenv("GOOGLE_GEMINI_API_KEY") or
+        os.getenv("GOOGLE_API_KEY") or
+        os.getenv("GEMINI_KEY") or
+        ""
+    )
     return key.strip()
 
 def _make_client() -> genai.Client:
@@ -23,20 +30,31 @@ def _make_client() -> genai.Client:
     """
     api_key = _get_gemini_key()
     if not api_key:
-        raise ValueError("GEMINI_API_KEY is not set in environment variables.")
+        logger.error("GEMINI_API_KEY is not set in environment variables! AI feature calls will fail. Set GEMINI_API_KEY in deployment environment settings.")
+        raise ValueError("GEMINI_API_KEY is not configured in deployment environment settings.")
     return genai.Client(api_key=api_key)   # default = v1beta
 
 
-# ---- Confirmed working models for this API key (from ListModels probe) ----
-FREE_COMPLETION_MODELS = [
+def _clean_model_name(name: str) -> str:
+    if not name:
+        return ""
+    cleaned = name.strip()
+    if cleaned.startswith("models/"):
+        cleaned = cleaned[len("models/"):]
+    return cleaned
+
+# ---- Confirmed working models for this API key ----
+DEFAULT_COMPLETION_MODELS = [
     "gemini-3.5-flash",
     "gemini-3.5-flash-lite",
     "gemini-2.5-flash",
+    "gemini-1.5-flash",
+    "gemini-1.5-pro",
 ]
 
-FREE_EMBEDDING_MODELS = [
-    "gemini-embedding-001",   # confirmed present on v1 and v1beta
-    "gemini-embedding-2",     # confirmed present on v1 and v1beta
+DEFAULT_EMBEDDING_MODELS = [
+    "gemini-embedding-001",
+    "gemini-embedding-2",
 ]
 
 
@@ -54,7 +72,15 @@ async def get_embedding(text: str) -> List[float]:
         logger.warning(str(e))
         return [0.0] * 1536
 
-    for model_name in FREE_EMBEDDING_MODELS:
+    configured_model = _clean_model_name(settings.GEMINI_EMBEDDING_MODEL or os.getenv("GEMINI_EMBEDDING_MODEL", ""))
+    candidates = []
+    if configured_model and configured_model not in ("text-embedding-004", "models/text-embedding-004"):
+        candidates.append(configured_model)
+    for m in DEFAULT_EMBEDDING_MODELS:
+        if m not in candidates:
+            candidates.append(m)
+
+    for model_name in candidates:
         try:
             response = await asyncio.to_thread(
                 client.models.embed_content,
@@ -101,8 +127,16 @@ async def get_completion(system_prompt: str, user_prompt: str, history: List[Dic
 
     full_user_content += f"User Query: {user_prompt}"
 
+    configured_model = _clean_model_name(settings.GEMINI_LLM_MODEL or os.getenv("GEMINI_LLM_MODEL", ""))
+    candidates = []
+    if configured_model:
+        candidates.append(configured_model)
+    for m in DEFAULT_COMPLETION_MODELS:
+        if m not in candidates:
+            candidates.append(m)
+
     last_error = None
-    for model_name in FREE_COMPLETION_MODELS:
+    for model_name in candidates:
         try:
             response = await client.aio.models.generate_content(
                 model=model_name,

@@ -14,8 +14,8 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://redis:6379/0"
     
     GEMINI_API_KEY: str = ""
-    GEMINI_EMBEDDING_MODEL: str = "text-embedding-004"
-    GEMINI_LLM_MODEL: str = "gemini-2.5-flash"
+    GEMINI_EMBEDDING_MODEL: str = "gemini-embedding-001"
+    GEMINI_LLM_MODEL: str = "gemini-3.5-flash"
     
     # Google Drive Integration
     GOOGLE_APPLICATION_CREDENTIALS: str = ""
