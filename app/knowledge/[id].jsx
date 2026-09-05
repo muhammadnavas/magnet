@@ -6,7 +6,6 @@ import { Ionicons } from "@expo/vector-icons";
 import colors from "../../constants/colors";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
-import Tag from "../../components/ui/Tag";
 import LoadingState from "../../components/ui/LoadingState";
 import useKnowledge from "../../hooks/useKnowledge";
 import { formatDate } from "../../utils/formatting";
@@ -136,15 +135,12 @@ export default function KnowledgeDetailScreen() {
             {title}
           </Text>
 
-          {/* Project & Tag Badges */}
+          {/* Project Badge */}
           <View className="flex-row flex-wrap gap-1.5 items-center">
-            <View style={{ backgroundColor: `${themeColors.primary}18`, borderColor: `${themeColors.primary}30` }} className="border px-3 py-1 rounded-full flex-row items-center mr-1.5">
+            <View style={{ backgroundColor: `${themeColors.primary}18`, borderColor: `${themeColors.primary}30` }} className="border px-3 py-1 rounded-full flex-row items-center">
               <Ionicons name="folder-outline" size={10} color={themeColors.primaryLight} className="mr-1" />
               <Text style={{ color: themeColors.primaryLight }} className="text-[9px] font-bold uppercase tracking-wider">{project}</Text>
             </View>
-            {displayTags.map((tag) => (
-              <Tag key={tag} text={tag} />
-            ))}
           </View>
         </View>
 

@@ -9,7 +9,6 @@ import KnowledgeCard from "../../components/knowledge/KnowledgeCard";
 import useKnowledgeStore from "../../store/knowledgeStore";
 import useSearch from "../../hooks/useSearch";
 import { useAppTheme } from "../../store/themeStore";
-import { filterMeaningfulTags } from "../../utils/formatting";
 
 const FILTERS = ["All", "Notes", "PDFs", "Images", "Code", "URLs", "Errors"];
 
@@ -54,14 +53,14 @@ export default function KnowledgeScreen() {
 
   const itemsList = store.items || [];
   const uniqueProjectsCount = [...new Set(itemsList.map((i) => i.project))].filter(Boolean).length;
-  const rawTags = itemsList.flatMap((i) => i.tags || []);
-  const uniqueTagsCount = filterMeaningfulTags([...new Set(rawTags)]).length;
+  const pdfCount = itemsList.filter((i) => (i.contentType || "").toLowerCase() === "pdf").length;
+  const codeCount = itemsList.filter((i) => (i.contentType || "").toLowerCase() === "code").length;
 
   const stats = [
     { label: "Knowledge", count: itemsList.length, icon: "bulb-outline" },
-    { label: "Documents", count: itemsList.filter((i) => (i.contentType || "").toLowerCase() === "pdf").length, icon: "document-text-outline" },
+    { label: "Documents", count: pdfCount, icon: "document-text-outline" },
+    { label: "Code Snippets", count: codeCount, icon: "code-working-outline" },
     { label: "Projects", count: uniqueProjectsCount, icon: "folder-outline" },
-    { label: "Topics", count: uniqueTagsCount, icon: "pricetags-outline" },
   ];
 
   return (

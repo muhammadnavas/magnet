@@ -4,13 +4,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import Card from "../ui/Card";
 import Badge from "../ui/Badge";
-import Tag from "../ui/Tag";
 import { formatDistanceToNow } from "date-fns";
 import { useAppTheme } from "../../store/themeStore";
-import { filterMeaningfulTags } from "../../utils/formatting";
 
 export const KnowledgeCard = ({ item }) => {
-  const { id, title, contentType, summary, tags, createdAt, processingStatus } = item;
+  const { id, title, contentType, summary, createdAt, processingStatus } = item;
   const { themeColors } = useAppTheme();
 
   const getTypeIcon = () => {
@@ -28,8 +26,6 @@ export const KnowledgeCard = ({ item }) => {
   let formattedDate = "";
   try { formattedDate = formatDistanceToNow(new Date(createdAt), { addSuffix: true }); } catch (e) { formattedDate = ""; }
 
-  const displayTags = filterMeaningfulTags(tags, contentType);
-
   return (
     <Card onPress={() => router.push(`/knowledge/${id}`)} className="p-4 mb-3">
       <View className="flex-row items-center justify-between mb-2">
@@ -46,10 +42,10 @@ export const KnowledgeCard = ({ item }) => {
       <Text numberOfLines={2} style={{ color: themeColors.text.secondary }} className="text-xs leading-relaxed mb-3">{summary}</Text>
 
       <View style={{ borderTopColor: themeColors.border }} className="flex-row items-center justify-between border-t pt-3">
-        <View className="flex-row flex-wrap gap-1.5 flex-1 mr-2">
-          {displayTags.slice(0, 3).map((tag, idx) => <Tag key={`${tag}-${idx}`} text={tag} />)}
+        <View className="flex-row items-center flex-1 mr-2">
+          <Ionicons name="calendar-outline" size={12} color={themeColors.text.muted} className="mr-1.5" />
+          <Text style={{ color: themeColors.text.muted }} className="text-[11px] font-medium">{formattedDate}</Text>
         </View>
-        <Text style={{ color: themeColors.text.muted }} className="text-[10px] font-semibold">{formattedDate}</Text>
       </View>
     </Card>
   );

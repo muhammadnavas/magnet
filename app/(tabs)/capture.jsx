@@ -8,7 +8,6 @@ import * as ImagePicker from "expo-image-picker";
 import ProcessingIndicator from "../../components/knowledge/ProcessingIndicator";
 import useKnowledgeStore from "../../store/knowledgeStore";
 import Card from "../../components/ui/Card";
-import Tag from "../../components/ui/Tag";
 import Logo from "../../components/ui/Logo";
 import { useAppTheme } from "../../store/themeStore";
 
@@ -71,7 +70,6 @@ export default function CaptureScreen() {
         title,
         contentType: type,
         summary: `Captured ${type} item.`,
-        tags: ["imported", type],
         project: "Personal Projects",
         rawContent,
         file: fileAsset ? {
@@ -100,7 +98,7 @@ export default function CaptureScreen() {
     const type = detectContentType(raw);
     const firstLine = raw.split("\n")[0].replace(/^[#*-\s]+/, "");
     const title = firstLine.slice(0, 50) + (firstLine.length > 50 ? "..." : "");
-    const item = { title, contentType: type, summary: raw.slice(0, 120) + (raw.length > 120 ? "..." : ""), tags: ["quick-capture", type], project: "Personal Projects", rawContent: raw };
+    const item = { title, contentType: type, summary: raw.slice(0, 120) + (raw.length > 120 ? "..." : ""), project: "Personal Projects", rawContent: raw };
     await store.addKnowledgeItem(item);
     setRecentSaved(prev => [item, ...prev]);
     setInputText("");
@@ -160,7 +158,9 @@ export default function CaptureScreen() {
                     <Text style={{ color: themeColors.text.primary }} className="text-xs font-bold" numberOfLines={1}>{item.title}</Text>
                     <Text style={{ color: themeColors.text.muted }} className="text-[11px] mt-0.5" numberOfLines={1}>{item.summary}</Text>
                   </View>
-                  <Tag text={item.contentType} size="sm" />
+                  <View style={{ backgroundColor: themeColors.surfaceHover }} className="px-2.5 py-1 rounded-full border border-neutral-700/30">
+                    <Text style={{ color: themeColors.text.muted }} className="text-[10px] font-bold uppercase">{item.contentType}</Text>
+                  </View>
                 </Card>
               ))}
             </View>
