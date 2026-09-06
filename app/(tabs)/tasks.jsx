@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
   View, Text, TextInput, TouchableOpacity,
-  FlatList, KeyboardAvoidingView, Platform, ActivityIndicator,
+  FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, DeviceEventEmitter,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -28,20 +28,25 @@ export default function TasksScreen() {
   const createTask = useCreateTask();
   const parseTask = useParseTask();
 
+
   useEffect(() => {
     requestNotificationPermissions();
 
-    const handleDueAlert = (e) => {
+    const handleDueAlertData = (data) => {
       setToast({
         visible: true,
-        title: e.detail?.title || "📅 Task Due Now!",
-        message: e.detail?.message || "Your task is due now.",
+        title: data?.title || "📅 Task Due Now!",
+        message: data?.message || "Your task is due now.",
       });
     };
 
     if (Platform.OS === "web" && typeof window !== "undefined") {
-      window.addEventListener("orio:due-alert", handleDueAlert);
-      return () => window.removeEventListener("orio:due-alert", handleDueAlert);
+      const webListener = (e) => handleDueAlertData(e.detail);
+      window.addEventListener("orio:due-alert", webListener);
+      return () => window.removeEventListener("orio:due-alert", webListener);
+    } else {
+      const nativeSub = DeviceEventEmitter.addListener("orio:due-alert", handleDueAlertData);
+      return () => nativeSub.remove();
     }
   }, []);
 

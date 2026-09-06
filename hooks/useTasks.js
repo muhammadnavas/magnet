@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import api from "../lib/api";
 import {
   scheduleTaskReminder,
@@ -8,15 +9,49 @@ import {
 } from "../lib/notifications";
 
 const TASKS_KEY = ["tasks"];
+const LOCAL_TASKS_CACHE_KEY = "@orio_cached_tasks";
+
+async function saveTasksToCache(tasks) {
+  try {
+    if (Array.isArray(tasks)) {
+      await AsyncStorage.setItem(LOCAL_TASKS_CACHE_KEY, JSON.stringify(tasks));
+    }
+  } catch (e) {
+    console.warn("Failed to save tasks to local cache:", e);
+  }
+}
+
+async function getTasksFromCache() {
+  try {
+    const data = await AsyncStorage.getItem(LOCAL_TASKS_CACHE_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch (e) {
+    console.warn("Failed to read tasks from local cache:", e);
+    return [];
+  }
+}
 
 // ─── Fetch all tasks (with optional status filter) ───────────────────────────
 export function useGetTasks(statusFilter = null) {
   return useQuery({
     queryKey: [...TASKS_KEY, statusFilter],
     queryFn: async () => {
-      const params = statusFilter ? { status_filter: statusFilter } : {};
-      const res = await api.get("/tasks", { params });
-      const tasks = res.data;
+      let tasks = [];
+      try {
+        const params = statusFilter ? { status_filter: statusFilter } : {};
+        const res = await api.get("/tasks", { params });
+        tasks = res.data;
+        if (Array.isArray(tasks)) {
+          await saveTasksToCache(tasks);
+        }
+      } catch (err) {
+        console.warn("Backend API unreachable. Falling back to local offline task cache:", err);
+        tasks = await getTasksFromCache();
+        if (statusFilter && Array.isArray(tasks)) {
+          tasks = tasks.filter((t) => t.status === statusFilter);
+        }
+      }
+
       if (Array.isArray(tasks)) {
         syncTaskNotifications(tasks).catch((err) =>
           console.warn("Failed to sync task notifications:", err)
@@ -33,8 +68,25 @@ export function useCreateTask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (payload) => {
-      const res = await api.post("/tasks", payload);
-      return res.data;
+      try {
+        const res = await api.post("/tasks", payload);
+        return res.data;
+      } catch (err) {
+        console.warn("Backend post failed. Creating task in local offline cache:", err);
+        const fallbackTask = {
+          id: `offline_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          title: payload.title || "Untitled Task",
+          priority: payload.priority || "medium",
+          deadline: payload.deadline || null,
+          reminder_interval_hours: payload.reminder_interval_hours || 24,
+          status: "pending",
+          created_at: new Date().toISOString(),
+        };
+        const cached = await getTasksFromCache();
+        const updated = [fallbackTask, ...cached];
+        await saveTasksToCache(updated);
+        return fallbackTask;
+      }
     },
     onSuccess: async (task) => {
       qc.invalidateQueries({ queryKey: TASKS_KEY });
