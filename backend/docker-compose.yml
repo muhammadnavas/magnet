@@ -53,6 +53,9 @@ services:
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - GEMINI_EMBEDDING_MODEL=${GEMINI_EMBEDDING_MODEL:-gemini-embedding-001}
       - GEMINI_LLM_MODEL=${GEMINI_LLM_MODEL:-gemini-3.5-flash}
+      - XAI_API_KEY=${XAI_API_KEY}
+      - XAI_LLM_MODEL=${XAI_LLM_MODEL:-grok-4.6}
+      - LLM_PROVIDER=${LLM_PROVIDER:-gemini}
       - ENVIRONMENT=${ENVIRONMENT:-development}
       - PYTHONPATH=.
     depends_on:
