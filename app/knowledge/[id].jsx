@@ -175,23 +175,6 @@ export default function KnowledgeDetailScreen() {
           </View>
         )}
 
-        {/* Technologies / Entities Extracted */}
-        {technologies && technologies.length > 0 && (
-          <View className="mb-5">
-            <Text style={{ color: themeColors.text.primary }} className="text-xs font-bold uppercase tracking-widest mb-2.5">
-              Identified Tech Stack
-            </Text>
-            <View className="flex-row flex-wrap gap-2">
-              {technologies.map((tech) => (
-                <View key={tech} style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }} className="border px-3 py-1.5 rounded-xl items-center flex-row">
-                  <Ionicons name="hardware-chip-outline" size={12} color={themeColors.accent} className="mr-1.5" />
-                  <Text style={{ color: themeColors.text.primary }} className="text-[10px] font-bold">{tech}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
         {/* Original Content block */}
         <Text style={{ color: themeColors.text.primary }} className="text-xs font-bold uppercase tracking-widest mb-2.5">
           Original Payload
