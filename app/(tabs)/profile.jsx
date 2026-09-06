@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, ScrollView, Switch, Pressable, Alert, Platform } from "react-native";
+import { View, Text, ScrollView, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Button from "../../components/ui/Button";
@@ -10,6 +10,17 @@ import useKnowledgeStore from "../../store/knowledgeStore";
 import { useAppTheme } from "../../store/themeStore";
 import useBackendStatus from "../../hooks/useBackendStatus";
 
+const PROVIDER_META = {
+  gemini: {
+    icon: "sparkles",
+    description: "Google Gemini for fast, grounded AI responses",
+  },
+  grok: {
+    icon: "flash",
+    description: "xAI Grok for an alternative AI experience",
+  },
+};
+
 export default function SettingsScreen() {
   const { user } = useAuth();
   const store = useKnowledgeStore();
@@ -17,9 +28,11 @@ export default function SettingsScreen() {
   const { isConnected, isChecking, latency } = useBackendStatus();
   const [githubConnected, setGithubConnected] = useState(false);
   const [offlineSync, setOfflineSync] = useState(true);
+  const [selectedProvider, setSelectedProvider] = useState("gemini");
 
   const username = user?.full_name || "Navas";
   const useremail = user?.email || "personal-app@orio.com";
+  const providers = config.SUPPORTED_PROVIDERS.filter((provider) => PROVIDER_META[provider.value]);
 
   return (
     <SafeAreaView style={{ backgroundColor: themeColors.background }} className="flex-1">
@@ -82,31 +95,81 @@ export default function SettingsScreen() {
           </View>
         </Card>
 
-        {/* Backend */}
+        {/* AI Provider */}
+        <Text style={{ color: themeColors.text.muted }} className="text-xs font-bold uppercase tracking-wider mb-2">AI Provider</Text>
+        <Card className="p-3 mb-6">
+          {providers.map((provider, index) => {
+            const active = selectedProvider === provider.value;
+            const meta = PROVIDER_META[provider.value];
+            return (
+              <Pressable
+                key={provider.value}
+                onPress={() => setSelectedProvider(provider.value)}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingVertical: 13,
+                  paddingHorizontal: 12,
+                  borderRadius: 12,
+                  backgroundColor: active ? `${themeColors.primary}12` : "transparent",
+                  borderWidth: 1.5,
+                  borderColor: active ? themeColors.primary : "transparent",
+                  marginBottom: index === providers.length - 1 ? 0 : 8,
+                }}
+              >
+                <View
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 12,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginRight: 12,
+                    backgroundColor: active ? `${themeColors.primary}20` : themeColors.surfaceHover,
+                  }}
+                >
+                  <Ionicons name={meta.icon} size={19} color={active ? themeColors.primary : themeColors.text.secondary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: themeColors.text.primary, fontWeight: "800", fontSize: 14 }}>{provider.label}</Text>
+                  <Text style={{ color: themeColors.text.muted, fontSize: 11, marginTop: 3 }}>{meta.description}</Text>
+                </View>
+                <View
+                  style={{
+                    width: 20,
+                    height: 20,
+                    borderRadius: 10,
+                    borderWidth: 2,
+                    borderColor: active ? themeColors.primary : themeColors.border,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {active && (
+                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: themeColors.primary }} />
+                  )}
+                </View>
+              </Pressable>
+            );
+          })}
+          <Text style={{ color: themeColors.text.muted, fontSize: 10, marginTop: 10, marginHorizontal: 4 }}>
+            Your selection is used for AI responses. Embeddings continue to use the configured knowledge-search model.
+          </Text>
+        </Card>
+
         {/* Backend Connection */}
         <Text style={{ color: themeColors.text.muted }} className="text-xs font-bold uppercase tracking-wider mb-3">Backend Connection</Text>
         <Card className="p-5 mb-10">
-
-          {/* Connection Status Row with Marker Light */}
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
-              {/* Marker Light Dot */}
               <View
                 style={{
                   width: 12,
                   height: 12,
                   borderRadius: 6,
-                  backgroundColor: isChecking
-                    ? "#F59E0B"
-                    : isConnected
-                    ? "#10B981"
-                    : "#EF4444",
+                  backgroundColor: isChecking ? "#F59E0B" : isConnected ? "#10B981" : "#EF4444",
                   marginRight: 10,
-                  shadowColor: isChecking
-                    ? "#F59E0B"
-                    : isConnected
-                    ? "#10B981"
-                    : "#EF4444",
+                  shadowColor: isChecking ? "#F59E0B" : isConnected ? "#10B981" : "#EF4444",
                   shadowOffset: { width: 0, height: 0 },
                   shadowOpacity: 0.9,
                   shadowRadius: 6,
@@ -115,18 +178,10 @@ export default function SettingsScreen() {
               />
               <View>
                 <Text style={{ color: themeColors.text.primary, fontWeight: "700", fontSize: 14 }}>
-                  {isChecking
-                    ? "Connecting..."
-                    : isConnected
-                    ? "Backend Connected"
-                    : "Backend Offline"}
+                  {isChecking ? "Connecting..." : isConnected ? "Backend Connected" : "Backend Offline"}
                 </Text>
                 <Text style={{ color: themeColors.text.muted, fontSize: 11, marginTop: 1 }}>
-                  {isChecking
-                    ? "Waking up Render server (up to 45s)..."
-                    : isConnected
-                    ? `Online · Latency ${latency ? `${latency}ms` : "OK"}`
-                    : "Unable to reach API server"}
+                  {isChecking ? "Waking up Render server (up to 45s)..." : isConnected ? `Online · Latency ${latency ? `${latency}ms` : "OK"}` : "Unable to reach API server"}
                 </Text>
               </View>
             </View>
