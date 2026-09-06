@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
   View, Text, TextInput, TouchableOpacity,
-  FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, DeviceEventEmitter,
+  FlatList, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,7 +9,6 @@ import { useGetTasks, useCreateTask, useParseTask } from "../../hooks/useTasks";
 import { useAppTheme } from "../../store/themeStore";
 import { requestNotificationPermissions } from "../../lib/notifications";
 import TaskCard from "../../components/tasks/TaskCard";
-import Toast from "../../components/ui/Toast";
 
 const FILTERS = [
   { key: null, label: "All" },
@@ -21,33 +20,14 @@ export default function TasksScreen() {
   const { themeColors } = useAppTheme();
   const [filter, setFilter] = useState(null);
   const [input, setInput] = useState("");
-  const [toast, setToast] = useState({ visible: false, title: "", message: "" });
   const inputRef = useRef(null);
 
   const { data: tasks = [], isLoading } = useGetTasks(filter);
   const createTask = useCreateTask();
   const parseTask = useParseTask();
 
-
   useEffect(() => {
     requestNotificationPermissions();
-
-    const handleDueAlertData = (data) => {
-      setToast({
-        visible: true,
-        title: data?.title || "📅 Task Due Now!",
-        message: data?.message || "Your task is due now.",
-      });
-    };
-
-    if (Platform.OS === "web" && typeof window !== "undefined") {
-      const webListener = (e) => handleDueAlertData(e.detail);
-      window.addEventListener("orio:due-alert", webListener);
-      return () => window.removeEventListener("orio:due-alert", webListener);
-    } else {
-      const nativeSub = DeviceEventEmitter.addListener("orio:due-alert", handleDueAlertData);
-      return () => nativeSub.remove();
-    }
   }, []);
 
   const handleInputFocus = () => {
@@ -58,39 +38,19 @@ export default function TasksScreen() {
     const trimmed = input.trim();
     if (!trimmed) return;
     
-    // Explicit user gesture request for browser notification permission on web
     requestNotificationPermissions();
 
     try {
       // 1. AI Parse
       const parsedData = await parseTask.mutateAsync(trimmed);
       // 2. Create Task
-      createTask.mutate(parsedData, {
-        onSuccess: (data) => {
-          const interval = data.reminder_interval_hours || 24;
-          setToast({
-            visible: true,
-            title: "⏰ Reminder Set!",
-            message: `"${data.title}" — Reminding every ${interval}h.`,
-          });
-        },
-      });
-      
+      createTask.mutate(parsedData);
       setInput("");
       inputRef.current?.blur();
     } catch (error) {
       console.error("Failed to parse task via AI:", error);
-      // Fallback if AI fails completely
       const fallbackTask = { title: trimmed, priority: "medium", deadline: null, reminder_interval_hours: 24 };
-      createTask.mutate(fallbackTask, {
-        onSuccess: () => {
-          setToast({
-            visible: true,
-            title: "⏰ Reminder Set!",
-            message: `"${trimmed}" — Reminding every 24h.`,
-          });
-        },
-      });
+      createTask.mutate(fallbackTask);
       setInput("");
       inputRef.current?.blur();
     }
@@ -101,14 +61,6 @@ export default function TasksScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: themeColors.background }} edges={["top", "left", "right"]}>
-      {/* Floating In-App Toast Banner */}
-      <Toast
-        visible={toast.visible}
-        title={toast.title}
-        message={toast.message}
-        onClose={() => setToast((prev) => ({ ...prev, visible: false }))}
-      />
-
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
