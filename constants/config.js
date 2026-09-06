@@ -10,6 +10,8 @@ export const config = {
   PAGINATION_LIMIT: 20,
   
   SUPPORTED_PROVIDERS: [
+    { label: "Gemini", value: "gemini" },
+    { label: "Grok", value: "grok" },
     { label: "OpenAI (GPT-4o)", value: "openai" },
     { label: "Ollama (Local Models)", value: "ollama" },
     { label: "Anthropic (Claude)", value: "anthropic" },
