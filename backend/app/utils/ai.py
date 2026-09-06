@@ -8,8 +8,10 @@ from typing import List, Dict, Any
 from google import genai
 from google.genai import types
 from app.config import settings
+from app.utils.grok import get_grok_completion
 
 logger = logging.getLogger(__name__)
+
 
 def _get_gemini_key() -> str:
     key = (
@@ -22,17 +24,14 @@ def _get_gemini_key() -> str:
     )
     return key.strip()
 
+
 def _make_client() -> genai.Client:
-    """
-    Create a google-genai client.
-    Uses v1beta (the default) so that system_instruction works in generateContent.
-    Embedding models (gemini-embedding-001, gemini-embedding-2) are also available on v1beta.
-    """
+    """Create a Google GenAI client."""
     api_key = _get_gemini_key()
     if not api_key:
-        logger.error("GEMINI_API_KEY is not set in environment variables! AI feature calls will fail. Set GEMINI_API_KEY in deployment environment settings.")
+        logger.error("GEMINI_API_KEY is not configured.")
         raise ValueError("GEMINI_API_KEY is not configured in deployment environment settings.")
-    return genai.Client(api_key=api_key)   # default = v1beta
+    return genai.Client(api_key=api_key)
 
 
 def _clean_model_name(name: str) -> str:
@@ -43,7 +42,7 @@ def _clean_model_name(name: str) -> str:
         cleaned = cleaned[len("models/"):]
     return cleaned
 
-# ---- Confirmed working models for this API key ----
+
 DEFAULT_COMPLETION_MODELS = [
     "gemini-3.5-flash",
     "gemini-3.5-flash-lite",
@@ -59,10 +58,7 @@ DEFAULT_EMBEDDING_MODELS = [
 
 
 async def get_embedding(text: str) -> List[float]:
-    """
-    Generate a vector embedding using google-genai SDK (v1beta).
-    gemini-embedding-001 returns 768-dim; padded to 1536 to match DB column.
-    """
+    """Generate a vector embedding with Gemini."""
     if not text:
         return [0.0] * 1536
 
@@ -72,13 +68,15 @@ async def get_embedding(text: str) -> List[float]:
         logger.warning(str(e))
         return [0.0] * 1536
 
-    configured_model = _clean_model_name(settings.GEMINI_EMBEDDING_MODEL or os.getenv("GEMINI_EMBEDDING_MODEL", ""))
+    configured_model = _clean_model_name(
+        settings.GEMINI_EMBEDDING_MODEL or os.getenv("GEMINI_EMBEDDING_MODEL", "")
+    )
     candidates = []
     if configured_model and configured_model not in ("text-embedding-004", "models/text-embedding-004"):
         candidates.append(configured_model)
-    for m in DEFAULT_EMBEDDING_MODELS:
-        if m not in candidates:
-            candidates.append(m)
+    for model in DEFAULT_EMBEDDING_MODELS:
+        if model not in candidates:
+            candidates.append(model)
 
     for model_name in candidates:
         try:
@@ -94,11 +92,11 @@ async def get_embedding(text: str) -> List[float]:
                     values += [0.0] * (1536 - len(values))
                 else:
                     values = values[:1536]
-                logger.info(f"Embedding OK: model='{model_name}' dim={len(values)}")
+                logger.info("Embedding OK: model='%s' dim=%s", model_name, len(values))
                 return values
         except Exception as e:
             err = str(e)
-            logger.warning(f"Embedding attempt with '{model_name}' failed: {err}")
+            logger.warning("Embedding attempt with '%s' failed: %s", model_name, err)
             if "429" in err or "503" in err or "RESOURCE_EXHAUSTED" in err or "UNAVAILABLE" in err:
                 await asyncio.sleep(1.0)
 
@@ -106,16 +104,13 @@ async def get_embedding(text: str) -> List[float]:
     return [0.0] * 1536
 
 
-async def get_completion(system_prompt: str, user_prompt: str, history: List[Dict[str, str]] = None) -> str:
-    """
-    Generate LLM completion using google-genai SDK (v1beta).
-    system_instruction requires v1beta; falls back through confirmed working models.
-    Supports multi-turn conversation context via history parameter.
-    """
-    try:
-        client = _make_client()
-    except ValueError as e:
-        return f"AI unavailable: {e}"
+async def _get_gemini_completion(
+    system_prompt: str,
+    user_prompt: str,
+    history: List[Dict[str, str]] = None,
+) -> str:
+    """Generate a completion with Gemini."""
+    client = _make_client()
 
     full_user_content = ""
     if history:
@@ -127,13 +122,15 @@ async def get_completion(system_prompt: str, user_prompt: str, history: List[Dic
 
     full_user_content += f"User Query: {user_prompt}"
 
-    configured_model = _clean_model_name(settings.GEMINI_LLM_MODEL or os.getenv("GEMINI_LLM_MODEL", ""))
+    configured_model = _clean_model_name(
+        settings.GEMINI_LLM_MODEL or os.getenv("GEMINI_LLM_MODEL", "")
+    )
     candidates = []
     if configured_model:
         candidates.append(configured_model)
-    for m in DEFAULT_COMPLETION_MODELS:
-        if m not in candidates:
-            candidates.append(m)
+    for model in DEFAULT_COMPLETION_MODELS:
+        if model not in candidates:
+            candidates.append(model)
 
     last_error = None
     for model_name in candidates:
@@ -147,23 +144,62 @@ async def get_completion(system_prompt: str, user_prompt: str, history: List[Dic
                 ),
             )
             if response and response.text:
-                logger.info(f"Completion OK: model='{model_name}'")
+                logger.info("Gemini completion OK: model='%s'", model_name)
                 return response.text.strip()
         except Exception as e:
             err = str(e)
-            logger.warning(f"Completion attempt with '{model_name}' failed: {err}")
+            logger.warning("Gemini completion attempt with '%s' failed: %s", model_name, err)
             last_error = e
             if "429" in err or "503" in err or "RESOURCE_EXHAUSTED" in err or "UNAVAILABLE" in err:
                 await asyncio.sleep(1.0)
 
-    logger.error(f"All completion attempts failed. Last: {last_error}")
-    return f"AI unavailable ({str(last_error) if last_error else 'all models failed'})."
+    raise RuntimeError(
+        f"Gemini completion failed ({str(last_error) if last_error else 'all models failed'})."
+    )
+
+
+async def get_completion(
+    system_prompt: str,
+    user_prompt: str,
+    history: List[Dict[str, str]] = None,
+    provider: str = None,
+) -> str:
+    """Generate an LLM completion using the requested provider.
+
+    Supported providers:
+      - gemini (default)
+      - grok
+
+    Existing callers remain compatible because provider is optional.
+    """
+    selected_provider = (
+        provider
+        or os.getenv("LLM_PROVIDER", "gemini")
+        or "gemini"
+    ).strip().lower()
+
+    if selected_provider == "grok":
+        try:
+            return await get_grok_completion(system_prompt, user_prompt, history)
+        except Exception as grok_error:
+            logger.error("Grok completion failed: %s", grok_error)
+            return f"AI unavailable (grok: {grok_error})."
+
+    if selected_provider not in {"gemini", "grok"}:
+        logger.warning("Unknown LLM provider '%s'; falling back to Gemini.", selected_provider)
+
+    try:
+        return await _get_gemini_completion(system_prompt, user_prompt, history)
+    except Exception as gemini_error:
+        logger.error("Gemini completion failed: %s", gemini_error)
+        return f"AI unavailable (gemini: {gemini_error})."
 
 
 REDUNDANT_TAGS = {"imported", "pdf", "file", "doc", "text", "document", "url", "github", "image", "unknown", "screenshot", "code", "error"}
 
+
 async def analyze_document(text: str) -> Dict[str, Any]:
-    """Analyze document text with LLM to extract summary, key points, tags, and technologies."""
+    """Analyze document text with the configured LLM."""
     if not text:
         return {"summary": "Empty document", "key_points": [], "tags": [], "technologies": []}
 
@@ -172,7 +208,7 @@ async def analyze_document(text: str) -> Dict[str, Any]:
         "Analyze the provided document text and output a JSON object with exactly these keys:\n"
         "1. 'summary' (str): A well-crafted, synthesized 2-3 sentence overview explaining what this document is, its primary significance, key themes, and main value. DO NOT just copy or extract lines verbatim.\n"
         "2. 'key_points' (list of str, max 5): Strategic takeaways, core technical components, or takeaways synthesized intelligently from the text.\n"
-        "3. 'tags' (list of lowercase str): Specific domain and topic tags (e.g. 'resume', 'python', 'fastapi', 'machine-learning'). NEVER include generic tags like 'pdf', 'file', 'imported', 'doc', 'text'.\n"
+        "3. 'tags' (list of lowercase str): Specific domain and topic tags. NEVER include generic tags like 'pdf', 'file', 'imported', 'doc', 'text'.\n"
         "4. 'technologies' (list of str): Frameworks, languages, tools, databases, or platforms mentioned.\n\n"
         "Output ONLY valid JSON — no markdown code fences or extra commentary."
     )
@@ -197,7 +233,7 @@ async def analyze_document(text: str) -> Dict[str, Any]:
             "technologies": data.get("technologies", []),
         }
     except Exception:
-        logger.warning(f"Failed to parse AI JSON. Raw: {raw[:200]}")
+        logger.warning("Failed to parse AI JSON. Raw: %s", raw[:200])
         return {
             "summary": " ".join(text.split()[:30]) + "...",
             "key_points": ["Document processed successfully."],
@@ -207,6 +243,7 @@ async def analyze_document(text: str) -> Dict[str, Any]:
 
 
 from datetime import datetime, timedelta
+
 
 def _rule_based_task_parse(text: str, current_time: str) -> dict:
     """Fallback rule-based parser for relative time phrases."""
@@ -248,10 +285,9 @@ def _rule_based_task_parse(text: str, current_time: str) -> dict:
         deadline = now_dt + timedelta(days=1)
         reminder_interval = 24
 
-    # Strip trigger prefix and suffix
     clean_title = re.sub(r'^(set\s+(?:a\s+)?(?:three\s+)?reminder\s+(?:for\s+)?|remind\s+me\s+to\s+|remind\s+me\s+)', '', clean_title, flags=re.IGNORECASE).strip()
     clean_title = re.sub(r'\s*(?:for\s+next|in|next)\s+\d+\s*(?:min|mins|minute|minutes|hr|hrs|hour|hours|day|days)\b', '', clean_title, flags=re.IGNORECASE).strip()
-    
+
     if not clean_title or clean_title.lower() in ("reminder", "reminders", "set a reminder", "set a three reminder"):
         clean_title = "Reminder"
 
@@ -292,11 +328,10 @@ async def parse_task_intent(text: str, current_time: str) -> dict:
         data = json.loads(cleaned)
         parsed_title = str(data.get("title", "")).strip()
         parsed_deadline = data.get("deadline", None)
-        
-        # If AI returned generic or unparsed title/null deadline when rule-based found a deadline, merge them
+
         final_title = parsed_title if parsed_title and parsed_title.lower() not in ("untitled task", text.lower()) else fallback["title"]
         final_deadline = parsed_deadline if parsed_deadline else fallback["deadline"]
-        
+
         return {
             "title": final_title,
             "priority": data.get("priority", fallback["priority"]),
@@ -304,5 +339,5 @@ async def parse_task_intent(text: str, current_time: str) -> dict:
             "reminder_interval_hours": data.get("reminder_interval_hours", fallback["reminder_interval_hours"]),
         }
     except Exception as e:
-        logger.warning(f"Failed to parse task JSON: {e}. Using fallback rule parser.")
+        logger.warning("Failed to parse task JSON: %s. Using fallback rule parser.", e)
         return fallback
