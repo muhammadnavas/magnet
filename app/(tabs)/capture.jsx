@@ -13,7 +13,7 @@ import { useAppTheme } from "../../store/themeStore";
 
 export default function CaptureScreen() {
   const store = useKnowledgeStore();
-  const { theme, themeColors } = useAppTheme();
+  const { themeColors } = useAppTheme();
   const params = useLocalSearchParams();
   const [inputText, setInputText] = useState("");
   const [processingState, setProcessingState] = useState(null);
@@ -25,7 +25,10 @@ export default function CaptureScreen() {
       handlePdfUpload();
     } else if (params.selectType === "image") {
       router.setParams({ selectType: undefined });
-      handleImageUpload();
+      handlePhotoUpload();
+    } else if (params.selectType === "camera") {
+      router.setParams({ selectType: undefined });
+      handleCapturePhoto();
     }
   }, [params.selectType]);
 
@@ -41,41 +44,18 @@ export default function CaptureScreen() {
     store.fetchItems();
   }, []);
 
-
-  const handlePdfUpload = async () => {
-    try {
-      const res = await DocumentPicker.getDocumentAsync({ type: "application/pdf" });
-      if (!res.canceled && res.assets?.length > 0) {
-        triggerIngestionFlow(res.assets[0].name, "pdf", `Extracted content from PDF: ${res.assets[0].name}`, res.assets[0]);
-      }
-    } catch (err) { console.error(err); }
-  };
-
-  const handleImageUpload = async () => {
-    try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) { Alert.alert("Permission Denied", "Library access is required."); return; }
-      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 1 });
-      if (!res.canceled && res.assets?.length > 0) {
-        const filename = res.assets[0].uri.split("/").pop();
-        triggerIngestionFlow(filename || "screenshot.png", "image", "OCR extracted from uploaded image.", res.assets[0]);
-      }
-    } catch (err) { console.error(err); }
-  };
-
   const triggerIngestionFlow = async (title, type, rawContent, fileAsset = null) => {
-    setProcessingState({ progress: 20, message: "Uploading document to server..." });
+    setProcessingState({ progress: 20, message: "Uploading to secure storage..." });
     try {
       const item = {
         title,
         contentType: type,
         summary: `Captured ${type} item.`,
-        project: "Personal Projects",
         rawContent,
         file: fileAsset ? {
           uri: fileAsset.uri,
           name: fileAsset.name || title,
-          type: fileAsset.mimeType || "application/pdf"
+          type: fileAsset.mimeType || (type === "image" ? "image/jpeg" : "application/pdf")
         } : null
       };
 
@@ -92,18 +72,91 @@ export default function CaptureScreen() {
     }
   };
 
+  const handlePdfUpload = async () => {
+    try {
+      const res = await DocumentPicker.getDocumentAsync({
+        type: "application/pdf",
+        copyToCacheDirectory: true,
+      });
+      if (!res.canceled && res.assets?.length > 0) {
+        const asset = res.assets[0];
+        triggerIngestionFlow(asset.name, "pdf", `Extracted content from PDF: ${asset.name}`, asset);
+      }
+    } catch (err) {
+      console.error("PDF selection failed:", err);
+      Alert.alert("Upload Error", "Could not select the PDF.");
+    }
+  };
+
+  const handlePhotoUpload = async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert("Permission Denied", "Photo library access is required to upload a photo.");
+        return;
+      }
+
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        quality: 1,
+        allowsEditing: false,
+      });
+
+      if (!res.canceled && res.assets?.length > 0) {
+        const asset = res.assets[0];
+        const filename = asset.fileName || asset.uri.split("/").pop() || "photo.jpg";
+        triggerIngestionFlow(filename, "image", "OCR extracted from uploaded photo.", {
+          ...asset,
+          name: filename,
+          mimeType: asset.mimeType || "image/jpeg",
+        });
+      }
+    } catch (err) {
+      console.error("Photo selection failed:", err);
+      Alert.alert("Upload Error", "Could not select the photo.");
+    }
+  };
+
+  const handleCapturePhoto = async () => {
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert("Permission Denied", "Camera access is required to capture a photo.");
+        return;
+      }
+
+      const res = await ImagePicker.launchCameraAsync({
+        mediaTypes: ["images"],
+        quality: 1,
+        allowsEditing: false,
+      });
+
+      if (!res.canceled && res.assets?.length > 0) {
+        const asset = res.assets[0];
+        const filename = asset.fileName || `photo-${Date.now()}.jpg`;
+        triggerIngestionFlow(filename, "image", "OCR extracted from captured photo.", {
+          ...asset,
+          name: filename,
+          mimeType: asset.mimeType || "image/jpeg",
+        });
+      }
+    } catch (err) {
+      console.error("Camera capture failed:", err);
+      Alert.alert("Camera Error", "Could not capture the photo.");
+    }
+  };
+
   const handleCapture = async () => {
     if (!inputText.trim()) return;
     const raw = inputText.trim();
     const type = detectContentType(raw);
     const firstLine = raw.split("\n")[0].replace(/^[#*-\s]+/, "");
     const title = firstLine.slice(0, 50) + (firstLine.length > 50 ? "..." : "");
-    const item = { title, contentType: type, summary: raw.slice(0, 120) + (raw.length > 120 ? "..." : ""), project: "Personal Projects", rawContent: raw };
+    const item = { title, contentType: type, summary: raw.slice(0, 120) + (raw.length > 120 ? "..." : ""), rawContent: raw };
     await store.addKnowledgeItem(item);
     setRecentSaved(prev => [item, ...prev]);
     setInputText("");
   };
-
 
   if (processingState) {
     return (
@@ -127,7 +180,7 @@ export default function CaptureScreen() {
             </Text>
           </View>
 
-          {/* Upload Buttons */}
+          {/* Upload / Camera Buttons */}
           <View className="flex-row justify-center gap-2 mb-10">
             <TouchableOpacity
               onPress={handlePdfUpload}
@@ -139,12 +192,21 @@ export default function CaptureScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={handleImageUpload}
+              onPress={handlePhotoUpload}
               style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }}
               className="flex-row items-center border px-4 py-2.5 rounded-full"
             >
               <Ionicons name="image-outline" size={16} color={themeColors.primary} style={{ marginRight: 6 }} />
-              <Text style={{ color: themeColors.text.primary }} className="text-sm font-semibold">Upload Screenshot</Text>
+              <Text style={{ color: themeColors.text.primary }} className="text-sm font-semibold">Upload Photo</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleCapturePhoto}
+              style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }}
+              className="flex-row items-center border px-4 py-2.5 rounded-full"
+            >
+              <Ionicons name="camera-outline" size={16} color={themeColors.primary} style={{ marginRight: 6 }} />
+              <Text style={{ color: themeColors.text.primary }} className="text-sm font-semibold">Capture Photo</Text>
             </TouchableOpacity>
           </View>
 
@@ -173,7 +235,8 @@ export default function CaptureScreen() {
             <TouchableOpacity
               onPress={() => Alert.alert("Upload", "Choose source:", [
                 { text: "PDF", onPress: handlePdfUpload },
-                { text: "Screenshot", onPress: handleImageUpload },
+                { text: "Photo Library", onPress: handlePhotoUpload },
+                { text: "Camera", onPress: handleCapturePhoto },
                 { text: "Cancel", style: "cancel" }
               ])}
               style={{ backgroundColor: themeColors.surfaceHover, borderColor: themeColors.border }}
