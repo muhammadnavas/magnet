@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     
     GEMINI_API_KEY: str = ""
     GEMINI_EMBEDDING_MODEL: str = "gemini-embedding-001"
-    GEMINI_LLM_MODEL: str = "gemini-3.5-flash"
+    GEMINI_LLM_MODEL: str = "gemini-2.5-flash"
 
     # xAI / Grok LLM
     XAI_API_KEY: str = ""
