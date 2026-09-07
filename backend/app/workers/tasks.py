@@ -15,6 +15,7 @@ from app.models.knowledge import KnowledgeItem, KnowledgeChunk, Tag
 from app.models.project import Project
 from app.models.conversation import ProcessingJob
 from app.utils.ai import get_embedding, analyze_document
+from app.services.personal_context import add_knowledge_signals
 
 logger = logging.getLogger(__name__)
 
@@ -73,13 +74,7 @@ def chunk_text(text: str, chunk_size: int = 600, overlap: int = 120) -> list:
 
 
 async def process_document(ctx, knowledge_id: str):
-    """
-    Process a KnowledgeItem and persist its searchable content.
-
-    Uploaded files are backed by Google Drive when configured. The local
-    uploads directory is only a processing cache, so a worker restart does
-    not make a previously uploaded file inaccessible.
-    """
+    """Process a KnowledgeItem and persist searchable content."""
     logger.info(f"Worker task started: processing knowledge item {knowledge_id}")
     knowledge_uuid = uuid.UUID(knowledge_id)
 
@@ -94,9 +89,7 @@ async def process_document(ctx, knowledge_id: str):
             logger.error(f"KnowledgeItem {knowledge_id} not found in database.")
             return {"status": "error", "message": "Item not found"}
 
-        job_result = await db.execute(
-            select(ProcessingJob).where(ProcessingJob.knowledge_id == knowledge_uuid)
-        )
+        job_result = await db.execute(select(ProcessingJob).where(ProcessingJob.knowledge_id == knowledge_uuid))
         job = job_result.scalars().first()
         if not job:
             job = ProcessingJob(knowledge_id=knowledge_uuid, status="processing", progress=10)
@@ -110,30 +103,16 @@ async def process_document(ctx, knowledge_id: str):
         text = ""
         temp_file_path = None
         try:
-            # Local uploads are temporary. If the service restarted, restore
-            # the durable Drive copy using the stored Drive file ID.
             target_path = item.file_path if item.file_path and os.path.exists(item.file_path) else None
             gdrive_file_id = (item.meta or {}).get("gdrive_file_id")
-
             if not target_path and gdrive_file_id:
                 from app.services.gdrive import download_file_from_gdrive
                 os.makedirs("uploads", exist_ok=True)
-                extension = os.path.splitext(item.file_path or "")[1] or (
-                    ".pdf" if item.content_type == "pdf" else ".jpg"
-                )
+                extension = os.path.splitext(item.file_path or "")[1] or (".pdf" if item.content_type == "pdf" else ".jpg")
                 temp_file_path = f"uploads/{uuid.uuid4()}_temp{extension}"
-                logger.info(
-                    f"Restoring file {gdrive_file_id} from Google Drive to {temp_file_path}"
-                )
-                success = await asyncio.to_thread(
-                    download_file_from_gdrive,
-                    gdrive_file_id,
-                    temp_file_path,
-                )
+                success = await asyncio.to_thread(download_file_from_gdrive, gdrive_file_id, temp_file_path)
                 if success:
                     target_path = temp_file_path
-                else:
-                    logger.error("Failed to restore file from Google Drive for processing.")
 
             if item.content_type == "pdf" and target_path:
                 job.progress = 20
@@ -144,18 +123,13 @@ async def process_document(ctx, knowledge_id: str):
                 await db.commit()
                 text = await extract_url_content(item.source_url)
             else:
-                # Images are stored durably and remain available for future
-                # vision/OCR processing. Until an OCR provider is configured,
-                # preserve the capture metadata as searchable raw content.
                 text = item.raw_content or ""
 
             if not text and item.raw_content:
                 text = item.raw_content
-
             item.extracted_text = text
             job.progress = 40
             await db.commit()
-
             if temp_file_path:
                 try:
                     os.remove(temp_file_path)
@@ -171,20 +145,16 @@ async def process_document(ctx, knowledge_id: str):
 
         try:
             chunks = chunk_text(text)
-            logger.info(f"Split document into {len(chunks)} chunks.")
-
             for idx, chunk_content in enumerate(chunks):
                 embedding = await get_embedding(chunk_content)
-                token_count = len(chunk_content.split())
                 chunk = KnowledgeChunk(
                     knowledge_id=knowledge_uuid,
                     chunk_index=idx,
                     content=chunk_content,
                     embedding=embedding,
-                    token_count=token_count,
+                    token_count=len(chunk_content.split()),
                 )
                 db.add(chunk)
-
             job.progress = 70
             await db.commit()
         except Exception as e:
@@ -199,15 +169,11 @@ async def process_document(ctx, knowledge_id: str):
             analysis = await analyze_document(text)
             item.summary = analysis.get("summary")
             item.key_points = analysis.get("key_points", [])
-
             meta = dict(item.meta or {})
             meta["technologies"] = analysis.get("technologies", [])
             item.meta = meta
 
-            REDUNDANT_TAGS = {
-                "imported", "pdf", "file", "doc", "text", "document", "url",
-                "github", "image", "unknown", "screenshot", "code", "error"
-            }
+            REDUNDANT_TAGS = {"imported", "pdf", "file", "doc", "text", "document", "url", "github", "image", "unknown", "screenshot", "code", "error"}
             for tag_name in analysis.get("tags", []):
                 tag_name = tag_name.strip().lower()
                 if not tag_name or tag_name in REDUNDANT_TAGS or tag_name == (item.content_type or "").lower():
@@ -222,6 +188,8 @@ async def process_document(ctx, knowledge_id: str):
                 if tag not in item.tags:
                     item.tags.append(tag)
 
+            # Update only broad personal signals. Detailed technologies/projects remain RAG knowledge.
+            await add_knowledge_signals(db, knowledge_uuid, analysis)
             job.progress = 90
             await db.commit()
         except Exception as e:
@@ -233,6 +201,4 @@ async def process_document(ctx, knowledge_id: str):
         job.status = "completed"
         job.progress = 100
         await db.commit()
-
-        logger.info(f"Finished job process_document for {knowledge_id} successfully.")
         return {"status": "completed", "item_id": knowledge_id}
