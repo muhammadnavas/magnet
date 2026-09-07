@@ -43,12 +43,11 @@ def _clean_model_name(name: str) -> str:
     return cleaned
 
 
+# Stable/current Gemini completion models. Do not fall back to shut-down 1.x models.
 DEFAULT_COMPLETION_MODELS = [
-    "gemini-3.5-flash",
-    "gemini-3.5-flash-lite",
     "gemini-2.5-flash",
-    "gemini-1.5-flash",
-    "gemini-1.5-pro",
+    "gemini-2.5-flash-lite",
+    "gemini-3.5-flash",
 ]
 
 DEFAULT_EMBEDDING_MODELS = [
@@ -164,14 +163,7 @@ async def get_completion(
     history: List[Dict[str, str]] = None,
     provider: str = None,
 ) -> str:
-    """Generate an LLM completion using the requested provider.
-
-    Supported providers:
-      - gemini (default)
-      - grok
-
-    Existing callers remain compatible because provider is optional.
-    """
+    """Generate an LLM completion using the requested provider."""
     selected_provider = (
         provider
         or os.getenv("LLM_PROVIDER", "gemini")
