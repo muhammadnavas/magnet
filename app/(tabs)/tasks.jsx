@@ -16,6 +16,42 @@ const FILTERS = [
   { key: "completed", label: "Done" },
 ];
 
+function applyRelativeDueTime(task, text) {
+  const now = Date.now();
+  const value = String(text || "");
+
+  const minuteMatch = value.match(/(?:in|after|for|next)\s+(\d+)\s*(?:m|min|mins|minute|minutes)\b/i);
+  const hourMatch = value.match(/(?:in|after|for|next)\s+(\d+)\s*(?:h|hr|hrs|hour|hours)\b/i);
+  const dayMatch = value.match(/(?:in|after|for|next)\s+(\d+)\s*(?:d|day|days)\b/i);
+
+  if (minuteMatch) {
+    const minutes = Number(minuteMatch[1]);
+    if (minutes > 0) {
+      return { ...task, deadline: new Date(now + minutes * 60 * 1000).toISOString() };
+    }
+  }
+
+  if (hourMatch) {
+    const hours = Number(hourMatch[1]);
+    if (hours > 0) {
+      return { ...task, deadline: new Date(now + hours * 60 * 60 * 1000).toISOString() };
+    }
+  }
+
+  if (dayMatch) {
+    const days = Number(dayMatch[1]);
+    if (days > 0) {
+      return { ...task, deadline: new Date(now + days * 24 * 60 * 60 * 1000).toISOString() };
+    }
+  }
+
+  if (/\btomorrow\b/i.test(value)) {
+    return { ...task, deadline: new Date(now + 24 * 60 * 60 * 1000).toISOString() };
+  }
+
+  return task;
+}
+
 export default function TasksScreen() {
   const { themeColors } = useAppTheme();
   const [filter, setFilter] = useState(null);
@@ -36,8 +72,6 @@ export default function TasksScreen() {
 
   const ensureDueDate = (task) => ({
     ...task,
-    // Every task gets a due time. If the AI parser found a specific time,
-    // preserve it; otherwise default to 24 hours from creation.
     deadline: task.deadline || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
   });
 
@@ -49,17 +83,21 @@ export default function TasksScreen() {
 
     try {
       const parsedData = await parseTask.mutateAsync(trimmed);
-      createTask.mutate(ensureDueDate(parsedData));
+      const correctedTask = applyRelativeDueTime(parsedData, trimmed);
+      createTask.mutate(ensureDueDate(correctedTask));
       setInput("");
       inputRef.current?.blur();
     } catch (error) {
       console.error("Failed to parse task via AI:", error);
-      const fallbackTask = ensureDueDate({
-        title: trimmed,
-        priority: "medium",
-        deadline: null,
-        reminder_interval_hours: 24,
-      });
+      const fallbackTask = applyRelativeDueTime(
+        ensureDueDate({
+          title: trimmed,
+          priority: "medium",
+          deadline: null,
+          reminder_interval_hours: 24,
+        }),
+        trimmed
+      );
       createTask.mutate(fallbackTask);
       setInput("");
       inputRef.current?.blur();
