@@ -7,17 +7,17 @@ import random
 import httpx
 import pdfplumber
 from sqlalchemy.future import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import async_session
 from app.models.knowledge import KnowledgeItem, KnowledgeChunk, Tag
-from app.models.project import Project
 from app.models.conversation import ProcessingJob
 from app.utils.ai import get_embedding, analyze_document
+from app.services.image_processor import analyze_image
 from app.services.personal_context import add_knowledge_signals
 
 logger = logging.getLogger(__name__)
+
 
 def extract_pdf_text(filepath: str) -> str:
     """Extract text pages from PDF using pdfplumber with fallback for plain text."""
@@ -101,6 +101,7 @@ async def process_document(ctx, knowledge_id: str):
         await db.commit()
 
         text = ""
+        image_analysis = None
         temp_file_path = None
         try:
             target_path = item.file_path if item.file_path and os.path.exists(item.file_path) else None
@@ -118,6 +119,17 @@ async def process_document(ctx, knowledge_id: str):
                 job.progress = 20
                 await db.commit()
                 text = await asyncio.to_thread(extract_pdf_text, target_path)
+            elif item.content_type == "image" and target_path:
+                job.progress = 20
+                await db.commit()
+                image_analysis = await analyze_image(target_path)
+                text = image_analysis.get("extracted_text", "")
+                meta = dict(item.meta or {})
+                meta["image_analysis"] = {
+                    "technologies": image_analysis.get("technologies", []),
+                    "errors": image_analysis.get("errors", []),
+                }
+                item.meta = meta
             elif item.content_type == "url" and item.source_url:
                 job.progress = 20
                 await db.commit()
@@ -136,9 +148,9 @@ async def process_document(ctx, knowledge_id: str):
                 except OSError:
                     pass
         except Exception as e:
-            logger.error(f"Error during document text extraction: {e}")
+            logger.error(f"Error during content extraction: {e}")
             job.status = "failed"
-            job.error_message = f"Text extraction failed: {str(e)}"
+            job.error_message = f"Content extraction failed: {str(e)}"
             item.processing_status = "failed"
             await db.commit()
             return {"status": "failed", "error": str(e)}
@@ -166,17 +178,23 @@ async def process_document(ctx, knowledge_id: str):
             return {"status": "failed", "error": str(e)}
 
         try:
-            analysis = await analyze_document(text)
+            if image_analysis:
+                analysis = image_analysis
+            else:
+                analysis = await analyze_document(text)
+
             item.summary = analysis.get("summary")
             item.key_points = analysis.get("key_points", [])
             meta = dict(item.meta or {})
             meta["technologies"] = analysis.get("technologies", [])
+            if image_analysis:
+                meta["errors"] = analysis.get("errors", [])
             item.meta = meta
 
-            REDUNDANT_TAGS = {"imported", "pdf", "file", "doc", "text", "document", "url", "github", "image", "unknown", "screenshot", "code", "error"}
+            redundant_tags = {"imported", "pdf", "file", "doc", "text", "document", "url", "github", "image", "unknown", "screenshot", "code", "error"}
             for tag_name in analysis.get("tags", []):
                 tag_name = tag_name.strip().lower()
-                if not tag_name or tag_name in REDUNDANT_TAGS or tag_name == (item.content_type or "").lower():
+                if not tag_name or tag_name in redundant_tags or tag_name == (item.content_type or "").lower():
                     continue
                 tag_sel = await db.execute(select(Tag).where(Tag.name == tag_name))
                 tag = tag_sel.scalars().first()
@@ -188,7 +206,6 @@ async def process_document(ctx, knowledge_id: str):
                 if tag not in item.tags:
                     item.tags.append(tag)
 
-            # Update only broad personal signals. Detailed technologies/projects remain RAG knowledge.
             await add_knowledge_signals(db, knowledge_uuid, analysis)
             job.progress = 90
             await db.commit()
