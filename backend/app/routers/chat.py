@@ -24,12 +24,11 @@ async def list_conversations(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    query = (
-        select(Conversation)
-        .where(Conversation.user_id == current_user.id)
-        .order_by(Conversation.updated_at.desc())
+    # Authentication is currently mock-based and the current database schema
+    # intentionally has no users table / conversation.user_id column.
+    result = await db.execute(
+        select(Conversation).order_by(Conversation.updated_at.desc())
     )
-    result = await db.execute(query)
     return result.scalars().all()
 
 @router.post("/chat", response_model=MessageOut, status_code=status.HTTP_201_CREATED)
@@ -38,24 +37,18 @@ async def ask_chat(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    # 1. Resolve or create a conversation owned by the current user
+    # 1. Resolve or create a conversation using the current schema.
     conv = None
     if payload.conversation_id:
         conv_sel = await db.execute(
-            select(Conversation).where(
-                Conversation.id == payload.conversation_id,
-                Conversation.user_id == current_user.id,
-            )
+            select(Conversation).where(Conversation.id == payload.conversation_id)
         )
         conv = conv_sel.scalars().first()
 
     if not conv:
         words = payload.content.split()
         title = " ".join(words[:5]) + ("..." if len(words) > 5 else "")
-        conv = Conversation(
-            user_id=current_user.id,
-            title=title,
-        )
+        conv = Conversation(title=title)
         db.add(conv)
         await db.flush()
 
@@ -165,16 +158,13 @@ async def get_messages(
     db: AsyncSession = Depends(get_db)
 ):
     conv_sel = await db.execute(
-        select(Conversation).where(
-            Conversation.id == id,
-            Conversation.user_id == current_user.id,
-        )
+        select(Conversation).where(Conversation.id == id)
     )
     conv = conv_sel.scalars().first()
     if not conv:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Conversation not found or access denied"
+            detail="Conversation not found"
         )
 
     query = (
