@@ -19,6 +19,11 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["AI Chat (RAG)"])
 
+# A cosine distance below this value is considered a relevant semantic match.
+# pgvector cosine similarity = 1 - cosine distance.
+RAG_MATCH_DISTANCE_THRESHOLD = 0.55
+RAG_CANDIDATE_LIMIT = 8
+
 @router.get("/conversations", response_model=List[ConversationOut])
 async def list_conversations(
     current_user: User = Depends(get_current_user),
@@ -62,28 +67,36 @@ async def ask_chat(
     db.add(user_msg)
     await db.flush()
 
-    # 3. RAG: Retrieve context chunks using pgvector similarity query
+    # 3. RAG: retrieve only genuinely relevant chunks using pgvector.
     context_text = ""
     sources = []
     try:
         query_embedding = await get_embedding(payload.content)
 
         chunks_sel = await db.execute(
-            select(KnowledgeChunk)
+            select(
+                KnowledgeChunk,
+                KnowledgeChunk.embedding.cosine_distance(query_embedding).label("distance")
+            )
             .join(KnowledgeChunk.item)
             .where(
                 KnowledgeItem.is_archived == False,
                 KnowledgeItem.processing_status == "completed"
             )
             .order_by(KnowledgeChunk.embedding.cosine_distance(query_embedding))
-            .limit(4)
+            .limit(RAG_CANDIDATE_LIMIT)
             .options(selectinload(KnowledgeChunk.item))
         )
-        chunks = chunks_sel.scalars().all()
+
+        matched_chunks = []
+        for chunk, distance in chunks_sel.all():
+            # cosine distance is lower for better matches.
+            if distance is not None and float(distance) <= RAG_MATCH_DISTANCE_THRESHOLD:
+                matched_chunks.append(chunk)
 
         context_parts = []
         seen_items = set()
-        for chunk in chunks:
+        for chunk in matched_chunks:
             context_parts.append(
                 f"Source Document: {chunk.item.title} (Type: {chunk.item.content_type})\n"
                 f"Document Summary: {chunk.item.summary or 'No summary available.'}\n"
@@ -99,6 +112,13 @@ async def ask_chat(
 
         if context_parts:
             context_text = "\n\n---\n\n".join(context_parts)
+
+        logger.info(
+            "RAG matched %d/%d candidate chunks across %d source documents",
+            len(matched_chunks),
+            RAG_CANDIDATE_LIMIT,
+            len(sources),
+        )
     except Exception as e:
         logger.error(f"Error during RAG context retrieval: {e}")
 
