@@ -117,7 +117,6 @@ export default function HomeScreen() {
               <Pressable key={item.id} onPress={() => router.push(`/knowledge/${item.id}`)}>
                 <Card className="p-4 flex-row items-center justify-between">
                   <View className="flex-1 mr-3">
-                    <Text style={{ color: themeColors.text.muted }} className="text-[10px] font-bold uppercase tracking-wider mb-1">{item.project}</Text>
                     <Text style={{ color: themeColors.text.primary }} className="text-sm font-bold mb-1" numberOfLines={1}>{item.title}</Text>
                     <Text style={{ color: themeColors.text.secondary }} className="text-xs" numberOfLines={2}>{item.summary || item.rawContent}</Text>
                   </View>
