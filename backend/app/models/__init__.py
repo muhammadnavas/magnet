@@ -3,6 +3,7 @@ from app.models.knowledge import KnowledgeItem, KnowledgeChunk, Tag, Entity, Rel
 from app.models.project import Project, knowledge_projects
 from app.models.conversation import Conversation, Message, GitHubConnection, ProcessingJob, SyncQueue
 from app.models.task import Task, TaskPriority, TaskStatus
+from app.models.personal_context import PersonalContext, PersonalContextFact
 
 __all__ = [
     "Base",
@@ -21,5 +22,7 @@ __all__ = [
     "SyncQueue",
     "Task",
     "TaskPriority",
-    "TaskStatus"
+    "TaskStatus",
+    "PersonalContext",
+    "PersonalContextFact",
 ]
