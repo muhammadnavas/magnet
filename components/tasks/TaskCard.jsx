@@ -1,17 +1,11 @@
 import React, { useRef, useState } from "react";
 import {
-  View, Text, TouchableOpacity, Animated, Platform
+  View, Text, TouchableOpacity, Animated
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAppTheme } from "../../store/themeStore";
 import { useUpdateTask, useDeleteTask } from "../../hooks/useTasks";
 import { formatDistanceToNow, isPast, format } from "date-fns";
-
-const PRIORITY_CONFIG = {
-  high:   { color: "#EF4444", bg: "#EF444415", label: "High",   icon: "flame" },
-  medium: { color: "#F59E0B", bg: "#F59E0B15", label: "Medium", icon: "alert-circle" },
-  low:    { color: "#3B82F6", bg: "#3B82F615", label: "Low",    icon: "leaf" },
-};
 
 export default function TaskCard({ task }) {
   const { themeColors } = useAppTheme();
@@ -21,7 +15,6 @@ export default function TaskCard({ task }) {
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
   const isCompleted = task.status === "completed";
-  const priority = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
   const handleToggleComplete = () => {
     Animated.sequence([
       Animated.timing(scaleAnim, { toValue: 0.95, duration: 80, useNativeDriver: true }),
@@ -58,13 +51,13 @@ export default function TaskCard({ task }) {
     }
   }
 
-  let deadlineText = null;
+  let deadlineText = "Due date not set";
   const deadlineDate = parseDate(task.deadline);
   const isOverdue = deadlineDate && !isCompleted && isPast(deadlineDate);
 
   if (deadlineDate && !isNaN(deadlineDate.getTime())) {
     if (isCompleted) {
-      deadlineText = `Completed · Due ${format(deadlineDate, "MMM d")}`;
+      deadlineText = `Completed · Due ${format(deadlineDate, "MMM d, h:mm a")}`;
     } else if (isOverdue) {
       deadlineText = `Overdue · ${formatDistanceToNow(deadlineDate, { addSuffix: true })}`;
     } else {
@@ -86,7 +79,6 @@ export default function TaskCard({ task }) {
         }}
       >
         <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
-          {/* Checkbox */}
           <TouchableOpacity
             onPress={handleToggleComplete}
             style={{
@@ -101,7 +93,6 @@ export default function TaskCard({ task }) {
             {isCompleted && <Ionicons name="checkmark" size={14} color="#FFF" />}
           </TouchableOpacity>
 
-          {/* Content */}
           <View style={{ flex: 1 }}>
             <Text
               style={{
@@ -109,7 +100,7 @@ export default function TaskCard({ task }) {
                 fontSize: 15,
                 fontWeight: "700",
                 textDecorationLine: isCompleted ? "line-through" : "none",
-                marginBottom: 4,
+                marginBottom: 6,
               }}
             >
               {task.title}
@@ -124,7 +115,6 @@ export default function TaskCard({ task }) {
               </Text>
             ) : null}
 
-            {/* Badges / Or Delete Confirmation */}
             {isConfirmingDelete ? (
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}>
                 <Text style={{ color: "#EF4444", fontSize: 12, fontWeight: "600", marginRight: 4 }}>Delete task?</Text>
@@ -143,24 +133,6 @@ export default function TaskCard({ task }) {
               </View>
             ) : (
               <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
-                {/* Priority badge */}
-                <View
-                  style={{
-                    backgroundColor: priority.bg,
-                    borderRadius: 100,
-                    paddingHorizontal: 8,
-                    paddingVertical: 3,
-                    flexDirection: "row",
-                    alignItems: "center",
-                  }}
-                >
-                  <Ionicons name={priority.icon} size={11} color={priority.color} style={{ marginRight: 4 }} />
-                  <Text style={{ color: priority.color, fontSize: 11, fontWeight: "700" }}>
-                    {priority.label}
-                  </Text>
-                </View>
-
-                {/* Creation Date & Time chip */}
                 {createdText && (
                   <View
                     style={{
@@ -172,63 +144,45 @@ export default function TaskCard({ task }) {
                       alignItems: "center",
                     }}
                   >
-                    <Ionicons
-                      name="calendar-outline"
-                      size={11}
-                      color={themeColors.text.muted}
-                      style={{ marginRight: 4 }}
-                    />
-                    <Text
-                      style={{
-                        color: themeColors.text.muted,
-                        fontSize: 11,
-                        fontWeight: "600",
-                      }}
-                    >
+                    <Ionicons name="calendar-outline" size={11} color={themeColors.text.muted} style={{ marginRight: 4 }} />
+                    <Text style={{ color: themeColors.text.muted, fontSize: 11, fontWeight: "600" }}>
                       {createdText}
                     </Text>
                   </View>
                 )}
 
-                {/* Deadline chip */}
-                {deadlineText && (
-                  <View
+                <View
+                  style={{
+                    backgroundColor: isOverdue ? "#EF444415" : themeColors.surfaceHover,
+                    borderRadius: 100,
+                    paddingHorizontal: 8,
+                    paddingVertical: 3,
+                    flexDirection: "row",
+                    alignItems: "center",
+                  }}
+                >
+                  <Ionicons
+                    name={isOverdue ? "warning" : "time-outline"}
+                    size={11}
+                    color={isOverdue ? "#EF4444" : themeColors.text.muted}
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text
                     style={{
-                      backgroundColor: isOverdue ? "#EF444415" : themeColors.surfaceHover,
-                      borderRadius: 100,
-                      paddingHorizontal: 8,
-                      paddingVertical: 3,
-                      flexDirection: "row",
-                      alignItems: "center",
+                      color: isOverdue ? "#EF4444" : themeColors.text.muted,
+                      fontSize: 11,
+                      fontWeight: "600",
                     }}
                   >
-                    <Ionicons
-                      name={isOverdue ? "warning" : "time-outline"}
-                      size={11}
-                      color={isOverdue ? "#EF4444" : themeColors.text.muted}
-                      style={{ marginRight: 4 }}
-                    />
-                    <Text
-                      style={{
-                        color: isOverdue ? "#EF4444" : themeColors.text.muted,
-                        fontSize: 11,
-                        fontWeight: "600",
-                      }}
-                    >
-                      {deadlineText}
-                    </Text>
-                  </View>
-                )}
+                    {deadlineText}
+                  </Text>
+                </View>
               </View>
             )}
           </View>
 
-          {/* Delete button (only show if not confirming) */}
           {!isConfirmingDelete && (
-            <TouchableOpacity
-              onPress={() => setIsConfirmingDelete(true)}
-              style={{ padding: 6, marginLeft: 4 }}
-            >
+            <TouchableOpacity onPress={() => setIsConfirmingDelete(true)} style={{ padding: 6, marginLeft: 4 }}>
               <Ionicons name="trash-outline" size={16} color={themeColors.text.muted} />
             </TouchableOpacity>
           )}
@@ -237,4 +191,3 @@ export default function TaskCard({ task }) {
     </Animated.View>
   );
 }
-
