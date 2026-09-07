@@ -43,11 +43,20 @@ def _clean_model_name(name: str) -> str:
     return cleaned
 
 
-# Stable/current Gemini completion models. Do not fall back to shut-down 1.x models.
+# Current Gemini text-generation models, ordered from strongest/current to
+# broader fallback options. The list is intentionally code-controlled so the
+# deployment does not depend on GEMINI_LLM_MODEL being configured in Render.
 DEFAULT_COMPLETION_MODELS = [
+    "gemini-3.8-flash",
+    "gemini-3.7-flash",
+    "gemini-3.6-flash",
+    "gemini-3.5-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
+    "gemini-3-flash-preview",
     "gemini-2.5-flash",
     "gemini-2.5-flash-lite",
-    "gemini-3.5-flash",
+    "gemini-2.5-pro",
 ]
 
 DEFAULT_EMBEDDING_MODELS = [
@@ -108,7 +117,7 @@ async def _get_gemini_completion(
     user_prompt: str,
     history: List[Dict[str, str]] = None,
 ) -> str:
-    """Generate a completion with Gemini."""
+    """Generate a completion with Gemini using a code-controlled fallback chain."""
     client = _make_client()
 
     full_user_content = ""
@@ -121,39 +130,66 @@ async def _get_gemini_completion(
 
     full_user_content += f"User Query: {user_prompt}"
 
+    # Use the code-defined model order first. A configured model is appended
+    # only when it is not already covered by the fallback list, so Render does
+    # not need GEMINI_LLM_MODEL to be set correctly.
     configured_model = _clean_model_name(
         settings.GEMINI_LLM_MODEL or os.getenv("GEMINI_LLM_MODEL", "")
     )
-    candidates = []
-    if configured_model:
+    candidates = list(DEFAULT_COMPLETION_MODELS)
+    if configured_model and configured_model not in candidates:
         candidates.append(configured_model)
-    for model in DEFAULT_COMPLETION_MODELS:
-        if model not in candidates:
-            candidates.append(model)
 
     last_error = None
     for model_name in candidates:
-        try:
-            response = await client.aio.models.generate_content(
-                model=model_name,
-                contents=full_user_content,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_prompt,
-                    temperature=0.4,
-                ),
-            )
-            if response and response.text:
-                logger.info("Gemini completion OK: model='%s'", model_name)
-                return response.text.strip()
-        except Exception as e:
-            err = str(e)
-            logger.warning("Gemini completion attempt with '%s' failed: %s", model_name, err)
-            last_error = e
-            if "429" in err or "503" in err or "RESOURCE_EXHAUSTED" in err or "UNAVAILABLE" in err:
-                await asyncio.sleep(1.0)
+        # Give transient service/rate-limit errors one quick retry before
+        # falling through to the next model.
+        for attempt in range(1, 3):
+            try:
+                response = await client.aio.models.generate_content(
+                    model=model_name,
+                    contents=full_user_content,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_prompt,
+                        temperature=0.4,
+                    ),
+                )
+                if response and response.text:
+                    logger.info("Gemini completion OK: model='%s' attempt=%d", model_name, attempt)
+                    return response.text.strip()
+
+                last_error = RuntimeError(f"Model '{model_name}' returned an empty response.")
+                logger.warning("Gemini model '%s' returned an empty response.", model_name)
+                break
+            except Exception as e:
+                err = str(e)
+                last_error = e
+                logger.warning(
+                    "Gemini completion attempt with '%s' (%d/2) failed: %s",
+                    model_name,
+                    attempt,
+                    err,
+                )
+
+                transient = (
+                    "429" in err
+                    or "503" in err
+                    or "RESOURCE_EXHAUSTED" in err
+                    or "UNAVAILABLE" in err
+                    or "INTERNAL" in err
+                    or "DEADLINE_EXCEEDED" in err
+                )
+                if transient and attempt == 1:
+                    await asyncio.sleep(0.75)
+                    continue
+
+                # 404/model-unavailable and other permanent model errors move
+                # immediately to the next fallback model.
+                break
 
     raise RuntimeError(
-        f"Gemini completion failed ({str(last_error) if last_error else 'all models failed'})."
+        f"Gemini completion failed after trying {len(candidates)} models "
+        f"({str(last_error) if last_error else 'all models failed'})."
     )
 
 
