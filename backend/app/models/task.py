@@ -24,7 +24,6 @@ class Task(Base):
     priority: Mapped[str] = mapped_column(SAEnum(TaskPriority, name="task_priority"), default=TaskPriority.medium, nullable=False)
     status: Mapped[str] = mapped_column(SAEnum(TaskStatus, name="task_status"), default=TaskStatus.pending, nullable=False)
     deadline: Mapped[datetime] = mapped_column(DateTime, nullable=True)
-    reminder_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     reminder_interval_hours: Mapped[int] = mapped_column(Integer, default=24, nullable=False)
     completed_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
 
