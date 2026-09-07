@@ -26,7 +26,7 @@ async def list_conversations(
 ):
     query = (
         select(Conversation)
-        .where(True)
+        .where(Conversation.user_id == current_user.id)
         .order_by(Conversation.updated_at.desc())
     )
     result = await db.execute(query)
@@ -38,21 +38,24 @@ async def ask_chat(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    # 1. Resolve or create conversation
+    # 1. Resolve or create a conversation owned by the current user
     conv = None
     if payload.conversation_id:
         conv_sel = await db.execute(
             select(Conversation).where(
-                Conversation.id == payload.conversation_id
+                Conversation.id == payload.conversation_id,
+                Conversation.user_id == current_user.id,
             )
         )
         conv = conv_sel.scalars().first()
-        
+
     if not conv:
-        # Create a new conversation with a default title based on message snippet
         words = payload.content.split()
         title = " ".join(words[:5]) + ("..." if len(words) > 5 else "")
-        conv = Conversation( title=title)
+        conv = Conversation(
+            user_id=current_user.id,
+            title=title,
+        )
         db.add(conv)
         await db.flush()
 
@@ -70,15 +73,12 @@ async def ask_chat(
     context_text = ""
     sources = []
     try:
-        # Generate query embedding
         query_embedding = await get_embedding(payload.content)
-        
-        # Query most similar chunks using cosine similarity distance
+
         chunks_sel = await db.execute(
             select(KnowledgeChunk)
             .join(KnowledgeChunk.item)
             .where(
-                
                 KnowledgeItem.is_archived == False,
                 KnowledgeItem.processing_status == "completed"
             )
@@ -87,8 +87,7 @@ async def ask_chat(
             .options(selectinload(KnowledgeChunk.item))
         )
         chunks = chunks_sel.scalars().all()
-        
-        # Format context and sources list
+
         context_parts = []
         seen_items = set()
         for chunk in chunks:
@@ -104,14 +103,13 @@ async def ask_chat(
                     "title": chunk.item.title,
                     "type": chunk.item.content_type
                 })
-        
+
         if context_parts:
             context_text = "\n\n---\n\n".join(context_parts)
     except Exception as e:
         logger.error(f"Error during RAG context retrieval: {e}")
-        # Continue with empty context
 
-    # 4. Fetch recent conversation history (multi-turn context)
+    # 4. Fetch recent conversation history
     history = []
     try:
         hist_sel = await db.execute(
@@ -128,7 +126,6 @@ async def ask_chat(
     except Exception as e:
         logger.warning(f"Failed to fetch conversation history: {e}")
 
-    # 5. Formulate LLM prompts with synthesis instruction
     system_prompt = (
         "You are Orio, a fast, highly concise developer co-pilot and AI companion.\n\n"
         "CRITICAL INSTRUCTIONS FOR RESPONSE LENGTH:\n"
@@ -147,7 +144,6 @@ async def ask_chat(
         logger.error(f"Error during LLM response generation: {e}")
         ai_reply = f"Error generating response: {str(e)}"
 
-    # 5. Store AI response message
     assistant_msg = Message(
         conversation_id=conv.id,
         role="assistant",
@@ -155,10 +151,9 @@ async def ask_chat(
         sources=sources
     )
     db.add(assistant_msg)
-    
-    # Update conversation timestamps
+
     conv.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
-    
+
     await db.commit()
     await db.refresh(assistant_msg)
     return assistant_msg
@@ -169,9 +164,11 @@ async def get_messages(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    # Verify ownership of conversation
     conv_sel = await db.execute(
-        select(Conversation).where(Conversation.id == id)
+        select(Conversation).where(
+            Conversation.id == id,
+            Conversation.user_id == current_user.id,
+        )
     )
     conv = conv_sel.scalars().first()
     if not conv:
@@ -179,7 +176,7 @@ async def get_messages(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Conversation not found or access denied"
         )
-        
+
     query = (
         select(Message)
         .where(Message.conversation_id == id)
