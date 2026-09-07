@@ -1,0 +1,14 @@
+name: On-demand Android preview build
+
+on:
+  push:
+    branches: ['main']
+    if: ${{ contains(github.commit_message, '[build:android:preview]') }}
+
+jobs:
+  build_android_preview:
+    name: Build Android Preview
+    type: build
+    params:
+      platform: android
+      profile: preview
