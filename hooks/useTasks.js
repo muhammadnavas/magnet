@@ -67,7 +67,11 @@ export function useCreateTask() {
     },
     onSuccess: async (task) => {
       qc.invalidateQueries({ queryKey: TASKS_KEY });
-      if (task.deadline) await scheduleDeadlineAlert({ id: task.id, title: task.title, deadline: task.deadline });
+      // Remove any stale schedule for this task before creating the current one.
+      await cancelTaskReminder(task.id);
+      if (task.deadline) {
+        await scheduleDeadlineAlert({ id: task.id, title: task.title, deadline: task.deadline });
+      }
     },
   });
 }
@@ -87,7 +91,13 @@ export function useUpdateTask() {
     },
     onSettled: async (task) => {
       qc.invalidateQueries({ queryKey: TASKS_KEY });
-      if (task && task.status === "completed") await cancelTaskReminder(task.id);
+      if (!task) return;
+
+      // Reconcile the notification with the latest task state/deadline.
+      await cancelTaskReminder(task.id);
+      if (task.status === "pending" && task.deadline) {
+        await scheduleDeadlineAlert({ id: task.id, title: task.title, deadline: task.deadline });
+      }
     },
   });
 }
