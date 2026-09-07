@@ -44,9 +44,10 @@ def _clean_model_name(name: str) -> str:
 
 
 # Code-controlled Gemini text-generation fallback chain.
-# This does not depend on GEMINI_LLM_MODEL being configured in Render.
-# The order prefers the newest stable workhorse models, then cost-efficient
-# variants, then preview/older production-capable models.
+# These models currently have a Gemini API Free Tier according to Google's
+# official pricing page. Do not depend on GEMINI_LLM_MODEL being configured
+# in Render; the chain is controlled here so deployment configuration cannot
+# accidentally select a paid/obsolete model.
 DEFAULT_COMPLETION_MODELS = [
     "gemini-3.8-flash",
     "gemini-3.7-flash",
@@ -54,10 +55,9 @@ DEFAULT_COMPLETION_MODELS = [
     "gemini-3.5-flash",
     "gemini-3.5-flash-lite",
     "gemini-3.1-flash-lite",
-    "gemini-3.1-pro-preview",
     "gemini-3-flash-preview",
-    "gemini-2.5-pro",
     "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
 ]
 
 DEFAULT_EMBEDDING_MODELS = [
@@ -131,8 +131,8 @@ async def _get_gemini_completion(
 
     full_user_content += f"User Query: {user_prompt}"
 
-    # Always use the code-defined fallback chain first. Any Render value is
-    # appended only if it is an additional model not already in the chain.
+    # Always use the code-defined free-tier fallback chain first. Any Render
+    # value is appended only if it is an additional model not already in the chain.
     configured_model = _clean_model_name(
         settings.GEMINI_LLM_MODEL or os.getenv("GEMINI_LLM_MODEL", "")
     )
