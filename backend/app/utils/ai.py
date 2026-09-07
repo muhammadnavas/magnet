@@ -43,9 +43,10 @@ def _clean_model_name(name: str) -> str:
     return cleaned
 
 
-# Current Gemini text-generation models, ordered from strongest/current to
-# broader fallback options. The list is intentionally code-controlled so the
-# deployment does not depend on GEMINI_LLM_MODEL being configured in Render.
+# Code-controlled Gemini text-generation fallback chain.
+# This does not depend on GEMINI_LLM_MODEL being configured in Render.
+# The order prefers the newest stable workhorse models, then cost-efficient
+# variants, then preview/older production-capable models.
 DEFAULT_COMPLETION_MODELS = [
     "gemini-3.8-flash",
     "gemini-3.7-flash",
@@ -53,10 +54,10 @@ DEFAULT_COMPLETION_MODELS = [
     "gemini-3.5-flash",
     "gemini-3.5-flash-lite",
     "gemini-3.1-flash-lite",
+    "gemini-3.1-pro-preview",
     "gemini-3-flash-preview",
-    "gemini-2.5-flash",
-    "gemini-2.5-flash-lite",
     "gemini-2.5-pro",
+    "gemini-2.5-flash",
 ]
 
 DEFAULT_EMBEDDING_MODELS = [
@@ -117,7 +118,7 @@ async def _get_gemini_completion(
     user_prompt: str,
     history: List[Dict[str, str]] = None,
 ) -> str:
-    """Generate a completion with Gemini using a code-controlled fallback chain."""
+    """Generate a completion with Gemini using the code-controlled fallback chain."""
     client = _make_client()
 
     full_user_content = ""
@@ -130,9 +131,8 @@ async def _get_gemini_completion(
 
     full_user_content += f"User Query: {user_prompt}"
 
-    # Use the code-defined model order first. A configured model is appended
-    # only when it is not already covered by the fallback list, so Render does
-    # not need GEMINI_LLM_MODEL to be set correctly.
+    # Always use the code-defined fallback chain first. Any Render value is
+    # appended only if it is an additional model not already in the chain.
     configured_model = _clean_model_name(
         settings.GEMINI_LLM_MODEL or os.getenv("GEMINI_LLM_MODEL", "")
     )
@@ -142,16 +142,16 @@ async def _get_gemini_completion(
 
     last_error = None
     for model_name in candidates:
-        # Give transient service/rate-limit errors one quick retry before
-        # falling through to the next model.
+        # Retry transient availability/rate-limit failures once, then move on.
         for attempt in range(1, 3):
             try:
+                # Do not send temperature: current Gemini 3.x models have
+                # migrated away from temperature sampling parameters.
                 response = await client.aio.models.generate_content(
                     model=model_name,
                     contents=full_user_content,
                     config=types.GenerateContentConfig(
                         system_instruction=system_prompt,
-                        temperature=0.4,
                     ),
                 )
                 if response and response.text:
