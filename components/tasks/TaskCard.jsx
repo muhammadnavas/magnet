@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View, Text, TouchableOpacity, Animated
 } from "react-native";
@@ -13,6 +13,14 @@ export default function TaskCard({ task }) {
   const deleteTask = useDeleteTask();
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const [, setNow] = useState(Date.now());
+
+  // Re-evaluate overdue state as time passes. Without this, a card can stay
+  // on "Due in ..." until another render happens after the deadline.
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(timer);
+  }, []);
 
   const isCompleted = task.status === "completed";
   const handleToggleComplete = () => {
