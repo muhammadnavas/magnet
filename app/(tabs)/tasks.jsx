@@ -34,22 +34,32 @@ export default function TasksScreen() {
     requestNotificationPermissions();
   };
 
+  const ensureDueDate = (task) => ({
+    ...task,
+    // Every task gets a due time. If the AI parser found a specific time,
+    // preserve it; otherwise default to 24 hours from creation.
+    deadline: task.deadline || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+  });
+
   const handleSend = async () => {
     const trimmed = input.trim();
     if (!trimmed) return;
-    
+
     requestNotificationPermissions();
 
     try {
-      // 1. AI Parse
       const parsedData = await parseTask.mutateAsync(trimmed);
-      // 2. Create Task
-      createTask.mutate(parsedData);
+      createTask.mutate(ensureDueDate(parsedData));
       setInput("");
       inputRef.current?.blur();
     } catch (error) {
       console.error("Failed to parse task via AI:", error);
-      const fallbackTask = { title: trimmed, priority: "medium", deadline: null, reminder_interval_hours: 24 };
+      const fallbackTask = ensureDueDate({
+        title: trimmed,
+        priority: "medium",
+        deadline: null,
+        reminder_interval_hours: 24,
+      });
       createTask.mutate(fallbackTask);
       setInput("");
       inputRef.current?.blur();
@@ -66,7 +76,6 @@ export default function TasksScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
-        {/* ── Header ── */}
         <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 }}>
           <Text style={{ color: themeColors.primary, fontSize: 11, fontWeight: "800", letterSpacing: 2, textTransform: "uppercase", marginBottom: 2 }}>
             My Tasks
@@ -75,7 +84,6 @@ export default function TasksScreen() {
             What's on your plate?
           </Text>
 
-          {/* Stats row */}
           <View style={{ flexDirection: "row", gap: 12, marginTop: 10 }}>
             {[
               { count: pendingCount, label: "Pending", color: "#F59E0B" },
@@ -96,7 +104,6 @@ export default function TasksScreen() {
           </View>
         </View>
 
-        {/* ── Filter pills ── */}
         <View style={{ flexDirection: "row", paddingHorizontal: 20, gap: 8, marginBottom: 12 }}>
           {FILTERS.map(({ key, label }) => {
             const active = filter === key;
@@ -119,7 +126,6 @@ export default function TasksScreen() {
           })}
         </View>
 
-        {/* ── Task List ── */}
         {isLoading ? (
           <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
             <ActivityIndicator color={themeColors.primary} />
@@ -146,14 +152,13 @@ export default function TasksScreen() {
                   {filter === "completed" ? "No completed tasks yet" : "No tasks yet"}
                 </Text>
                 <Text style={{ color: themeColors.text.secondary, fontSize: 13, textAlign: "center", maxWidth: 260 }}>
-                  Type anything below — "Submit assignment by Thursday" — and I'll create a task with a reminder!
+                  Type anything below — "Submit assignment by Thursday" — and I'll create a task with a due time and reminder!
                 </Text>
               </View>
             }
           />
         )}
 
-        {/* ── Input Bar (ChatGPT style) ── */}
         <View
           style={{
             borderTopWidth: 1, borderTopColor: themeColors.border,
