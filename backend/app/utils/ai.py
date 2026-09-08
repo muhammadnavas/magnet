@@ -26,7 +26,6 @@ def _get_gemini_key() -> str:
 
 
 def _make_client() -> genai.Client:
-    """Create a Google GenAI client."""
     api_key = _get_gemini_key()
     if not api_key:
         logger.error("GEMINI_API_KEY is not configured.")
@@ -43,21 +42,19 @@ def _clean_model_name(name: str) -> str:
     return cleaned
 
 
-# Code-controlled Gemini text-generation fallback chain.
-# These models currently have a Gemini API Free Tier according to Google's
-# official pricing page. Do not depend on GEMINI_LLM_MODEL being configured
-# in Render; the chain is controlled here so deployment configuration cannot
-# accidentally select a paid/obsolete model.
+# Reliability-first order: lighter models are tried before large Flash models.
+# A 503 UNAVAILABLE is a server-side capacity error, so switching models is
+# more useful than repeatedly hammering the same overloaded model.
 DEFAULT_COMPLETION_MODELS = [
-    "gemini-3.8-flash",
-    "gemini-3.7-flash",
-    "gemini-3.6-flash",
-    "gemini-3.5-flash",
+    "gemini-2.5-flash-lite",
     "gemini-3.5-flash-lite",
     "gemini-3.1-flash-lite",
-    "gemini-3-flash-preview",
     "gemini-2.5-flash",
-    "gemini-2.5-flash-lite",
+    "gemini-3.5-flash",
+    "gemini-3.6-flash",
+    "gemini-3.7-flash",
+    "gemini-3.8-flash",
+    "gemini-3-flash-preview",
 ]
 
 DEFAULT_EMBEDDING_MODELS = [
@@ -67,7 +64,6 @@ DEFAULT_EMBEDDING_MODELS = [
 
 
 async def get_embedding(text: str) -> List[float]:
-    """Generate a vector embedding with Gemini."""
     if not text:
         return [0.0] * 1536
 
@@ -118,7 +114,6 @@ async def _get_gemini_completion(
     user_prompt: str,
     history: List[Dict[str, str]] = None,
 ) -> str:
-    """Generate a completion with Gemini using the code-controlled fallback chain."""
     client = _make_client()
 
     full_user_content = ""
@@ -131,8 +126,6 @@ async def _get_gemini_completion(
 
     full_user_content += f"User Query: {user_prompt}"
 
-    # Always use the code-defined free-tier fallback chain first. Any Render
-    # value is appended only if it is an additional model not already in the chain.
     configured_model = _clean_model_name(
         settings.GEMINI_LLM_MODEL or os.getenv("GEMINI_LLM_MODEL", "")
     )
@@ -142,11 +135,11 @@ async def _get_gemini_completion(
 
     last_error = None
     for model_name in candidates:
-        # Retry transient availability/rate-limit failures once, then move on.
+        # One retry with exponential backoff + jitter, then immediately fail
+        # over to a different model. This avoids spending minutes retrying a
+        # model that Google is currently rejecting for capacity reasons.
         for attempt in range(1, 3):
             try:
-                # Do not send temperature: current Gemini 3.x models have
-                # migrated away from temperature sampling parameters.
                 response = await client.aio.models.generate_content(
                     model=model_name,
                     contents=full_user_content,
@@ -166,25 +159,16 @@ async def _get_gemini_completion(
                 last_error = e
                 logger.warning(
                     "Gemini completion attempt with '%s' (%d/2) failed: %s",
-                    model_name,
-                    attempt,
-                    err,
+                    model_name, attempt, err,
                 )
 
-                transient = (
-                    "429" in err
-                    or "503" in err
-                    or "RESOURCE_EXHAUSTED" in err
-                    or "UNAVAILABLE" in err
-                    or "INTERNAL" in err
-                    or "DEADLINE_EXCEEDED" in err
-                )
+                transient = any(marker in err for marker in (
+                    "429", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE", "INTERNAL", "DEADLINE_EXCEEDED"
+                ))
                 if transient and attempt == 1:
-                    await asyncio.sleep(0.75)
+                    # 1.5s first retry + small jitter prevents synchronized retries.
+                    await asyncio.sleep(1.5 + (0.5 * __import__("random").random()))
                     continue
-
-                # 404/model-unavailable and other permanent model errors move
-                # immediately to the next fallback model.
                 break
 
     raise RuntimeError(
@@ -199,12 +183,7 @@ async def get_completion(
     history: List[Dict[str, str]] = None,
     provider: str = None,
 ) -> str:
-    """Generate an LLM completion using the requested provider."""
-    selected_provider = (
-        provider
-        or os.getenv("LLM_PROVIDER", "gemini")
-        or "gemini"
-    ).strip().lower()
+    selected_provider = (provider or os.getenv("LLM_PROVIDER", "gemini") or "gemini").strip().lower()
 
     if selected_provider == "grok":
         try:
@@ -227,7 +206,6 @@ REDUNDANT_TAGS = {"imported", "pdf", "file", "doc", "text", "document", "url", "
 
 
 async def analyze_document(text: str) -> Dict[str, Any]:
-    """Analyze document text with the configured LLM."""
     if not text:
         return {"summary": "Empty document", "key_points": [], "tags": [], "technologies": []}
 
@@ -241,15 +219,11 @@ async def analyze_document(text: str) -> Dict[str, Any]:
         "Output ONLY valid JSON — no markdown code fences or extra commentary."
     )
     raw = await get_completion(system_prompt, f"Document content:\n{text[:6000]}")
-
     cleaned = raw.strip()
     for prefix in ("```json", "```"):
-        if cleaned.startswith(prefix):
-            cleaned = cleaned[len(prefix):]
-    if cleaned.endswith("```"):
-        cleaned = cleaned[:-3]
+        if cleaned.startswith(prefix): cleaned = cleaned[len(prefix):]
+    if cleaned.endswith("```"): cleaned = cleaned[:-3]
     cleaned = cleaned.strip()
-
     try:
         data = json.loads(cleaned)
         raw_tags = [str(t).lower().strip() for t in data.get("tags", [])]
@@ -262,19 +236,13 @@ async def analyze_document(text: str) -> Dict[str, Any]:
         }
     except Exception:
         logger.warning("Failed to parse AI JSON. Raw: %s", raw[:200])
-        return {
-            "summary": " ".join(text.split()[:30]) + "...",
-            "key_points": ["Document processed successfully."],
-            "tags": [],
-            "technologies": [],
-        }
+        return {"summary": " ".join(text.split()[:30]) + "...", "key_points": ["Document processed successfully."], "tags": [], "technologies": []}
 
 
 from datetime import datetime, timedelta
 
 
 def _rule_based_task_parse(text: str, current_time: str) -> dict:
-    """Fallback rule-based parser for relative time phrases."""
     try:
         if current_time:
             now_dt = datetime.fromisoformat(current_time.replace("Z", "+00:00")).replace(tzinfo=None)
@@ -286,84 +254,52 @@ def _rule_based_task_parse(text: str, current_time: str) -> dict:
     clean_title = text.strip()
     deadline = None
     reminder_interval = 24
-
-    min_match = re.search(r'(?:in|next|for)\s+(\d+)\s*(?:min|mins|minute|minutes)', text, re.IGNORECASE)
-    if not min_match:
-        min_match = re.search(r'(\d+)\s*(?:min|mins|minute|minutes)', text, re.IGNORECASE)
-
-    hour_match = re.search(r'(?:in|next|for)\s+(\d+)\s*(?:hr|hrs|hour|hours)', text, re.IGNORECASE)
-    if not hour_match and not min_match:
-        hour_match = re.search(r'(\d+)\s*(?:hr|hrs|hour|hours)', text, re.IGNORECASE)
-
+    min_match = re.search(r'(?:in|next|for)\s+(\d+)\s*(?:min|mins|minute|minutes)', text, re.IGNORECASE) or re.search(r'(\d+)\s*(?:min|mins|minute|minutes)', text, re.IGNORECASE)
+    hour_match = re.search(r'(?:in|next|for)\s+(\d+)\s*(?:hr|hrs|hour|hours)', text, re.IGNORECASE) or (None if min_match else re.search(r'(\d+)\s*(?:hr|hrs|hour|hours)', text, re.IGNORECASE))
     day_match = re.search(r'(?:in|next|for)\s+(\d+)\s*(?:day|days)', text, re.IGNORECASE)
 
     if min_match:
-        mins = int(min_match.group(1))
-        deadline = now_dt + timedelta(minutes=mins)
-        reminder_interval = max(1, mins // 60) if mins >= 60 else 1
+        mins = int(min_match.group(1)); deadline = now_dt + timedelta(minutes=mins); reminder_interval = 1
     elif hour_match:
-        hrs = int(hour_match.group(1))
-        deadline = now_dt + timedelta(hours=hrs)
-        reminder_interval = max(1, hrs)
+        hrs = int(hour_match.group(1)); deadline = now_dt + timedelta(hours=hrs); reminder_interval = max(1, hrs)
     elif day_match:
-        days = int(day_match.group(1))
-        deadline = now_dt + timedelta(days=days)
-        reminder_interval = 24
+        days = int(day_match.group(1)); deadline = now_dt + timedelta(days=days)
     elif "tomorrow" in text.lower():
         deadline = now_dt + timedelta(days=1)
-        reminder_interval = 24
 
     clean_title = re.sub(r'^(set\s+(?:a\s+)?(?:three\s+)?reminder\s+(?:for\s+)?|remind\s+me\s+to\s+|remind\s+me\s+)', '', clean_title, flags=re.IGNORECASE).strip()
     clean_title = re.sub(r'\s*(?:for\s+next|in|next)\s+\d+\s*(?:min|mins|minute|minutes|hr|hrs|hour|hours|day|days)\b', '', clean_title, flags=re.IGNORECASE).strip()
-
-    if not clean_title or clean_title.lower() in ("reminder", "reminders", "set a reminder", "set a three reminder"):
-        clean_title = "Reminder"
-
-    return {
-        "title": clean_title.capitalize(),
-        "priority": "medium",
-        "deadline": deadline.isoformat() if deadline else None,
-        "reminder_interval_hours": reminder_interval,
-    }
+    if not clean_title or clean_title.lower() in ("reminder", "reminders", "set a reminder", "set a three reminder"): clean_title = "Reminder"
+    return {"title": clean_title.capitalize(), "priority": "medium", "deadline": deadline.isoformat() if deadline else None, "reminder_interval_hours": reminder_interval}
 
 
 async def parse_task_intent(text: str, current_time: str) -> dict:
-    """Parse natural language into structured task fields."""
     if not text:
         return {"title": "Untitled Task", "priority": "medium", "deadline": None, "reminder_interval_hours": 24}
 
     fallback = _rule_based_task_parse(text, current_time)
-
     system_prompt = (
         "You are an expert NLP task parser. Analyze the user prompt and current ISO timestamp.\n"
         "1. Extract a concise, clean action title (remove trigger phrases like 'set a reminder for', 'in 5 minutes').\n"
         "2. Priority: 'low', 'medium', or 'high'.\n"
-        "3. Deadline: Calculate the exact target ISO 8601 deadline timestamp if a target date/time/duration is mentioned (e.g. 'next 5 minutes' -> current_time + 5 mins). If no time mentioned, return null.\n"
+        "3. Deadline: Calculate the exact target ISO 8601 deadline timestamp if a target date/time/duration is mentioned. If no time mentioned, return null.\n"
         "4. reminder_interval_hours: int (default 24).\n\n"
         "Output ONLY a valid JSON object with keys 'title', 'priority', 'deadline', 'reminder_interval_hours'. No markdown wrapping."
     )
     raw = await get_completion(system_prompt, f"Current Time: {current_time}\nUser Input: {text}")
-
     cleaned = raw.strip()
     for prefix in ("```json", "```"):
-        if cleaned.startswith(prefix):
-            cleaned = cleaned[len(prefix):]
-    if cleaned.endswith("```"):
-        cleaned = cleaned[:-3]
+        if cleaned.startswith(prefix): cleaned = cleaned[len(prefix):]
+    if cleaned.endswith("```"): cleaned = cleaned[:-3]
     cleaned = cleaned.strip()
-
     try:
         data = json.loads(cleaned)
         parsed_title = str(data.get("title", "")).strip()
         parsed_deadline = data.get("deadline", None)
-
-        final_title = parsed_title if parsed_title and parsed_title.lower() not in ("untitled task", text.lower()) else fallback["title"]
-        final_deadline = parsed_deadline if parsed_deadline else fallback["deadline"]
-
         return {
-            "title": final_title,
+            "title": parsed_title if parsed_title and parsed_title.lower() not in ("untitled task", text.lower()) else fallback["title"],
             "priority": data.get("priority", fallback["priority"]),
-            "deadline": final_deadline,
+            "deadline": parsed_deadline if parsed_deadline else fallback["deadline"],
             "reminder_interval_hours": data.get("reminder_interval_hours", fallback["reminder_interval_hours"]),
         }
     except Exception as e:
