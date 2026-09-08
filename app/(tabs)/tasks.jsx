@@ -8,6 +8,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useGetTasks, useCreateTask, useParseTask } from "../../hooks/useTasks";
 import { useAppTheme } from "../../store/themeStore";
 import { requestNotificationPermissions } from "../../lib/notifications";
+import { parseTaskDateTime } from "../../lib/taskDateTime";
 import TaskCard from "../../components/tasks/TaskCard";
 
 const FILTERS = [
@@ -16,69 +17,14 @@ const FILTERS = [
   { key: "completed", label: "Done" },
 ];
 
-function applyRelativeDueTime(task, text) {
-  const now = Date.now();
-  const value = String(text || "");
-  const minuteMatch = value.match(/(?:in|after|for|next)\s+(\d+)\s*(?:m|min|mins|minute|minutes)\b/i);
-  const hourMatch = value.match(/(?:in|after|for|next)\s+(\d+)\s*(?:h|hr|hrs|hour|hours)\b/i);
-  const dayMatch = value.match(/(?:in|after|for|next)\s+(\d+)\s*(?:d|day|days)\b/i);
-
-  if (minuteMatch) {
-    const minutes = Number(minuteMatch[1]);
-    if (minutes > 0) return { ...task, deadline: new Date(now + minutes * 60 * 1000).toISOString() };
-  }
-  if (hourMatch) {
-    const hours = Number(hourMatch[1]);
-    if (hours > 0) return { ...task, deadline: new Date(now + hours * 60 * 60 * 1000).toISOString() };
-  }
-  if (dayMatch) {
-    const days = Number(dayMatch[1]);
-    if (days > 0) return { ...task, deadline: new Date(now + days * 24 * 60 * 60 * 1000).toISOString() };
-  }
-  if (/\btomorrow\b/i.test(value)) return { ...task, deadline: new Date(now + 24 * 60 * 60 * 1000).toISOString() };
-  return task;
-}
-
-function applyCalendarDueTime(task, text) {
-  const value = String(text || "");
-  const weekdays = {
-    sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
-    thursday: 4, friday: 5, saturday: 6,
-  };
-  const match = value.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i);
-  if (!match) return task;
-
-  const day = Number(match[1]);
-  const weekday = weekdays[match[2].toLowerCase()];
-  let hour = Number(match[3]);
-  const minute = Number(match[4] || 0);
-  const meridiem = match[5].toLowerCase();
-  if (day < 1 || day > 31 || minute > 59 || hour < 1 || hour > 12) return task;
-  if (meridiem === "pm" && hour !== 12) hour += 12;
-  if (meridiem === "am" && hour === 12) hour = 0;
-
-  const now = new Date();
-  let candidate = new Date(now.getFullYear(), now.getMonth(), day, hour, minute, 0, 0);
-  if (candidate.getDate() !== day || candidate.getMonth() !== now.getMonth()) return task;
-
-  // Prefer the matching date in the current month; otherwise try next month.
-  if (candidate.getDay() !== weekday || candidate.getTime() <= now.getTime()) {
-    candidate = new Date(now.getFullYear(), now.getMonth() + 1, day, hour, minute, 0, 0);
-    if (candidate.getDate() !== day || candidate.getDay() !== weekday) return task;
-  }
-
-  return { ...task, deadline: candidate.toISOString() };
-}
-
 function applyDueTime(task, text) {
-  const calendarTask = applyCalendarDueTime(task, text);
-  if (calendarTask.deadline) return calendarTask;
-  return applyRelativeDueTime(calendarTask, text);
+  const parsedDeadline = parseTaskDateTime(text);
+  return parsedDeadline ? { ...task, deadline: parsedDeadline } : task;
 }
 
 function isReminderWithoutTime(text, task) {
   const value = String(text || "");
-  return /\bremind me\b|\bset (a )?reminder\b/i.test(value) && !task?.deadline && !/(?:in|after|for|next)\s+\d+\s*(?:m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)\b/i.test(value) && !/\btomorrow\b/i.test(value) && !/\b\d{1,2}(?:st|nd|rd|th)?\s+(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday)\s+at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/i.test(value);
+  return /\bremind me\b|\bset (a )?reminder\b/i.test(value) && !task?.deadline;
 }
 
 export default function TasksScreen() {
@@ -121,6 +67,8 @@ export default function TasksScreen() {
     requestNotificationPermissions();
     try {
       const parsedData = await parseTask.mutateAsync(trimmed);
+      // Deterministic parser wins over an AI null/wrong date for explicit
+      // user-provided date/time expressions.
       const correctedTask = applyDueTime(parsedData, trimmed);
       if (isReminderWithoutTime(trimmed, correctedTask)) {
         askForReminderTime(correctedTask);
