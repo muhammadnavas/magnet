@@ -10,16 +10,16 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Keep image analysis on models intended for current/new Gemini projects.
+# 2.5 models are intentionally excluded because they may be unavailable to new users/projects.
 IMAGE_MODELS = [
-    "gemini-3.8-flash",
-    "gemini-3.7-flash",
-    "gemini-3.6-flash",
-    "gemini-3.5-flash",
-    "gemini-3.5-flash-lite",
     "gemini-3.1-flash-lite",
+    "gemini-3.5-flash-lite",
+    "gemini-3.5-flash",
+    "gemini-3.6-flash",
+    "gemini-3.7-flash",
+    "gemini-3.8-flash",
     "gemini-3-flash-preview",
-    "gemini-2.5-flash",
-    "gemini-2.5-flash-lite",
 ]
 
 SUPPORTED_IMAGE_TYPES = {
