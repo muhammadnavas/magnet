@@ -17,7 +17,7 @@ from app.models.project import Project
 from app.models.conversation import ProcessingJob
 from app.schemas.knowledge import KnowledgeItemOut
 from app.workers.tasks import process_document
-from app.services.personal_context import remove_knowledge_source
+from app.services.personal_context import remove_knowledge_source, get_or_create_personal_context
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/knowledge", tags=["Knowledge"])
@@ -35,6 +35,14 @@ async def list_knowledge(content_type: Optional[str] = None, project: Optional[s
         query = query.join(KnowledgeItem.tags).where(Tag.name == tag.lower())
     result = await db.execute(query.where(KnowledgeItem.is_archived == False).order_by(KnowledgeItem.created_at.desc()))
     return result.scalars().all()
+
+
+@router.get("/personal-context")
+async def get_legacy_personal_context(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Backward-compatible route for older mobile builds."""
+    context = await get_or_create_personal_context(db)
+    await db.commit()
+    return {"context": context.context, "version": context.version, "updated_at": context.updated_at}
 
 
 @router.post("/upload", response_model=KnowledgeItemOut, status_code=status.HTTP_201_CREATED)
