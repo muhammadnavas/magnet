@@ -25,6 +25,11 @@ class Settings(BaseSettings):
     GOOGLE_APPLICATION_CREDENTIALS: str = ""
     GDRIVE_UPLOAD_FOLDER_ID: str = ""
 
+    # GitHub OAuth
+    GITHUB_CLIENT_ID: str = ""
+    GITHUB_CLIENT_SECRET: str = ""
+    GITHUB_REDIRECT_URI: str = "orio://github/callback"
+
     model_config = ConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
