@@ -37,7 +37,7 @@ export default function AskScreen() {
         {/* Header */}
         <View style={{ backgroundColor: themeColors.card, borderBottomColor: themeColors.border }} className="flex-row items-center justify-between px-5 py-4 border-b">
           <View className="flex-row items-center">
-            <Logo size="sm" showText={true} />
+            <Logo size="md" showText={true} />
             <View style={{ backgroundColor: `${themeColors.success || "#059669"}18`, borderRadius: 999 }} className="ml-3 px-2.5 py-1 flex-row items-center">
               <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: "#059669", marginRight: 5 }} />
               <Text style={{ color: "#059669" }} className="text-[10px] font-bold uppercase tracking-wider">RAG Active</Text>
