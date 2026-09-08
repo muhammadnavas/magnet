@@ -1,6 +1,7 @@
 import os
 import uuid
 import logging
+import re
 import urllib.parse
 from typing import List, Optional
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status, BackgroundTasks
@@ -49,6 +50,7 @@ async def get_legacy_personal_context(current_user: User = Depends(get_current_u
 async def upload_knowledge(title: str = Form("Untitled Item"), content_type: str = Form("note"), raw_content: Optional[str] = Form(None), project: Optional[str] = Form(None), tags: Optional[str] = Form(None), file: Optional[UploadFile] = File(None), background_tasks: BackgroundTasks = BackgroundTasks(), current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     file_path = None
     gdrive_meta = {}
+
     if file:
         try:
             os.makedirs("uploads", exist_ok=True)
@@ -65,6 +67,30 @@ async def upload_knowledge(title: str = Form("Untitled Item"), content_type: str
         except Exception as e:
             logger.error(f"Failed to save file: {e}")
             raise HTTPException(status_code=500, detail=f"Could not save file upload: {str(e)}")
+
+    elif raw_content and raw_content.strip() and content_type.lower() in {"note", "code", "error"}:
+        # Text captures are durable .txt source files in Google Drive.
+        try:
+            os.makedirs("uploads", exist_ok=True)
+            safe_title = re.sub(r"[^A-Za-z0-9._ -]+", "", (title or "Untitled Item")).strip(" .") or "Untitled Item"
+            if not safe_title.lower().endswith(".txt"):
+                safe_title = f"{safe_title}.txt"
+            file_path = f"uploads/{uuid.uuid4()}.txt"
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(raw_content)
+
+            try:
+                from app.services.gdrive import upload_file_to_gdrive
+                gdrive_res = upload_file_to_gdrive(file_path, safe_title, "text/plain")
+                if "error" not in gdrive_res:
+                    gdrive_meta = {"gdrive_file_id": gdrive_res.get("id"), "gdrive_web_view_link": gdrive_res.get("webViewLink")}
+                else:
+                    logger.warning(f"Text knowledge saved locally but GDrive upload failed: {gdrive_res.get('error')}")
+            except Exception as ge:
+                logger.warning(f"Text knowledge GDrive upload skipped: {ge}")
+        except Exception as e:
+            logger.error(f"Failed to create text knowledge file: {e}")
+            raise HTTPException(status_code=500, detail=f"Could not save text knowledge: {str(e)}")
 
     new_item = KnowledgeItem(title=title, content_type=content_type.lower(), raw_content=raw_content, file_path=file_path, processing_status="pending", meta=gdrive_meta, projects=[], tags=[])
     db.add(new_item)
