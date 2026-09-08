@@ -31,15 +31,6 @@ class Message(Base):
     # Relationships
     conversation = relationship("Conversation", back_populates="messages")
 
-class GitHubConnection(Base):
-    __tablename__ = "github_connections"
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    access_token_encrypted: Mapped[str] = mapped_column(String(1024), nullable=False)
-    github_username: Mapped[str] = mapped_column(String(255), nullable=True)
-    
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
-
 class ProcessingJob(Base):
     __tablename__ = "processing_jobs"
 
