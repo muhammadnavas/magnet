@@ -44,52 +44,66 @@ async def ask_chat(payload: MessageCreate, current_user: User = Depends(get_curr
     db.add(user_msg)
     await db.flush()
 
-    # Always load the tiny personal context. This avoids searching the full
-    # knowledge base just to understand who the user is.
+    # Optional context/retrieval work runs inside savepoints. If a provider,
+    # vector query, or context lookup fails, SQLAlchemy rolls back only that
+    # failed operation instead of poisoning the outer transaction.
     personal_context = ""
     try:
-        context = await get_or_create_personal_context(db)
-        personal_context = context.context
+        async with db.begin_nested():
+            context = await get_or_create_personal_context(db)
+            personal_context = context.context
     except Exception as e:
         logger.warning(f"Personal context unavailable: {e}")
 
     context_text = ""
     sources = []
     try:
-        query_embedding = await get_embedding(payload.content)
-        chunks_sel = await db.execute(
-            select(KnowledgeChunk, KnowledgeChunk.embedding.cosine_distance(query_embedding).label("distance"))
-            .join(KnowledgeChunk.item)
-            .where(KnowledgeItem.is_archived == False, KnowledgeItem.processing_status == "completed")
-            .order_by(KnowledgeChunk.embedding.cosine_distance(query_embedding))
-            .limit(RAG_CANDIDATE_LIMIT)
-            .options(selectinload(KnowledgeChunk.item))
-        )
-        matched_chunks = [chunk for chunk, distance in chunks_sel.all() if distance is not None and float(distance) <= RAG_MATCH_DISTANCE_THRESHOLD]
-        context_parts = []
-        seen_items = set()
-        for chunk in matched_chunks:
-            context_parts.append(
-                f"Source Document: {chunk.item.title} (Type: {chunk.item.content_type})\n"
-                f"Document Summary: {chunk.item.summary or 'No summary available.'}\n"
-                f"Snippet:\n{chunk.content}"
+        async with db.begin_nested():
+            query_embedding = await get_embedding(payload.content)
+            chunks_sel = await db.execute(
+                select(KnowledgeChunk, KnowledgeChunk.embedding.cosine_distance(query_embedding).label("distance"))
+                .join(KnowledgeChunk.item)
+                .where(KnowledgeItem.is_archived == False, KnowledgeItem.processing_status == "completed")
+                .order_by(KnowledgeChunk.embedding.cosine_distance(query_embedding))
+                .limit(RAG_CANDIDATE_LIMIT)
+                .options(selectinload(KnowledgeChunk.item))
             )
-            if chunk.item.id not in seen_items:
-                seen_items.add(chunk.item.id)
-                sources.append({"id": str(chunk.item.id), "title": chunk.item.title, "type": chunk.item.content_type})
-        context_text = "\n\n---\n\n".join(context_parts)
-        logger.info("RAG matched %d/%d candidate chunks across %d source documents", len(matched_chunks), RAG_CANDIDATE_LIMIT, len(sources))
+            matched_chunks = [
+                (chunk, float(distance))
+                for chunk, distance in chunks_sel.all()
+                if distance is not None and float(distance) <= RAG_MATCH_DISTANCE_THRESHOLD
+            ]
+            context_parts = []
+            seen_items = set()
+            for chunk, _distance in matched_chunks:
+                context_parts.append(
+                    f"Source Document: {chunk.item.title} (Type: {chunk.item.content_type})\n"
+                    f"Document Summary: {chunk.item.summary or 'No summary available.'}\n"
+                    f"Snippet:\n{chunk.content}"
+                )
+                if chunk.item.id not in seen_items:
+                    seen_items.add(chunk.item.id)
+                    sources.append({"id": str(chunk.item.id), "title": chunk.item.title, "type": chunk.item.content_type})
+            context_text = "\n\n---\n\n".join(context_parts)
+            logger.info("RAG matched %d/%d candidate chunks across %d source documents", len(matched_chunks), RAG_CANDIDATE_LIMIT, len(sources))
     except Exception as e:
         logger.error(f"Error during RAG context retrieval: {e}")
+        context_text = ""
+        sources = []
 
     history = []
     try:
-        hist_sel = await db.execute(
-            select(Message).where(Message.conversation_id == conv.id, Message.id != user_msg.id).order_by(Message.created_at.desc()).limit(6)
-        )
-        history = [{"role": m.role, "content": m.content} for m in reversed(hist_sel.scalars().all())]
+        async with db.begin_nested():
+            hist_sel = await db.execute(
+                select(Message)
+                .where(Message.conversation_id == conv.id, Message.id != user_msg.id)
+                .order_by(Message.created_at.desc())
+                .limit(6)
+            )
+            history = [{"role": m.role, "content": m.content} for m in reversed(hist_sel.scalars().all())]
     except Exception as e:
         logger.warning(f"Failed to fetch conversation history: {e}")
+        history = []
 
     system_prompt = (
         "You are Orio, a fast, concise AI companion and developer co-pilot.\n\n"
