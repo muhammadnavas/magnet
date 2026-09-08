@@ -30,7 +30,7 @@ export default function SettingsScreen() {
   const [offlineSync, setOfflineSync] = useState(true);
   const [selectedProvider, setSelectedProvider] = useState("gemini");
 
-  const username = user?.full_name || "Navas";
+  const username = "Navas";
   const useremail = user?.email || "personal-app@orio.com";
   const providers = config.SUPPORTED_PROVIDERS.filter((provider) => PROVIDER_META[provider.value]);
 
