@@ -23,7 +23,8 @@ export default function KnowledgeScreen() {
 
   const loadPersonalContext = useCallback(async () => {
     try {
-      const response = await api.get("/knowledge/personal-context");
+      // Personal Context has its own router at /api/v1/personal-context.
+      const response = await api.get("/personal-context");
       setPersonalContext(response.data?.context || "");
     } catch (error) {
       console.warn("Failed to load personal context", error);
