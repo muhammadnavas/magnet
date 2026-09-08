@@ -35,7 +35,9 @@ export default function HomeScreen() {
     }
   });
 
-  const username = user?.full_name || "Navas";
+  const username = user?.full_name && user.full_name !== "Personal User"
+    ? user.full_name
+    : "Navas";
   const itemsList = Array.isArray(knowledgeItems) ? knowledgeItems : [];
   const insightsList = Array.isArray(insightsData) ? insightsData : [];
 
