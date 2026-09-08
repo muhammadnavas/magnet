@@ -7,6 +7,15 @@ import Badge from "../ui/Badge";
 import { formatDistanceToNow } from "date-fns";
 import { useAppTheme } from "../../store/themeStore";
 
+const parseApiDate = (value) => {
+  if (!value) return null;
+  const raw = String(value);
+  const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw);
+  const normalized = hasTimezone ? raw : `${raw}Z`;
+  const date = new Date(normalized);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
 export const KnowledgeCard = ({ item }) => {
   const { id, title, contentType, summary, createdAt, processingStatus } = item;
   const { themeColors } = useAppTheme();
@@ -24,7 +33,12 @@ export const KnowledgeCard = ({ item }) => {
 
   const typeIcon = getTypeIcon();
   let formattedDate = "";
-  try { formattedDate = formatDistanceToNow(new Date(createdAt), { addSuffix: true }); } catch (e) { formattedDate = ""; }
+  try {
+    const parsedDate = parseApiDate(createdAt);
+    if (parsedDate) formattedDate = formatDistanceToNow(parsedDate, { addSuffix: true });
+  } catch (e) {
+    formattedDate = "";
+  }
 
   return (
     <Card onPress={() => router.push(`/knowledge/${id}`)} className="p-4 mb-3">
