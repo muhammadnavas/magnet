@@ -39,9 +39,46 @@ function applyRelativeDueTime(task, text) {
   return task;
 }
 
+function applyCalendarDueTime(task, text) {
+  const value = String(text || "");
+  const weekdays = {
+    sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
+    thursday: 4, friday: 5, saturday: 6,
+  };
+  const match = value.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i);
+  if (!match) return task;
+
+  const day = Number(match[1]);
+  const weekday = weekdays[match[2].toLowerCase()];
+  let hour = Number(match[3]);
+  const minute = Number(match[4] || 0);
+  const meridiem = match[5].toLowerCase();
+  if (day < 1 || day > 31 || minute > 59 || hour < 1 || hour > 12) return task;
+  if (meridiem === "pm" && hour !== 12) hour += 12;
+  if (meridiem === "am" && hour === 12) hour = 0;
+
+  const now = new Date();
+  let candidate = new Date(now.getFullYear(), now.getMonth(), day, hour, minute, 0, 0);
+  if (candidate.getDate() !== day || candidate.getMonth() !== now.getMonth()) return task;
+
+  // Prefer the matching date in the current month; otherwise try next month.
+  if (candidate.getDay() !== weekday || candidate.getTime() <= now.getTime()) {
+    candidate = new Date(now.getFullYear(), now.getMonth() + 1, day, hour, minute, 0, 0);
+    if (candidate.getDate() !== day || candidate.getDay() !== weekday) return task;
+  }
+
+  return { ...task, deadline: candidate.toISOString() };
+}
+
+function applyDueTime(task, text) {
+  const calendarTask = applyCalendarDueTime(task, text);
+  if (calendarTask.deadline) return calendarTask;
+  return applyRelativeDueTime(calendarTask, text);
+}
+
 function isReminderWithoutTime(text, task) {
   const value = String(text || "");
-  return /\bremind me\b|\bset (a )?reminder\b/i.test(value) && !task?.deadline && !/(?:in|after|for|next)\s+\d+\s*(?:m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)\b/i.test(value) && !/\btomorrow\b/i.test(value);
+  return /\bremind me\b|\bset (a )?reminder\b/i.test(value) && !task?.deadline && !/(?:in|after|for|next)\s+\d+\s*(?:m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)\b/i.test(value) && !/\btomorrow\b/i.test(value) && !/\b\d{1,2}(?:st|nd|rd|th)?\s+(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday)\s+at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/i.test(value);
 }
 
 export default function TasksScreen() {
@@ -84,7 +121,7 @@ export default function TasksScreen() {
     requestNotificationPermissions();
     try {
       const parsedData = await parseTask.mutateAsync(trimmed);
-      const correctedTask = applyRelativeDueTime(parsedData, trimmed);
+      const correctedTask = applyDueTime(parsedData, trimmed);
       if (isReminderWithoutTime(trimmed, correctedTask)) {
         askForReminderTime(correctedTask);
         return;
@@ -92,7 +129,7 @@ export default function TasksScreen() {
       createParsedTask(correctedTask);
     } catch (error) {
       console.error("Failed to parse task via AI:", error);
-      const fallbackTask = applyRelativeDueTime({ title: trimmed, priority: "medium", deadline: null, reminder_interval_hours: 0 }, trimmed);
+      const fallbackTask = applyDueTime({ title: trimmed, priority: "medium", deadline: null, reminder_interval_hours: 0 }, trimmed);
       if (isReminderWithoutTime(trimmed, fallbackTask)) {
         askForReminderTime(fallbackTask);
         return;
