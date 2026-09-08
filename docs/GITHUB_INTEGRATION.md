@@ -1,18 +1,54 @@
 # GitHub Integration
 
-## Feature Overview
-Allows users to connect their GitHub account via OAuth and import source code directly into their Orio Knowledge Vault for context-aware querying.
+## Feature
+Connect a GitHub account from Orio Settings and browse accessible repositories before importing code into the Knowledge Vault.
 
-## Purpose
-To allow the AI to answer questions about the user's specific private or public codebases accurately.
+## Current flow
+1. Settings → GitHub Sync → Connect.
+2. Orio requests a short-lived OAuth state from the backend.
+3. The user authorizes Orio on GitHub.
+4. GitHub redirects to the HTTPS backend callback.
+5. The backend exchanges the authorization code, encrypts the GitHub access token, and stores the connection.
+6. The backend redirects back to the Android `orio://github/callback` scheme.
+7. Settings refreshes the connection and can list repositories.
 
-## API Endpoints
-- `POST /github/connect` - OAuth callback receiver.
-- `GET /github/repos` - List accessible repositories.
-- `POST /github/import` - Trigger ARQ background job to clone/download source code and generate embeddings.
+## Backend endpoints
+- `GET /api/v1/github/authorize` — create the GitHub authorization URL.
+- `GET /api/v1/github/callback` — GitHub OAuth callback.
+- `POST /api/v1/github/connect` — direct code exchange endpoint for authenticated clients.
+- `GET /api/v1/github/status` — connection status.
+- `GET /api/v1/github/repos` — accessible repositories.
+- `POST /api/v1/github/disconnect` — remove the stored connection.
+- `POST /api/v1/github/import` — reserved for the next phase: selective repository/file import through ARQ.
 
-## Current Implementation Status
-**Partially Implemented (Stubs only).**
-- The router (`backend/app/routers/github.py`) exists and has endpoints defined.
-- However, all endpoints currently raise `HTTP_501_NOT_IMPLEMENTED` with the message: *"GitHub source code importing pipelines will be fully implemented in Phase 5."*
-- There is no frontend UI wired for this yet.
+## GitHub OAuth App setup
+Create a GitHub OAuth App and configure its **Authorization callback URL** to the exact value of `GITHUB_REDIRECT_URI`.
+
+Set these backend environment variables in Render/local development:
+
+```env
+GITHUB_CLIENT_ID=...
+GITHUB_CLIENT_SECRET=...
+GITHUB_REDIRECT_URI=https://<your-render-service>.onrender.com/api/v1/github/callback
+GITHUB_APP_REDIRECT_URI=orio://github/callback
+```
+
+The client secret must remain backend-only.
+
+## Permissions
+The current prototype requests `read:user repo` so Orio can list public/private repositories and later import selected source files. Before production, migrate to a GitHub App with fine-grained repository permissions and least-privilege access.
+
+## Import phase
+Repository browsing is implemented first. The next phase should add:
+
+```text
+Repository
+  → file/folder picker
+  → selected files
+  → ARQ import job
+  → text extraction
+  → chunks
+  → Gemini embeddings
+  → pgvector
+  → Knowledge Vault
+```
