@@ -42,14 +42,11 @@ def _clean_model_name(name: str) -> str:
     return cleaned
 
 
-# Reliability-first order: lighter models are tried before large Flash models.
-# A 503 UNAVAILABLE is a server-side capacity error, so switching models is
-# more useful than repeatedly hammering the same overloaded model.
+# Reliability-first order for new Gemini projects. 2.5 models are intentionally
+# excluded because they may be unavailable to new users/projects.
 DEFAULT_COMPLETION_MODELS = [
-    "gemini-2.5-flash-lite",
-    "gemini-3.5-flash-lite",
     "gemini-3.1-flash-lite",
-    "gemini-2.5-flash",
+    "gemini-3.5-flash-lite",
     "gemini-3.5-flash",
     "gemini-3.6-flash",
     "gemini-3.7-flash",
@@ -131,13 +128,15 @@ async def _get_gemini_completion(
     )
     candidates = list(DEFAULT_COMPLETION_MODELS)
     if configured_model and configured_model not in candidates:
-        candidates.append(configured_model)
+        # Do not allow an obsolete/restricted 2.5 model configured in Render
+        # to re-enter the fallback chain.
+        if not configured_model.startswith("gemini-2.5-"):
+            candidates.append(configured_model)
 
     last_error = None
     for model_name in candidates:
-        # One retry with exponential backoff + jitter, then immediately fail
-        # over to a different model. This avoids spending minutes retrying a
-        # model that Google is currently rejecting for capacity reasons.
+        # One retry with exponential backoff + jitter, then fail over to the
+        # next model. This avoids repeatedly hammering an overloaded model.
         for attempt in range(1, 3):
             try:
                 response = await client.aio.models.generate_content(
@@ -166,7 +165,6 @@ async def _get_gemini_completion(
                     "429", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE", "INTERNAL", "DEADLINE_EXCEEDED"
                 ))
                 if transient and attempt == 1:
-                    # 1.5s first retry + small jitter prevents synchronized retries.
                     await asyncio.sleep(1.5 + (0.5 * __import__("random").random()))
                     continue
                 break
