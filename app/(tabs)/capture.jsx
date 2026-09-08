@@ -18,6 +18,7 @@ export default function CaptureScreen() {
   const [inputText, setInputText] = useState("");
   const [processingState, setProcessingState] = useState(null);
   const [recentSaved, setRecentSaved] = useState([]);
+  const [successToast, setSuccessToast] = useState(null);
 
   useEffect(() => {
     if (params.selectType === "pdf") {
@@ -31,6 +32,16 @@ export default function CaptureScreen() {
       handleCapturePhoto();
     }
   }, [params.selectType]);
+
+  useEffect(() => {
+    if (!successToast) return undefined;
+    const timer = setTimeout(() => setSuccessToast(null), 2800);
+    return () => clearTimeout(timer);
+  }, [successToast]);
+
+  const showSuccessToast = (title) => {
+    setSuccessToast({ title });
+  };
 
   const detectContentType = (rawText) => {
     const t = rawText.trim();
@@ -64,7 +75,7 @@ export default function CaptureScreen() {
       setRecentSaved(prev => [item, ...prev]);
       setProcessingState({ progress: 100, message: "Completed!" });
       setTimeout(() => setProcessingState(null), 400);
-      Alert.alert("Cataloged!", `"${title}" has been saved, vectorized, and is ready for AI Q&A.`);
+      showSuccessToast(title);
     } catch (e) {
       console.error("Ingestion failed:", e);
       setProcessingState(null);
@@ -156,6 +167,7 @@ export default function CaptureScreen() {
     await store.addKnowledgeItem(item);
     setRecentSaved(prev => [item, ...prev]);
     setInputText("");
+    showSuccessToast(title);
   };
 
   if (processingState) {
@@ -274,6 +286,23 @@ export default function CaptureScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {successToast && (
+          <View className="absolute left-5 right-5 bottom-28 items-center" pointerEvents="none">
+            <View
+              style={{ backgroundColor: themeColors.card, borderColor: themeColors.border, shadowColor: "#000", shadowOpacity: 0.14, shadowRadius: 10, elevation: 5 }}
+              className="flex-row items-center border rounded-2xl px-4 py-3 max-w-[520px]"
+            >
+              <View style={{ backgroundColor: themeColors.primary }} className="w-7 h-7 rounded-full items-center justify-center mr-3">
+                <Ionicons name="checkmark" size={17} color="#FFFFFF" />
+              </View>
+              <View className="flex-1">
+                <Text style={{ color: themeColors.text.primary }} className="text-sm font-bold">Captured successfully</Text>
+                <Text style={{ color: themeColors.text.secondary }} className="text-xs mt-0.5" numberOfLines={1}>{successToast.title}</Text>
+              </View>
+            </View>
+          </View>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
