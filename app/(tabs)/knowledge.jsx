@@ -23,7 +23,6 @@ export default function KnowledgeScreen() {
 
   const loadPersonalContext = useCallback(async () => {
     try {
-      // Personal Context has its own router at /api/v1/personal-context.
       const response = await api.get("/personal-context");
       setPersonalContext(response.data?.context || "");
     } catch (error) {
@@ -60,12 +59,8 @@ export default function KnowledgeScreen() {
   const clearAll = () => { store.resetFilters(); setSearchQuery(""); };
   const itemsList = store.items || [];
   const uniqueProjectsCount = [...new Set(itemsList.map((i) => i.project))].filter(Boolean).length;
-  const pdfCount = itemsList.filter((i) => (i.contentType || "").toLowerCase() === "pdf").length;
-  const codeCount = itemsList.filter((i) => (i.contentType || "").toLowerCase() === "code").length;
   const stats = [
     { label: "Knowledge", count: itemsList.length, icon: "bulb-outline" },
-    { label: "Documents", count: pdfCount, icon: "document-text-outline" },
-    { label: "Code Snippets", count: codeCount, icon: "code-working-outline" },
     { label: "Projects", count: uniqueProjectsCount, icon: "folder-outline" },
   ];
 
@@ -92,9 +87,9 @@ export default function KnowledgeScreen() {
           </Text>
         </View>
 
-        <View className="flex-row flex-wrap gap-2.5 mb-3">
+        <View className="flex-row gap-2.5 mb-3">
           {stats.map((stat) => (
-            <View key={stat.label} style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }} className="w-[48%] border p-3 rounded-2xl">
+            <View key={stat.label} style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }} className="flex-1 border p-3 rounded-2xl">
               <View className="flex-row items-center justify-between mb-1">
                 <Ionicons name={stat.icon} size={16} color={themeColors.primary} />
                 <Text style={{ color: themeColors.text.muted }} className="text-[10px] font-bold uppercase tracking-wider">{stat.label}</Text>
