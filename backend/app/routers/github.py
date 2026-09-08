@@ -3,10 +3,12 @@ import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List
+from urllib.parse import urlencode
 
 import httpx
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import RedirectResponse
 from jose import JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -61,6 +63,16 @@ def _validate_state(state: str, user_id: uuid.UUID) -> None:
         raise HTTPException(status_code=400, detail="Invalid GitHub OAuth state")
 
 
+def _user_id_from_state(state: str) -> uuid.UUID:
+    try:
+        payload = jwt.decode(state, settings.SECRET_KEY, algorithms=["HS256"])
+        if payload.get("purpose") != "github_oauth":
+            raise ValueError
+        return uuid.UUID(payload["sub"])
+    except (JWTError, ValueError, KeyError) as exc:
+        raise HTTPException(status_code=400, detail="Invalid or expired GitHub OAuth state") from exc
+
+
 async def _github_request(token: str, path: str, **kwargs: Any) -> httpx.Response:
     headers = {
         "Accept": "application/vnd.github+json",
@@ -68,37 +80,13 @@ async def _github_request(token: str, path: str, **kwargs: Any) -> httpx.Respons
         "X-GitHub-Api-Version": "2022-11-28",
     }
     async with httpx.AsyncClient(timeout=15) as client:
-        response = await client.get(f"{GITHUB_API_URL}{path}", headers=headers, **kwargs)
-    return response
+        return await client.get(f"{GITHUB_API_URL}{path}", headers=headers, **kwargs)
 
 
-@router.get("/authorize", status_code=status.HTTP_200_OK)
-async def github_authorize(current_user: User = Depends(get_current_user)):
-    if not settings.GITHUB_CLIENT_ID:
+async def _exchange_and_store(code: str, state: str, db: AsyncSession) -> str:
+    user_id = _user_id_from_state(state)
+    if not settings.GITHUB_CLIENT_ID or not settings.GITHUB_CLIENT_SECRET or not settings.GITHUB_REDIRECT_URI:
         raise HTTPException(status_code=503, detail="GitHub OAuth is not configured on the backend")
-
-    state = _make_state(current_user.id)
-    params = {
-        "client_id": settings.GITHUB_CLIENT_ID,
-        "redirect_uri": settings.GITHUB_REDIRECT_URI,
-        "scope": "read:user repo",
-        "state": state,
-    }
-    query = "&".join(f"{key}={httpx.QueryParams({key: value})[key]}" for key, value in params.items())
-    return {"authorization_url": f"{GITHUB_AUTHORIZE_URL}?{query}"}
-
-
-@router.post("/connect", status_code=status.HTTP_200_OK)
-async def connect_github(
-    code: str,
-    state: str,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    if not settings.GITHUB_CLIENT_ID or not settings.GITHUB_CLIENT_SECRET:
-        raise HTTPException(status_code=503, detail="GitHub OAuth is not configured on the backend")
-
-    _validate_state(state, current_user.id)
 
     async with httpx.AsyncClient(timeout=15) as client:
         token_response = await client.post(
@@ -130,28 +118,73 @@ async def connect_github(
     if not github_user_id or not github_username:
         raise HTTPException(status_code=502, detail="GitHub returned an incomplete user profile")
 
-    existing = await db.scalar(
-        select(GitHubConnection).where(GitHubConnection.user_id == current_user.id)
-    )
+    existing = await db.scalar(select(GitHubConnection).where(GitHubConnection.user_id == user_id))
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     if existing:
         existing.github_user_id = github_user_id
         existing.github_username = github_username
         existing.access_token = _encrypt_token(access_token)
         existing.scope = token_data.get("scope")
-        existing.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        existing.updated_at = now
     else:
         db.add(
             GitHubConnection(
-                user_id=current_user.id,
+                user_id=user_id,
                 github_user_id=github_user_id,
                 github_username=github_username,
                 access_token=_encrypt_token(access_token),
                 scope=token_data.get("scope"),
+                connected_at=now,
+                updated_at=now,
             )
         )
-
     await db.commit()
-    return {"connected": True, "username": github_username}
+    return github_username
+
+
+@router.get("/authorize", status_code=status.HTTP_200_OK)
+async def github_authorize(current_user: User = Depends(get_current_user)):
+    if not settings.GITHUB_CLIENT_ID or not settings.GITHUB_REDIRECT_URI:
+        raise HTTPException(status_code=503, detail="GitHub OAuth is not configured on the backend")
+
+    state = _make_state(current_user.id)
+    params = {
+        "client_id": settings.GITHUB_CLIENT_ID,
+        "redirect_uri": settings.GITHUB_REDIRECT_URI,
+        "scope": "read:user repo",
+        "state": state,
+        "allow_signup": "false",
+    }
+    return {"authorization_url": f"{GITHUB_AUTHORIZE_URL}?{urlencode(params)}"}
+
+
+@router.get("/callback")
+async def github_callback(
+    code: str | None = Query(default=None),
+    state: str | None = Query(default=None),
+    error: str | None = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    if error:
+        return RedirectResponse(f"{settings.GITHUB_APP_REDIRECT_URI}?connected=false&error={urlencode({'error': error})[6:]}")
+    if not code or not state:
+        raise HTTPException(status_code=400, detail="Missing GitHub OAuth code or state")
+
+    username = await _exchange_and_store(code, state, db)
+    query = urlencode({"connected": "true", "username": username})
+    return RedirectResponse(f"{settings.GITHUB_APP_REDIRECT_URI}?{query}")
+
+
+@router.post("/connect", status_code=status.HTTP_200_OK)
+async def connect_github(
+    code: str,
+    state: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    _validate_state(state, current_user.id)
+    username = await _exchange_and_store(code, state, db)
+    return {"connected": True, "username": username}
 
 
 @router.get("/status", status_code=status.HTTP_200_OK)
@@ -159,9 +192,7 @@ async def github_status(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    connection = await db.scalar(
-        select(GitHubConnection).where(GitHubConnection.user_id == current_user.id)
-    )
+    connection = await db.scalar(select(GitHubConnection).where(GitHubConnection.user_id == current_user.id))
     if not connection:
         return {"connected": False}
     return {"connected": True, "username": connection.github_username}
@@ -172,9 +203,7 @@ async def list_github_repositories(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    connection = await db.scalar(
-        select(GitHubConnection).where(GitHubConnection.user_id == current_user.id)
-    )
+    connection = await db.scalar(select(GitHubConnection).where(GitHubConnection.user_id == current_user.id))
     if not connection:
         raise HTTPException(status_code=409, detail="Connect GitHub before listing repositories")
 
@@ -195,7 +224,6 @@ async def list_github_repositories(
     if response.status_code != 200:
         raise HTTPException(status_code=502, detail="Could not fetch GitHub repositories")
 
-    repos = response.json()
     return [
         {
             "id": repo["id"],
@@ -207,7 +235,7 @@ async def list_github_repositories(
             "html_url": repo.get("html_url"),
             "updated_at": repo.get("updated_at"),
         }
-        for repo in repos
+        for repo in response.json()
     ]
 
 
@@ -216,9 +244,7 @@ async def disconnect_github(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    connection = await db.scalar(
-        select(GitHubConnection).where(GitHubConnection.user_id == current_user.id)
-    )
+    connection = await db.scalar(select(GitHubConnection).where(GitHubConnection.user_id == current_user.id))
     if connection:
         await db.delete(connection)
         await db.commit()
