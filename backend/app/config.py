@@ -25,10 +25,11 @@ class Settings(BaseSettings):
     GOOGLE_APPLICATION_CREDENTIALS: str = ""
     GDRIVE_UPLOAD_FOLDER_ID: str = ""
 
-    # GitHub OAuth
+    # GitHub OAuth. Register this exact HTTPS URL as the GitHub OAuth callback.
     GITHUB_CLIENT_ID: str = ""
     GITHUB_CLIENT_SECRET: str = ""
-    GITHUB_REDIRECT_URI: str = "orio://github/callback"
+    GITHUB_REDIRECT_URI: str = ""
+    GITHUB_APP_REDIRECT_URI: str = "orio://github/callback"
 
     model_config = ConfigDict(
         env_file=".env",
