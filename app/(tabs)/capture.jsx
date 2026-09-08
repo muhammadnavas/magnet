@@ -169,7 +169,11 @@ export default function CaptureScreen() {
   return (
     <SafeAreaView style={{ backgroundColor: themeColors.background }} className="flex-1" edges={["top", "left", "right"]}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 justify-between">
-        <ScrollView className="flex-1 px-5 pt-10" showsVerticalScrollIndicator={false}>
+        <ScrollView
+          className="flex-1 px-5 pt-10"
+          contentContainerStyle={{ width: "100%", maxWidth: 760, alignSelf: "center", paddingBottom: 20 }}
+          showsVerticalScrollIndicator={false}
+        >
 
           {/* Hero */}
           <View className="items-center mt-8 mb-10">
@@ -181,11 +185,11 @@ export default function CaptureScreen() {
           </View>
 
           {/* Upload / Camera Buttons */}
-          <View className="flex-row justify-center gap-2 mb-10">
+          <View className="flex-row flex-wrap justify-center gap-2 mb-10">
             <TouchableOpacity
               onPress={handlePdfUpload}
-              style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }}
-              className="flex-row items-center border px-4 py-2.5 rounded-full"
+              style={{ backgroundColor: themeColors.card, borderColor: themeColors.border, flexGrow: 1, flexShrink: 1, minWidth: 145 }}
+              className="flex-row items-center justify-center border px-4 py-2.5 rounded-full"
             >
               <Ionicons name="document-text-outline" size={16} color={themeColors.primary} style={{ marginRight: 6 }} />
               <Text style={{ color: themeColors.text.primary }} className="text-sm font-semibold">Upload PDF</Text>
@@ -193,8 +197,8 @@ export default function CaptureScreen() {
 
             <TouchableOpacity
               onPress={handlePhotoUpload}
-              style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }}
-              className="flex-row items-center border px-4 py-2.5 rounded-full"
+              style={{ backgroundColor: themeColors.card, borderColor: themeColors.border, flexGrow: 1, flexShrink: 1, minWidth: 145 }}
+              className="flex-row items-center justify-center border px-4 py-2.5 rounded-full"
             >
               <Ionicons name="image-outline" size={16} color={themeColors.primary} style={{ marginRight: 6 }} />
               <Text style={{ color: themeColors.text.primary }} className="text-sm font-semibold">Upload Photo</Text>
@@ -202,8 +206,8 @@ export default function CaptureScreen() {
 
             <TouchableOpacity
               onPress={handleCapturePhoto}
-              style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }}
-              className="flex-row items-center border px-4 py-2.5 rounded-full"
+              style={{ backgroundColor: themeColors.card, borderColor: themeColors.border, flexGrow: 1, flexShrink: 1, minWidth: 145 }}
+              className="flex-row items-center justify-center border px-4 py-2.5 rounded-full"
             >
               <Ionicons name="camera-outline" size={16} color={themeColors.primary} style={{ marginRight: 6 }} />
               <Text style={{ color: themeColors.text.primary }} className="text-sm font-semibold">Capture Photo</Text>
@@ -230,8 +234,11 @@ export default function CaptureScreen() {
         </ScrollView>
 
         {/* Floating Input Bar */}
-        <View style={{ backgroundColor: themeColors.background, borderTopColor: themeColors.border }} className="p-4 border-t">
-          <View style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }} className="flex-row items-center border rounded-3xl p-2.5 px-3">
+        <View style={{ backgroundColor: themeColors.background, borderTopColor: themeColors.border }} className="px-4 pt-3 pb-4 border-t">
+          <View
+            style={{ backgroundColor: themeColors.card, borderColor: themeColors.border, width: "100%", maxWidth: 760, alignSelf: "center" }}
+            className="flex-row items-center border rounded-3xl p-2.5 px-3"
+          >
             <TouchableOpacity
               onPress={() => Alert.alert("Upload", "Choose source:", [
                 { text: "PDF", onPress: handlePdfUpload },
@@ -248,10 +255,12 @@ export default function CaptureScreen() {
             <TextInput
               value={inputText}
               onChangeText={setInputText}
+              onSubmitEditing={handleCapture}
               placeholder="Capture anything... notes, URLs, code, or logs"
               placeholderTextColor={themeColors.text.muted}
-              className="flex-1 text-base max-h-32 px-1"
-              multiline
+              className="flex-1 text-base px-1"
+              returnKeyType="send"
+              blurOnSubmit
               style={{ color: themeColors.text.primary, paddingTop: Platform.OS === "ios" ? 8 : 4, paddingBottom: Platform.OS === "ios" ? 8 : 4 }}
             />
 
