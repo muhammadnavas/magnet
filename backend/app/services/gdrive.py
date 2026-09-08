@@ -140,3 +140,25 @@ def download_file_from_gdrive(file_id: str, dest_path: str) -> bool:
     except Exception as e:
         logger.error(f"Error downloading file {file_id} from Google Drive: {e}")
         return False
+
+def delete_file_from_gdrive(file_id: str) -> bool:
+    """
+    Permanently deletes a file from Google Drive by its ID.
+    Returns True when deleted or already absent, False on an actual failure.
+    """
+    service = get_gdrive_service()
+    if not service:
+        logger.error("Google Drive service not configured for deletion.")
+        return False
+
+    try:
+        service.files().delete(fileId=file_id).execute()
+        logger.info(f"File ID: {file_id} deleted successfully from Google Drive.")
+        return True
+    except Exception as e:
+        # A missing Drive file is already in the desired final state.
+        if getattr(getattr(e, "resp", None), "status", None) == 404:
+            logger.info(f"Google Drive file {file_id} is already absent.")
+            return True
+        logger.error(f"Error deleting file {file_id} from Google Drive: {e}")
+        return False
