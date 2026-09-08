@@ -39,7 +39,7 @@ export const useKnowledgeStore = create((set, get) => ({
   projects: ["Email Scheduler", "AI Interviewer", "Personal Projects", "AURA", "Nudi LLM"],
   tags: ["docker", "devops", "containers", "redis", "caching", "performance", "fastapi", "sqlalchemy", "postgres", "errors", "debugging", "rag", "llm", "ai"],
   filters: {
-    contentType: "All",
+    contentType: null,
     project: "All",
     tag: "All",
   },
@@ -54,7 +54,7 @@ export const useKnowledgeStore = create((set, get) => ({
   })),
 
   resetFilters: () => set({
-    filters: { contentType: "All", project: "All", tag: "All" },
+    filters: { contentType: null, project: "All", tag: "All" },
     searchQuery: ""
   }),
 
@@ -274,13 +274,8 @@ export const useKnowledgeStore = create((set, get) => ({
     const { items, filters, searchQuery } = get();
     return items.filter((item) => {
       // Filter by type
-      if (filters.contentType !== "All") {
-        if (filters.contentType === "Notes" && item.contentType !== "note") return false;
-        if (filters.contentType === "PDFs" && item.contentType !== "pdf") return false;
-        if (filters.contentType === "Images" && item.contentType !== "image") return false;
-        if (filters.contentType === "Code" && item.contentType !== "code") return false;
-        if (filters.contentType === "URLs" && item.contentType !== "url") return false;
-        if (filters.contentType === "Errors" && item.contentType !== "error") return false;
+      if (filters.contentType) {
+        if (item.contentType !== filters.contentType) return false;
       }
 
       // Filter by project
