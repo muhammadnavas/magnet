@@ -3,8 +3,10 @@ import uuid
 import logging
 import re
 import urllib.parse
+import mimetypes
 from typing import List, Optional
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status, BackgroundTasks
+from fastapi.responses import FileResponse
 from sqlalchemy import delete
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -69,7 +71,6 @@ async def upload_knowledge(title: str = Form("Untitled Item"), content_type: str
             raise HTTPException(status_code=500, detail=f"Could not save file upload: {str(e)}")
 
     elif raw_content and raw_content.strip() and content_type.lower() in {"note", "code", "error"}:
-        # Text captures are durable .txt source files in Google Drive.
         try:
             os.makedirs("uploads", exist_ok=True)
             safe_title = re.sub(r"[^A-Za-z0-9._ -]+", "", (title or "Untitled Item")).strip(" .") or "Untitled Item"
@@ -129,6 +130,48 @@ async def upload_knowledge(title: str = Form("Untitled Item"), content_type: str
     return res.scalars().first()
 
 
+@router.get("/{id}/source")
+async def get_knowledge_source(id: uuid.UUID, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Serve the original uploaded source inline for the in-app document viewer."""
+    result = await db.execute(select(KnowledgeItem).where(KnowledgeItem.id == id))
+    item = result.scalars().first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    file_path = item.file_path
+    if not file_path or not os.path.isfile(file_path):
+        gdrive_file_id = (item.meta or {}).get("gdrive_file_id")
+        if gdrive_file_id:
+            os.makedirs("uploads", exist_ok=True)
+            extension = mimetypes.guess_extension((item.meta or {}).get("mime_type", "")) or ""
+            file_path = f"uploads/{uuid.uuid4()}{extension}"
+            try:
+                from app.services.gdrive import download_file_from_gdrive
+                if not download_file_from_gdrive(gdrive_file_id, file_path):
+                    file_path = None
+            except Exception as ge:
+                logger.error(f"Failed to restore source from Google Drive: {ge}")
+                file_path = None
+
+    if not file_path or not os.path.isfile(file_path):
+        raise HTTPException(status_code=404, detail="Original source is unavailable")
+
+    media_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
+    if item.content_type == "pdf":
+        media_type = "application/pdf"
+    elif item.content_type == "image":
+        media_type = mimetypes.guess_type(file_path)[0] or "image/*"
+    elif item.content_type in {"note", "code", "error"}:
+        media_type = "text/plain"
+
+    extension = os.path.splitext(file_path)[1] or (".pdf" if item.content_type == "pdf" else "")
+    filename = item.title or f"orio-source{extension}"
+    if extension and not os.path.splitext(filename)[1]:
+        filename = f"{filename}{extension}"
+
+    return FileResponse(file_path, media_type=media_type, filename=filename, content_disposition_type="inline")
+
+
 @router.get("/{id}", response_model=KnowledgeItemOut)
 async def get_knowledge_item(id: uuid.UUID, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(KnowledgeItem).where(KnowledgeItem.id == id).options(selectinload(KnowledgeItem.tags), selectinload(KnowledgeItem.projects)))
@@ -160,7 +203,6 @@ async def delete_knowledge_item(id: uuid.UUID, current_user: User = Depends(get_
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
 
-    # Delete the durable source from Google Drive before removing the DB record.
     gdrive_file_id = (item.meta or {}).get("gdrive_file_id")
     if gdrive_file_id:
         try:
@@ -173,7 +215,6 @@ async def delete_knowledge_item(id: uuid.UUID, current_user: User = Depends(get_
             logger.error(f"Failed to delete Google Drive source {gdrive_file_id}: {ge}")
             raise HTTPException(status_code=502, detail="Could not delete the knowledge source from Google Drive")
 
-    # Remove this knowledge from derived Personal Context before deleting its evidence.
     await remove_knowledge_source(db, id)
     await db.execute(delete(KnowledgeChunk).where(KnowledgeChunk.knowledge_id == id))
     await db.execute(delete(ProcessingJob).where(ProcessingJob.knowledge_id == id))
