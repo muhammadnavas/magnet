@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Alert, FlatList, Linking, Modal, Pressable, Text, View, ScrollView } from "react-native";
+import { Alert, Linking, Pressable, Text, View, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -7,7 +7,6 @@ import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
 import config from "../../constants/config";
 import useAuth from "../../hooks/useAuth";
-import useKnowledgeStore from "../../store/knowledgeStore";
 import { useAppTheme } from "../../store/themeStore";
 import useBackendStatus from "../../hooks/useBackendStatus";
 import api from "../../lib/api";
@@ -19,14 +18,11 @@ const PROVIDER_META = {
 
 export default function SettingsScreen() {
   const { user } = useAuth();
-  const store = useKnowledgeStore();
   const { theme, setTheme, themeColors } = useAppTheme();
   const { isConnected, isChecking, latency } = useBackendStatus();
   const [githubConnected, setGithubConnected] = useState(false);
   const [githubUsername, setGithubUsername] = useState("");
   const [githubLoading, setGithubLoading] = useState(false);
-  const [githubRepos, setGithubRepos] = useState([]);
-  const [showGithubRepos, setShowGithubRepos] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState("gemini");
 
   const username = "Navas";
@@ -49,7 +45,7 @@ export default function SettingsScreen() {
         const parsed = new URL(url);
         const connected = parsed.searchParams.get("connected") === "true";
         const callbackError = parsed.searchParams.get("error");
-        if (connected) { loadGithubStatus(); Alert.alert("GitHub Connected", "Your GitHub account is now connected to Orio."); }
+        if (connected) loadGithubStatus();
         else if (callbackError) Alert.alert("GitHub Connection Failed", callbackError);
       } catch (error) { console.log("[GITHUB CALLBACK]", error); }
     };
@@ -66,15 +62,9 @@ export default function SettingsScreen() {
 
   const connectClassroom = () => router.push("/classroom");
 
-  const openGithubRepos = async () => {
-    try { setGithubLoading(true); const response = await api.get("/github/repos"); setGithubRepos(response.data || []); setShowGithubRepos(true); }
-    catch (error) { if (error?.response?.status === 401) { setGithubConnected(false); setGithubUsername(""); } Alert.alert("GitHub", error?.response?.data?.detail || "Could not load repositories."); }
-    finally { setGithubLoading(false); }
-  };
-
   const disconnectGithub = () => Alert.alert("Disconnect GitHub?", "Orio will stop accessing your GitHub repositories.", [
     { text: "Cancel", style: "cancel" },
-    { text: "Disconnect", style: "destructive", onPress: async () => { try { await api.post("/github/disconnect"); setGithubConnected(false); setGithubUsername(""); setGithubRepos([]); } catch (error) { Alert.alert("GitHub", error?.response?.data?.detail || "Could not disconnect GitHub."); } } },
+    { text: "Disconnect", style: "destructive", onPress: async () => { try { await api.post("/github/disconnect"); setGithubConnected(false); setGithubUsername(""); } catch (error) { Alert.alert("GitHub", error?.response?.data?.detail || "Could not disconnect GitHub."); } } },
   ]);
 
   return (
@@ -91,14 +81,13 @@ export default function SettingsScreen() {
 
         <Text style={{ color: themeColors.text.muted }} className="text-xs font-bold uppercase tracking-wider mb-3">Backend Connection</Text>
         <Card className="p-5 mb-10">
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}><View style={{ flexDirection: "row", alignItems: "center" }}><View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: isChecking ? "#F59E0B" : isConnected ? "#10B981" : "#EF4444", marginRight: 10 }} /><View><Text style={{ color: themeColors.text.primary, fontWeight: "700", fontSize: 14 }}>{isChecking ? "Connecting..." : isConnected ? "Backend Connected" : "Backend Offline"}</Text><Text style={{ color: themeColors.text.muted, fontSize: 11, marginTop: 1 }}>{isChecking ? "Waking up Render server (up to 45s)..." : isConnected ? `Online · Latency ${latency ? `${latency}ms` : "OK"}` : "Unable to reach API server"}</Text></View></View></View>
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 14 }}><View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: isChecking ? "#F59E0B" : isConnected ? "#10B981" : "#EF4444", marginRight: 10 }} /><View><Text style={{ color: themeColors.text.primary, fontWeight: "700", fontSize: 14 }}>{isChecking ? "Connecting..." : isConnected ? "Backend Connected" : "Backend Offline"}</Text><Text style={{ color: themeColors.text.muted, fontSize: 11, marginTop: 1 }}>{isChecking ? "Waking up Render server (up to 45s)..." : isConnected ? `Online · Latency ${latency ? `${latency}ms` : "OK"}` : "Unable to reach API server"}</Text></View></View>
           <View style={{ borderTopColor: themeColors.border, borderTopWidth: 1, paddingTop: 14 }}>
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}><View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}><View style={{ backgroundColor: themeColors.surfaceHover, width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", marginRight: 12 }}><Ionicons name="logo-github" size={20} color={themeColors.text.primary} /></View><View><Text style={{ color: themeColors.text.primary, fontWeight: "700", fontSize: 14 }}>GitHub Sync</Text><Text style={{ color: themeColors.text.secondary, fontSize: 11, marginTop: 2 }}>{githubConnected ? `Connected as @${githubUsername}` : "Link code & README sources"}</Text></View></View>{githubConnected ? <View className="flex-row gap-2"><Button variant="secondary" size="sm" onPress={openGithubRepos} disabled={githubLoading}>{githubLoading ? "..." : "Repos"}</Button><Button variant="outline" size="sm" onPress={disconnectGithub}>Disconnect</Button></View> : <Button variant="outline" size="sm" onPress={connectGithub} disabled={githubLoading}>{githubLoading ? "..." : "Connect"}</Button>}</View>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}><View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}><View style={{ backgroundColor: themeColors.surfaceHover, width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", marginRight: 12 }}><Ionicons name="logo-github" size={20} color={themeColors.text.primary} /></View><View style={{ flex: 1 }}><Text style={{ color: themeColors.text.primary, fontWeight: "700", fontSize: 14 }}>GitHub Sync</Text><Text style={{ color: themeColors.text.secondary, fontSize: 11, marginTop: 2 }} numberOfLines={1}>{githubConnected ? `Connected as @${githubUsername}` : "Link code & README sources"}</Text></View></View>{githubConnected ? <Button variant="outline" size="sm" onPress={disconnectGithub}>Disconnect</Button> : <Button variant="outline" size="sm" onPress={connectGithub} disabled={githubLoading}>{githubLoading ? "..." : "Connect"}</Button>}</View>
             <Pressable onPress={connectClassroom} style={{ borderTopColor: themeColors.border, borderTopWidth: 1, marginTop: 14, paddingTop: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}><View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}><View style={{ backgroundColor: themeColors.surfaceHover, width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", marginRight: 12 }}><Ionicons name="school-outline" size={20} color={themeColors.text.primary} /></View><View style={{ flex: 1 }}><Text style={{ color: themeColors.text.primary, fontWeight: "700", fontSize: 14 }}>Google Classroom</Text><Text style={{ color: themeColors.text.secondary, fontSize: 11, marginTop: 2 }}>Sync assignments & deadlines</Text></View></View><View className="flex-row items-center"><Text style={{ color: themeColors.primary }} className="text-xs font-bold mr-1">Open</Text><Ionicons name="chevron-forward" size={16} color={themeColors.primary} /></View></Pressable>
           </View>
         </Card>
       </ScrollView>
-      <Modal visible={showGithubRepos} animationType="slide" transparent onRequestClose={() => setShowGithubRepos(false)}><View style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.35)" }}><View style={{ maxHeight: "78%", backgroundColor: themeColors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20 }}><View className="flex-row items-center justify-between mb-4"><View><Text style={{ color: themeColors.text.primary, fontSize: 22, fontWeight: "900" }}>GitHub Repositories</Text><Text style={{ color: themeColors.text.muted, fontSize: 12, marginTop: 3 }}>Choose a repository to import into Orio</Text></View><Pressable onPress={() => setShowGithubRepos(false)} style={{ padding: 8 }}><Ionicons name="close" size={24} color={themeColors.text.secondary} /></Pressable></View><FlatList data={githubRepos} keyExtractor={(item) => String(item.id)} showsVerticalScrollIndicator={false} renderItem={({ item }) => <View style={{ borderWidth: 1, borderColor: themeColors.border, borderRadius: 14, padding: 14, marginBottom: 10, backgroundColor: themeColors.surface }}><View className="flex-row items-center justify-between"><View style={{ flex: 1, paddingRight: 10 }}><Text style={{ color: themeColors.text.primary, fontWeight: "800", fontSize: 15 }}>{item.name}</Text><Text style={{ color: themeColors.text.muted, fontSize: 11, marginTop: 3 }} numberOfLines={2}>{item.description || "No description"}</Text></View></View></View>} /></View></View></Modal>
     </SafeAreaView>
   );
 }
