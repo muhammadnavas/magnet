@@ -11,6 +11,9 @@ const normalizeItem = (item) => {
     summary: item.summary || "",
     rawContent: item.raw_content || item.rawContent || "",
     extractedText: item.extracted_text || item.extractedText || "",
+    sourceUrl: item.source_url || item.sourceUrl || "",
+    filePath: item.file_path || item.filePath || "",
+    meta: item.meta || {},
     keyPoints: item.key_points || item.keyPoints || [],
     processingStatus: item.processing_status || item.processingStatus || "pending",
     isFavorite: item.is_favorite !== undefined ? item.is_favorite : (item.isFavorite || false),
@@ -31,7 +34,6 @@ export const useKnowledge = () => {
   const queryClient = useQueryClient();
   const store = useKnowledgeStore();
 
-  // Fetch list of items
   const useGetItems = (filters) => {
     return useQuery({
       queryKey: ["knowledge", "list", filters],
@@ -39,7 +41,6 @@ export const useKnowledge = () => {
         try {
           const response = await api.get("/knowledge", { params: filters });
           const normalized = response.data.map(normalizeItem).filter(Boolean);
-          // Keep zustand store in sync
           useKnowledgeStore.setState({ items: normalized });
           return normalized;
         } catch (e) {
@@ -51,7 +52,6 @@ export const useKnowledge = () => {
     });
   };
 
-  // Fetch single item detail
   const useGetItemDetail = (id) => {
     return useQuery({
       queryKey: ["knowledge", "detail", id],
@@ -59,13 +59,11 @@ export const useKnowledge = () => {
         try {
           const response = await api.get(`/knowledge/${id}`);
           const normalized = normalizeItem(response.data);
-          // Sync specific item details into store
           useKnowledgeStore.setState((state) => ({
             items: state.items.map((item) => (item.id === id ? normalized : item)),
           }));
           return normalized;
         } catch (e) {
-          // Fallback to store matching item
           const localItem = store.items.find((item) => item.id === id);
           if (!localItem) throw new Error("Item not found in local cache");
           return localItem;
@@ -75,48 +73,36 @@ export const useKnowledge = () => {
     });
   };
 
-  // Add new item mutation
   const addItemMutation = useMutation({
     mutationFn: async (itemData) => {
       await store.addKnowledgeItem(itemData);
       return { success: true };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["knowledge"] });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["knowledge"] }),
   });
 
-  // Toggle favorite mutation
   const toggleFavoriteMutation = useMutation({
     mutationFn: async (id) => {
       await store.toggleFavorite(id);
       return { success: true };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["knowledge"] });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["knowledge"] }),
   });
 
-  // Archive mutation
   const archiveItemMutation = useMutation({
     mutationFn: async (id) => {
       await store.archiveItem(id);
       return { success: true };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["knowledge"] });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["knowledge"] }),
   });
 
-  // Delete mutation
   const deleteItemMutation = useMutation({
     mutationFn: async (id) => {
       await store.deleteItem(id);
       return { success: true };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["knowledge"] });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["knowledge"] }),
   });
 
   return {
