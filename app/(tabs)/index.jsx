@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, ScrollView, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -24,6 +24,9 @@ export default function HomeScreen() {
   const { themeColors } = useAppTheme();
   const { useGetItems } = useKnowledge();
   const { data: knowledgeItems = [] } = useGetItems();
+  const [githubConnected, setGithubConnected] = useState(false);
+  const [githubUsername, setGithubUsername] = useState("");
+  const [githubRepoCount, setGithubRepoCount] = useState(null);
 
   const { data: insightsData = [] } = useQuery({
     queryKey: ["insights"],
@@ -34,6 +37,26 @@ export default function HomeScreen() {
       } catch (e) { return []; }
     }
   });
+
+  const loadGithubSummary = async () => {
+    try {
+      const status = await api.get("/github/status");
+      const connected = Boolean(status.data?.connected);
+      setGithubConnected(connected);
+      setGithubUsername(status.data?.username || "");
+      if (connected) {
+        const response = await api.get("/github/repos");
+        setGithubRepoCount(Array.isArray(response.data) ? response.data.length : 0);
+      } else {
+        setGithubRepoCount(null);
+      }
+    } catch (e) {
+      setGithubConnected(false);
+      setGithubRepoCount(null);
+    }
+  };
+
+  useEffect(() => { loadGithubSummary(); }, []);
 
   const username = user?.full_name && user.full_name !== "Personal User" ? user.full_name : "Navas";
   const itemsList = Array.isArray(knowledgeItems) ? knowledgeItems : [];
@@ -54,53 +77,33 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        {/* Google Classroom */}
-        <Pressable onPress={() => router.push("/classroom")} className="mb-7">
+        <Pressable onPress={() => router.push("/classroom")} className="mb-4">
           <Card className="p-4">
             <View className="flex-row items-center">
-              <View style={{ backgroundColor: `${themeColors.primary}18`, borderColor: `${themeColors.primary}35` }} className="w-11 h-11 rounded-2xl border items-center justify-center mr-3">
-                <Ionicons name="school-outline" size={21} color={themeColors.primary} />
-              </View>
-              <View className="flex-1">
-                <Text style={{ color: themeColors.text.primary }} className="text-sm font-extrabold">Google Classroom</Text>
-                <Text style={{ color: themeColors.text.muted }} className="text-[11px] mt-1">Assignments & deadlines</Text>
-              </View>
-              <View className="items-end">
-                <Text style={{ color: themeColors.primary }} className="text-xs font-bold">View</Text>
-                <Ionicons name="chevron-forward" size={16} color={themeColors.primary} />
-              </View>
+              <View style={{ backgroundColor: `${themeColors.primary}18`, borderColor: `${themeColors.primary}35` }} className="w-11 h-11 rounded-2xl border items-center justify-center mr-3"><Ionicons name="school-outline" size={21} color={themeColors.primary} /></View>
+              <View className="flex-1"><Text style={{ color: themeColors.text.primary }} className="text-sm font-extrabold">Google Classroom</Text><Text style={{ color: themeColors.text.muted }} className="text-[11px] mt-1">Assignments & deadlines</Text></View>
+              <View className="items-end"><Text style={{ color: themeColors.primary }} className="text-xs font-bold">View</Text><Ionicons name="chevron-forward" size={16} color={themeColors.primary} /></View>
+            </View>
+          </Card>
+        </Pressable>
+
+        <Pressable onPress={() => router.push("/github")} className="mb-7">
+          <Card className="p-4">
+            <View className="flex-row items-center">
+              <View style={{ backgroundColor: themeColors.surfaceHover, borderColor: themeColors.border }} className="w-11 h-11 rounded-2xl border items-center justify-center mr-3"><Ionicons name="logo-github" size={22} color={themeColors.text.primary} /></View>
+              <View className="flex-1"><Text style={{ color: themeColors.text.primary }} className="text-sm font-extrabold">GitHub Projects</Text><Text style={{ color: themeColors.text.muted }} className="text-[11px] mt-1" numberOfLines={1}>{githubConnected ? `${githubRepoCount ?? "Your"} repositories${githubUsername ? ` · @${githubUsername}` : ""}` : "Connect GitHub to view your projects"}</Text></View>
+              <View className="items-end"><View className="flex-row items-center mb-1"><View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: githubConnected ? "#10B981" : themeColors.text.muted, marginRight: 5 }} /><Text style={{ color: githubConnected ? "#10B981" : themeColors.text.muted }} className="text-[10px] font-bold">{githubConnected ? "CONNECTED" : "NOT CONNECTED"}</Text></View><Ionicons name="chevron-forward" size={16} color={themeColors.primary} /></View>
             </View>
           </Card>
         </Pressable>
 
         <Text style={{ color: themeColors.text.muted }} className="text-xs font-bold uppercase tracking-wider mb-3">Quick Capture</Text>
-        <View className="flex-row gap-3 mb-8">
-          {QUICK_ACTIONS.map((action) => (
-            <Pressable key={action.id} onPress={() => router.push({ pathname: "/capture", params: { selectType: action.type } })} style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }} className="flex-1 border p-4 rounded-2xl items-center justify-center">
-              <View style={{ backgroundColor: `${action.color}18` }} className="w-10 h-10 rounded-xl items-center justify-center mb-2"><Ionicons name={action.icon} size={20} color={action.color} /></View>
-              <Text style={{ color: themeColors.text.primary }} className="text-xs font-bold text-center">{action.label}</Text>
-            </Pressable>
-          ))}
-        </View>
+        <View className="flex-row gap-3 mb-8">{QUICK_ACTIONS.map((action) => <Pressable key={action.id} onPress={() => router.push({ pathname: "/capture", params: { selectType: action.type } })} style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }} className="flex-1 border p-4 rounded-2xl items-center justify-center"><View style={{ backgroundColor: `${action.color}18` }} className="w-10 h-10 rounded-xl items-center justify-center mb-2"><Ionicons name={action.icon} size={20} color={action.color} /></View><Text style={{ color: themeColors.text.primary }} className="text-xs font-bold text-center">{action.label}</Text></Pressable>)}</View>
 
-        {aiInsights.length > 0 && (
-          <View className="mb-8">
-            <Text style={{ color: themeColors.text.muted }} className="text-xs font-bold uppercase tracking-wider mb-3">AI Insights</Text>
-            {aiInsights.map((insight, idx) => <View key={idx} style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }} className="border p-4 rounded-2xl mb-2"><View className="flex-row items-start"><Ionicons name="sparkles" size={14} color={themeColors.primary} style={{ marginRight: 8, marginTop: 2 }} /><Text style={{ color: themeColors.text.secondary }} className="text-xs leading-relaxed flex-1">{insight}</Text></View></View>)}
-          </View>
-        )}
+        {aiInsights.length > 0 && <View className="mb-8"><Text style={{ color: themeColors.text.muted }} className="text-xs font-bold uppercase tracking-wider mb-3">AI Insights</Text>{aiInsights.map((insight, idx) => <View key={idx} style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }} className="border p-4 rounded-2xl mb-2"><View className="flex-row items-start"><Ionicons name="sparkles" size={14} color={themeColors.primary} style={{ marginRight: 8, marginTop: 2 }} /><Text style={{ color: themeColors.text.secondary }} className="text-xs leading-relaxed flex-1">{insight}</Text></View></View>)}</View>}
 
-        <View className="flex-row items-center justify-between mb-3">
-          <Text style={{ color: themeColors.text.muted }} className="text-xs font-bold uppercase tracking-wider">Recent Additions</Text>
-          <Pressable onPress={() => router.push("/knowledge")}><Text style={{ color: themeColors.primary }} className="text-xs font-bold">View All</Text></Pressable>
-        </View>
-        {recentItems.length === 0 ? (
-          <EmptyState title="No knowledge items yet" description="Use Quick Capture above to add your first note, link, code snippet, or PDF document." actionLabel="Capture Content" onActionPress={() => router.push("/capture")} />
-        ) : (
-          <View className="gap-3 mb-10">
-            {recentItems.map((item) => <Pressable key={item.id} onPress={() => router.push(`/knowledge/${item.id}`)}><Card className="p-4 flex-row items-center justify-between"><View className="flex-1 mr-3"><Text style={{ color: themeColors.text.primary }} className="text-sm font-bold mb-1" numberOfLines={1}>{item.title}</Text><Text style={{ color: themeColors.text.secondary }} className="text-xs" numberOfLines={2}>{item.summary || item.rawContent}</Text></View><Tag text={item.contentType} size="sm" /></Card></Pressable>)}
-          </View>
-        )}
+        <View className="flex-row items-center justify-between mb-3"><Text style={{ color: themeColors.text.muted }} className="text-xs font-bold uppercase tracking-wider">Recent Additions</Text><Pressable onPress={() => router.push("/knowledge")}><Text style={{ color: themeColors.primary }} className="text-xs font-bold">View All</Text></Pressable></View>
+        {recentItems.length === 0 ? <EmptyState title="No knowledge items yet" description="Use Quick Capture above to add your first note, link, code snippet, or PDF document." actionLabel="Capture Content" onActionPress={() => router.push("/capture")} /> : <View className="gap-3 mb-10">{recentItems.map((item) => <Pressable key={item.id} onPress={() => router.push(`/knowledge/${item.id}`)}><Card className="p-4 flex-row items-center justify-between"><View className="flex-1 mr-3"><Text style={{ color: themeColors.text.primary }} className="text-sm font-bold mb-1" numberOfLines={1}>{item.title}</Text><Text style={{ color: themeColors.text.secondary }} className="text-xs" numberOfLines={2}>{item.summary || item.rawContent}</Text></View><Tag text={item.contentType} size="sm" /></Card></Pressable>)}</View>}
       </ScrollView>
     </SafeAreaView>
   );
