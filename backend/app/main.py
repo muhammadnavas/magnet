@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.routers import auth, knowledge, search, chat, projects, insights, github, sync, tasks, personal_context
+from app.routers import auth, knowledge, search, chat, projects, insights, github, sync, tasks, personal_context, classroom
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -38,6 +38,7 @@ app.include_router(github.router, prefix="/api/v1")
 app.include_router(sync.router, prefix="/api/v1")
 app.include_router(tasks.router, prefix="/api/v1")
 app.include_router(personal_context.router, prefix="/api/v1")
+app.include_router(classroom.router, prefix="/api/v1")
 
 @app.get("/health", tags=["Healthcheck"])
 @app.get("/api/v1/health", tags=["Healthcheck"])

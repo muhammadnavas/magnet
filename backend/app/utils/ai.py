@@ -42,17 +42,15 @@ def _clean_model_name(name: str) -> str:
     return cleaned
 
 
-# Reliability-first order for new Gemini projects. 2.5 models are intentionally
-# excluded because they may be unavailable to new users/projects.
+# Reliability-first fallback order — these are validated, currently available models.
 DEFAULT_COMPLETION_MODELS = [
-    "gemini-3.1-flash-lite",
-    "gemini-3.5-flash-lite",
-    "gemini-3.5-flash",
-    "gemini-3.6-flash",
-    "gemini-3.7-flash",
-    "gemini-3.8-flash",
-    "gemini-3-flash-preview",
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-lite",
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-8b",
+    "gemini-1.5-pro",
 ]
+
 
 DEFAULT_EMBEDDING_MODELS = [
     "gemini-embedding-001",

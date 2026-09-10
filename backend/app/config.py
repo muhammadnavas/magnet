@@ -14,8 +14,8 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://redis:6379/0"
     
     GEMINI_API_KEY: str = ""
-    GEMINI_EMBEDDING_MODEL: str = "gemini-embedding-001"
-    GEMINI_LLM_MODEL: str = "gemini-2.5-flash"
+    GEMINI_EMBEDDING_MODEL: str = "gemini-embedding-001"  # default; overridden by ai.py fallback chain
+    GEMINI_LLM_MODEL: str = "gemini-2.0-flash"            # default; overridden by ai.py fallback chain
 
     # xAI / Grok LLM
     XAI_API_KEY: str = ""
@@ -30,6 +30,13 @@ class Settings(BaseSettings):
     GITHUB_CLIENT_SECRET: str = ""
     GITHUB_REDIRECT_URI: str = ""
     GITHUB_APP_REDIRECT_URI: str = "orio://github/callback"
+
+    # Google Classroom OAuth (Web Application client from Google Cloud Console)
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    GOOGLE_CLASSROOM_REDIRECT_URI: str = "http://localhost:8000/api/v1/classroom/callback"
+    GOOGLE_CLASSROOM_APP_REDIRECT_URI: str = "orio://classroom/callback"
+
 
     model_config = ConfigDict(
         env_file=".env",

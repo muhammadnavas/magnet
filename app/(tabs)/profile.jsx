@@ -23,6 +23,8 @@ export default function SettingsScreen() {
   const [githubConnected, setGithubConnected] = useState(false);
   const [githubUsername, setGithubUsername] = useState("");
   const [githubLoading, setGithubLoading] = useState(false);
+  const [classroomConnected, setClassroomConnected] = useState(false);
+  const [classroomEmail, setClassroomEmail] = useState("");
   const [selectedProvider, setSelectedProvider] = useState("gemini");
 
   const username = "Navas";
@@ -39,6 +41,14 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     loadGithubStatus();
+    // Load classroom status
+    api.get("/classroom/status")
+      .then((res) => {
+        setClassroomConnected(Boolean(res.data?.connected));
+        setClassroomEmail(res.data?.email || "");
+      })
+      .catch(() => {});
+
     const handleGithubCallback = ({ url }) => {
       if (!url?.startsWith("orio://github/callback")) return;
       try {
@@ -84,7 +94,7 @@ export default function SettingsScreen() {
           <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 14 }}><View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: isChecking ? "#F59E0B" : isConnected ? "#10B981" : "#EF4444", marginRight: 10 }} /><View><Text style={{ color: themeColors.text.primary, fontWeight: "700", fontSize: 14 }}>{isChecking ? "Connecting..." : isConnected ? "Backend Connected" : "Backend Offline"}</Text><Text style={{ color: themeColors.text.muted, fontSize: 11, marginTop: 1 }}>{isChecking ? "Waking up Render server (up to 45s)..." : isConnected ? `Online · Latency ${latency ? `${latency}ms` : "OK"}` : "Unable to reach API server"}</Text></View></View>
           <View style={{ borderTopColor: themeColors.border, borderTopWidth: 1, paddingTop: 14 }}>
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}><View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}><View style={{ backgroundColor: themeColors.surfaceHover, width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", marginRight: 12 }}><Ionicons name="logo-github" size={20} color={themeColors.text.primary} /></View><View style={{ flex: 1 }}><Text style={{ color: themeColors.text.primary, fontWeight: "700", fontSize: 14 }}>GitHub Sync</Text><Text style={{ color: themeColors.text.secondary, fontSize: 11, marginTop: 2 }} numberOfLines={1}>{githubConnected ? `Connected as @${githubUsername}` : "Link code & README sources"}</Text></View></View>{githubConnected ? <Button variant="outline" size="sm" onPress={disconnectGithub}>Disconnect</Button> : <Button variant="outline" size="sm" onPress={connectGithub} disabled={githubLoading}>{githubLoading ? "..." : "Connect"}</Button>}</View>
-            <Pressable onPress={connectClassroom} style={{ borderTopColor: themeColors.border, borderTopWidth: 1, marginTop: 14, paddingTop: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}><View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}><View style={{ backgroundColor: themeColors.surfaceHover, width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", marginRight: 12 }}><Ionicons name="school-outline" size={20} color={themeColors.text.primary} /></View><View style={{ flex: 1 }}><Text style={{ color: themeColors.text.primary, fontWeight: "700", fontSize: 14 }}>Google Classroom</Text><Text style={{ color: themeColors.text.secondary, fontSize: 11, marginTop: 2 }}>Sync assignments & deadlines</Text></View></View><View className="flex-row items-center"><Text style={{ color: themeColors.primary }} className="text-xs font-bold mr-1">Open</Text><Ionicons name="chevron-forward" size={16} color={themeColors.primary} /></View></Pressable>
+            <Pressable onPress={connectClassroom} style={{ borderTopColor: themeColors.border, borderTopWidth: 1, marginTop: 14, paddingTop: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}><View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}><View style={{ backgroundColor: themeColors.surfaceHover, width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", marginRight: 12 }}><Ionicons name="school-outline" size={20} color={themeColors.text.primary} /></View><View style={{ flex: 1 }}><Text style={{ color: themeColors.text.primary, fontWeight: "700", fontSize: 14 }}>Google Classroom</Text><Text style={{ color: themeColors.text.secondary, fontSize: 11, marginTop: 2 }} numberOfLines={1}>{classroomConnected ? `Connected as ${classroomEmail}` : "Sync assignments & deadlines"}</Text></View></View><View className="flex-row items-center"><View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: classroomConnected ? "#10B981" : themeColors.text.muted, marginRight: 6 }} /><Text style={{ color: classroomConnected ? "#10B981" : themeColors.text.muted }} className="text-[10px] font-bold">{classroomConnected ? "CONNECTED" : "NOT CONNECTED"}</Text></View></Pressable>
           </View>
         </Card>
       </ScrollView>
