@@ -79,6 +79,13 @@ export default function SettingsScreen() {
     }
   };
 
+  const connectClassroom = () => {
+    Alert.alert(
+      "Google Classroom",
+      "Google Classroom connection is ready in Settings. The Google authorization flow will be connected next."
+    );
+  };
+
   const openGithubRepos = async () => {
     try {
       setGithubLoading(true);
@@ -190,26 +197,41 @@ export default function SettingsScreen() {
             </View>
           </View>
 
-          <View style={{ borderTopColor: themeColors.border, borderTopWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 14 }}>
-            <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
-              <View style={{ backgroundColor: themeColors.surfaceHover, width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", marginRight: 12 }}>
-                <Ionicons name="logo-github" size={20} color={themeColors.text.primary} />
+          <View style={{ borderTopColor: themeColors.border, borderTopWidth: 1, paddingTop: 14 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+                <View style={{ backgroundColor: themeColors.surfaceHover, width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", marginRight: 12 }}>
+                  <Ionicons name="logo-github" size={20} color={themeColors.text.primary} />
+                </View>
+                <View>
+                  <Text style={{ color: themeColors.text.primary, fontWeight: "700", fontSize: 14 }}>GitHub Sync</Text>
+                  <Text style={{ color: themeColors.text.secondary, fontSize: 11, marginTop: 2 }}>
+                    {githubConnected ? `Connected as @${githubUsername}` : "Link code & README sources"}
+                  </Text>
+                </View>
               </View>
-              <View>
-                <Text style={{ color: themeColors.text.primary, fontWeight: "700", fontSize: 14 }}>GitHub Sync</Text>
-                <Text style={{ color: themeColors.text.secondary, fontSize: 11, marginTop: 2 }}>
-                  {githubConnected ? `Connected as @${githubUsername}` : "Link code & README sources"}
-                </Text>
-              </View>
+              {githubConnected ? (
+                <View className="flex-row gap-2">
+                  <Button variant="secondary" size="sm" onPress={openGithubRepos} disabled={githubLoading}>{githubLoading ? "..." : "Repos"}</Button>
+                  <Button variant="outline" size="sm" onPress={disconnectGithub}>Disconnect</Button>
+                </View>
+              ) : (
+                <Button variant="outline" size="sm" onPress={connectGithub} disabled={githubLoading}>{githubLoading ? "..." : "Connect"}</Button>
+              )}
             </View>
-            {githubConnected ? (
-              <View className="flex-row gap-2">
-                <Button variant="secondary" size="sm" onPress={openGithubRepos} disabled={githubLoading}>{githubLoading ? "..." : "Repos"}</Button>
-                <Button variant="outline" size="sm" onPress={disconnectGithub}>Disconnect</Button>
+
+            <View style={{ borderTopColor: themeColors.border, borderTopWidth: 1, marginTop: 14, paddingTop: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+                <View style={{ backgroundColor: themeColors.surfaceHover, width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", marginRight: 12 }}>
+                  <Ionicons name="school-outline" size={20} color={themeColors.text.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: themeColors.text.primary, fontWeight: "700", fontSize: 14 }}>Google Classroom</Text>
+                  <Text style={{ color: themeColors.text.secondary, fontSize: 11, marginTop: 2 }}>Sync assignments & deadlines</Text>
+                </View>
               </View>
-            ) : (
-              <Button variant="outline" size="sm" onPress={connectGithub} disabled={githubLoading}>{githubLoading ? "..." : "Connect"}</Button>
-            )}
+              <Button variant="outline" size="sm" onPress={connectClassroom}>Connect</Button>
+            </View>
           </View>
         </Card>
       </ScrollView>
