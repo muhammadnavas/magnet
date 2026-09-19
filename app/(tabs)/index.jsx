@@ -3,6 +3,7 @@ import { View, Text, ScrollView, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Card from "../../components/ui/Card";
 import Tag from "../../components/ui/Tag";
 import EmptyState from "../../components/ui/EmptyState";
@@ -12,6 +13,10 @@ import { useQuery } from "@tanstack/react-query";
 import api from "../../lib/api";
 import Logo from "../../components/ui/Logo";
 import { useAppTheme } from "../../store/themeStore";
+import { notifyNewAssignment } from "../../lib/notifications";
+
+const SEEN_KEY = "orio_classroom_seen_ids";
+
 
 const QUICK_ACTIONS = [
   { id: "text", label: "Typed Input", icon: "pencil", type: "note", color: "#6C63FF" },
@@ -27,6 +32,10 @@ export default function HomeScreen() {
   const [githubConnected, setGithubConnected] = useState(false);
   const [githubUsername, setGithubUsername] = useState("");
   const [githubRepoCount, setGithubRepoCount] = useState(null);
+  const [classroomConnected, setClassroomConnected]   = useState(false);
+  const [classroomOverdue,   setClassroomOverdue]     = useState(0);
+  const [classroomDueSoon,   setClassroomDueSoon]     = useState(0);
+
 
   const { data: insightsData = [] } = useQuery({
     queryKey: ["insights"],
@@ -56,7 +65,34 @@ export default function HomeScreen() {
     }
   };
 
-  useEffect(() => { loadGithubSummary(); }, []);
+  const checkClassroomNotifications = async () => {
+    try {
+      const statusRes = await api.get("/classroom/status");
+      const isConnected = Boolean(statusRes.data?.connected);
+      setClassroomConnected(isConnected);
+      if (!isConnected) return;
+
+      const assignmentsRes = await api.get("/classroom/assignments");
+      const all = Array.isArray(assignmentsRes.data) ? assignmentsRes.data : [];
+
+      setClassroomOverdue(all.filter((a) => a.due_status === "overdue").length);
+      setClassroomDueSoon(all.filter((a) => a.due_status === "due_soon").length);
+
+      // Notify about new assignments
+      const raw     = await AsyncStorage.getItem(SEEN_KEY);
+      const seenIds = new Set(raw ? JSON.parse(raw) : []);
+      const newOnes = all.filter((a) => !seenIds.has(a.id));
+      if (seenIds.size > 0 && newOnes.length > 0) {
+        for (const a of newOnes) {
+          await notifyNewAssignment(a.title, a.course_name);
+        }
+      }
+      await AsyncStorage.setItem(SEEN_KEY, JSON.stringify(all.map((a) => a.id)));
+    } catch (_) {}
+  };
+
+  useEffect(() => { loadGithubSummary(); checkClassroomNotifications(); }, []);
+
 
   const username = user?.full_name && user.full_name !== "Personal User" ? user.full_name : "Navas";
   const itemsList = Array.isArray(knowledgeItems) ? knowledgeItems : [];
@@ -80,12 +116,50 @@ export default function HomeScreen() {
         <Pressable onPress={() => router.push("/classroom")} className="mb-4">
           <Card className="p-4">
             <View className="flex-row items-center">
-              <View style={{ backgroundColor: `${themeColors.primary}18`, borderColor: `${themeColors.primary}35` }} className="w-11 h-11 rounded-2xl border items-center justify-center mr-3"><Ionicons name="school-outline" size={21} color={themeColors.primary} /></View>
-              <View className="flex-1"><Text style={{ color: themeColors.text.primary }} className="text-sm font-extrabold">Google Classroom</Text><Text style={{ color: themeColors.text.muted }} className="text-[11px] mt-1">Assignments & deadlines</Text></View>
-              <View className="items-end"><Text style={{ color: themeColors.primary }} className="text-xs font-bold">View</Text><Ionicons name="chevron-forward" size={16} color={themeColors.primary} /></View>
+              <View style={{ backgroundColor: `${themeColors.primary}18`, borderColor: `${themeColors.primary}35` }} className="w-11 h-11 rounded-2xl border items-center justify-center mr-3">
+                <Ionicons name="school-outline" size={21} color={themeColors.primary} />
+              </View>
+              <View className="flex-1">
+                <Text style={{ color: themeColors.text.primary }} className="text-sm font-extrabold">Google Classroom</Text>
+                {classroomConnected ? (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}>
+                    {classroomOverdue > 0 && (
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: themeColors.error }} />
+                        <Text style={{ color: themeColors.error, fontSize: 10, fontWeight: "700" }}>
+                          {classroomOverdue} overdue
+                        </Text>
+                      </View>
+                    )}
+                    {classroomDueSoon > 0 && (
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: themeColors.warning }} />
+                        <Text style={{ color: themeColors.warning, fontSize: 10, fontWeight: "700" }}>
+                          {classroomDueSoon} due soon
+                        </Text>
+                      </View>
+                    )}
+                    {classroomOverdue === 0 && classroomDueSoon === 0 && (
+                      <Text style={{ color: themeColors.success, fontSize: 10, fontWeight: "700" }}>All caught up ✓</Text>
+                    )}
+                  </View>
+                ) : (
+                  <Text style={{ color: themeColors.text.muted }} className="text-[11px] mt-1">Assignments &amp; deadlines</Text>
+                )}
+              </View>
+              <View className="items-end">
+                {classroomConnected && (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 4 }}>
+                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: themeColors.success }} />
+                    <Text style={{ color: themeColors.success, fontSize: 10, fontWeight: "700" }}>LIVE</Text>
+                  </View>
+                )}
+                <Ionicons name="chevron-forward" size={16} color={themeColors.primary} />
+              </View>
             </View>
           </Card>
         </Pressable>
+
 
         <Pressable onPress={() => router.push("/github")} className="mb-7">
           <Card className="p-4">

@@ -245,6 +245,8 @@ async def classroom_callback(
         return RedirectResponse(f"{app_uri}?{query}")
     except HTTPException as exc:
         return RedirectResponse(f"{app_uri}?connected=false&error={exc.detail}")
+    except Exception as exc:
+        return RedirectResponse(f"{app_uri}?connected=false&error=internal_error")
 
 
 @router.get("/status", status_code=status.HTTP_200_OK)
@@ -329,6 +331,20 @@ async def list_assignments(
             except Exception:
                 continue
 
+            # Fetch submission states for this course (readonly scope already granted)
+            sub_by_work_id: dict = {}
+            try:
+                subs_result = service.courses().courseWork().studentSubmissions().list(
+                    courseId=course_id,
+                    courseWorkId="-",
+                    userId="me",
+                    pageSize=100,
+                ).execute()
+                for sub in subs_result.get("studentSubmissions", []):
+                    sub_by_work_id[sub["courseWorkId"]] = sub.get("state", "NEW")
+            except Exception:
+                pass
+
             for work in coursework:
                 due_date = work.get("dueDate")
                 due_time = work.get("dueTime")
@@ -367,6 +383,8 @@ async def list_assignments(
                     "due_status": due_status,
                     "max_points": work.get("maxPoints"),
                     "work_type": work.get("workType", "ASSIGNMENT"),
+                    # NEW, CREATED, TURNED_IN, RETURNED, RECLAIMED_BY_STUDENT
+                    "submission_state": sub_by_work_id.get(work["id"], "NEW"),
                 })
 
         return all_assignments
