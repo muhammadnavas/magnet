@@ -30,7 +30,7 @@ jobs:
       - name: Ping /health endpoint
         run: |
           echo "⏰ Pinging Orio backend at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-          echo "🌐 URL: ${{ secrets.RENDER_BACKEND_URL }}/health"
+          echo "🌐 URL: https://orio-7tku.onrender.com/health"
 
           RESPONSE=$(curl --silent \
                           --max-time 60 \
@@ -38,7 +38,7 @@ jobs:
                           --retry-delay 5 \
                           --retry-connrefused \
                           --write-out "\n---\nHTTP_STATUS:%{http_code} | TIME:%{time_total}s" \
-                          "${{ secrets.RENDER_BACKEND_URL }}/health")
+                          "https://orio-7tku.onrender.com/health")
 
           echo "$RESPONSE"
 
