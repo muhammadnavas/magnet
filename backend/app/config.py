@@ -29,13 +29,13 @@ class Settings(BaseSettings):
     GITHUB_CLIENT_ID: str = ""
     GITHUB_CLIENT_SECRET: str = ""
     GITHUB_REDIRECT_URI: str = ""
-    GITHUB_APP_REDIRECT_URI: str = "orio://github/callback"
+    GITHUB_APP_REDIRECT_URI: str = "magnet://github/callback"
 
     # Google Classroom OAuth (Web Application client from Google Cloud Console)
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
     GOOGLE_CLASSROOM_REDIRECT_URI: str = "http://localhost:8000/api/v1/classroom/callback"
-    GOOGLE_CLASSROOM_APP_REDIRECT_URI: str = "orio://classroom/callback"
+    GOOGLE_CLASSROOM_APP_REDIRECT_URI: str = "magnet://classroom/callback"
 
 
     model_config = ConfigDict(
