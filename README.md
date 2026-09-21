@@ -14,7 +14,7 @@ Instead of keeping PDFs, notes, screenshots, GitHub repositories, error messages
 
 The goal of Magnet is simple:
 
-> **Capture anything you learn or work on, let Orio understand it, and retrieve it when you need it.**
+> **Capture anything you learn or work on, let Magnet understand it, and retrieve it when you need it.**
 
 Typical questions Magnet should eventually answer include:
 
@@ -55,7 +55,7 @@ For example:
 ```text
 PDF / Note / GitHub / Screenshot / Error
                 ↓
-          Orio ingestion
+          Magnet ingestion
                 ↓
        Extract & understand
                 ↓
@@ -101,7 +101,7 @@ The frontend is implemented using **JavaScript / JSX**, not TypeScript.
 
 ## 📥 Capture
 
-The Capture experience is intended to be the primary entry point for adding information to Orio.
+The Capture experience is intended to be the primary entry point for adding information to Magnet.
 
 Potential knowledge sources include:
 
@@ -223,7 +223,7 @@ Index
 Ask questions about the code
 ```
 
-This allows Orio to provide context-aware assistance around personal projects and codebases.
+This allows Magnet to provide context-aware assistance around personal projects and codebases.
 
 ---
 
@@ -260,13 +260,13 @@ Retrieve previous solutions
 AI explanation
 ```
 
-The goal is for Orio to effectively remember how the developer solved problems in the past.
+The goal is for Magnet to effectively remember how the developer solved problems in the past.
 
 ---
 
 ## ✅ Tasks
 
-Orio also includes task management so knowledge can lead to action.
+Magnet also includes task management so knowledge can lead to action.
 
 Tasks can eventually be connected with:
 
@@ -386,7 +386,7 @@ The AI layer is responsible for tasks such as:
 
 ## Storage
 
-Binary files such as documents and images can be stored externally, with Orio keeping the searchable metadata, extracted content, relationships, and vectors in PostgreSQL.
+Binary files such as documents and images can be stored externally, with Magnet keeping the searchable metadata, extracted content, relationships, and vectors in PostgreSQL.
 
 Google Drive is one of the intended storage integrations.
 
@@ -825,14 +825,14 @@ Once this workflow is reliable, additional intelligence such as developer error 
 Magnet's first meaningful MVP is complete when a user can:
 
 1. Capture a real piece of knowledge.
-2. Have Orio process it in the background.
+2. Have Magnet process it in the background.
 3. Store searchable structured content and embeddings.
 4. Ask a natural-language question later.
 5. Retrieve relevant personal knowledge.
 6. Receive a grounded AI answer.
 7. See the source/citation behind the answer.
 
-Everything beyond this improves the product, but this is the core capability that makes Orio a genuine personal second brain.
+Everything beyond this improves the product, but this is the core capability that makes Magnet a genuine personal second brain.
 
 ---
 
