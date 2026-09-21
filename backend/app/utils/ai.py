@@ -115,7 +115,7 @@ async def _get_gemini_completion(
     if history:
         history_lines = []
         for msg in history:
-            role_name = "User" if msg.get("role") == "user" else "Orio (AI)"
+            role_name = "User" if msg.get("role") == "user" else "Magnet (AI)"
             history_lines.append(f"{role_name}: {msg.get('content', '')}")
         full_user_content += "Previous Conversation Context:\n" + "\n".join(history_lines) + "\n\n"
 
@@ -206,7 +206,7 @@ async def analyze_document(text: str) -> Dict[str, Any]:
         return {"summary": "Empty document", "key_points": [], "tags": [], "technologies": []}
 
     system_prompt = (
-        "You are an expert senior technical document analyst for Orio AI co-pilot. "
+        "You are an expert senior technical document analyst for Magnet AI co-pilot. "
         "Analyze the provided document text and output a JSON object with exactly these keys:\n"
         "1. 'summary' (str): A well-crafted, synthesized 2-3 sentence overview explaining what this document is, its primary significance, key themes, and main value. DO NOT just copy or extract lines verbatim.\n"
         "2. 'key_points' (list of str, max 5): Strategic takeaways, core technical components, or takeaways synthesized intelligently from the text.\n"
