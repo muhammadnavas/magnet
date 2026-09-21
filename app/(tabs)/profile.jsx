@@ -72,12 +72,12 @@ export default function SettingsScreen() {
 
   const connectClassroom = () => router.push("/classroom");
 
-  const disconnectGithub = () => Alert.alert("Disconnect GitHub?", "Orio will stop accessing your GitHub repositories.", [
+  const disconnectGithub = () => Alert.alert("Disconnect GitHub?", "Magnet will stop accessing your GitHub repositories.", [
     { text: "Cancel", style: "cancel" },
     { text: "Disconnect", style: "destructive", onPress: async () => { try { await api.post("/github/disconnect"); setGithubConnected(false); setGithubUsername(""); } catch (error) { Alert.alert("GitHub", error?.response?.data?.detail || "Could not disconnect GitHub."); } } },
   ]);
 
-  const disconnectClassroom = () => Alert.alert("Disconnect Google Classroom?", "Orio will stop syncing your assignments and courses.", [
+  const disconnectClassroom = () => Alert.alert("Disconnect Google Classroom?", "Magnet will stop syncing your assignments and courses.", [
     { text: "Cancel", style: "cancel" },
     { text: "Disconnect", style: "destructive", onPress: async () => { try { await api.post("/classroom/disconnect"); setClassroomConnected(false); setClassroomEmail(""); } catch (error) { Alert.alert("Google Classroom", error?.response?.data?.detail || "Could not disconnect."); } } },
   ]);
