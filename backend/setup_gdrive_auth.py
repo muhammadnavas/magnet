@@ -51,7 +51,7 @@ def main():
             token.write(creds.to_json())
 
     print("Success! token.json has been generated.")
-    print("Orio backend can now upload files to Google Drive.")
+    print("Magnet backend can now upload files to Google Drive.")
 
 if __name__ == '__main__':
     main()
