@@ -39,7 +39,7 @@ export const Logo = ({
             color: theme === "dark" ? "#FFFFFF" : "#0F172A",
           }}
         >
-          Orio
+          Magnet
         </Text>
       )}
     </View>
