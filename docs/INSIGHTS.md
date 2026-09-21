@@ -26,7 +26,7 @@ To give users a dashboard-like overview of how many items they have stored, thei
 - Aggregates across `knowledge_items`, `tags`, and `projects`.
 
 ## Edge Cases
-- If the database is completely empty, it gracefully falls back to a welcome message ("Orio database is spinning up...").
+- If the database is completely empty, it gracefully falls back to a welcome message ("Magnet database is spinning up...").
 
 ## Current Implementation Status
 Fully implemented for basic metadata. Knowledge Graph visualization (e.g. node-edge diagrams) is not yet implemented in the UI.
