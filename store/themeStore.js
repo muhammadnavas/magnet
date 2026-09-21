@@ -3,7 +3,7 @@ import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { darkTheme, lightTheme } from "../constants/colors";
 
-const STORAGE_KEY = "orio_app_theme";
+const STORAGE_KEY = "magnet_app_theme";
 
 // --- Persistence helpers (works on Web + iOS + Android) ---
 const saveTheme = async (mode) => {
