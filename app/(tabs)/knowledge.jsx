@@ -79,7 +79,7 @@ export default function KnowledgeScreen() {
             </View>
             <View className="flex-1">
               <Text style={{ color: themeColors.text.primary }} className="text-sm font-extrabold">Personal Context</Text>
-              <Text style={{ color: themeColors.text.muted }} className="text-[10px]">Small context Orio always uses to understand you</Text>
+              <Text style={{ color: themeColors.text.muted }} className="text-[10px]">Small context Magnet always uses to understand you</Text>
             </View>
           </View>
           <Text style={{ color: themeColors.text.secondary }} className="text-xs leading-5">
