@@ -2,7 +2,7 @@ import { Platform } from "react-native";
 
 // Configuration settings for mobile application
 export const config = {
-  APP_NAME: "Orio",
+  APP_NAME: "Magnet",
   
   // Loads backend base URL dynamically from the EXPO_PUBLIC_API_URL environment variable
   API_URL: process.env.EXPO_PUBLIC_API_URL || "http://localhost:8000/api/v1",
