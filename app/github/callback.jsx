@@ -16,7 +16,7 @@ export default function GithubCallbackScreen() {
       setDialog({
         type: "success",
         title: "GitHub Connected",
-        message: "Your GitHub account is now connected to Orio.",
+        message: "Your GitHub account is now connected to Magnet.",
       });
       return;
     }
