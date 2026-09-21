@@ -6,7 +6,7 @@ import Button from "./Button";
 
 export const ErrorState = ({
   title = "Connection Error",
-  message = "Failed to synchronize with your Orio backend.",
+  message = "Failed to synchronize with your Magnet backend.",
   onRetry,
   className = "",
   ...props
