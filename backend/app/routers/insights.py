@@ -51,7 +51,7 @@ async def get_insights(
                 {
                     "id": "1",
                     "type": "summary",
-                    "message": "Welcome to Orio! Add your first note or document to unlock personalized AI insights."
+                    "message": "Welcome to Magnet! Add your first note or document to unlock personalized AI insights."
                 },
                 {
                     "id": "2",
@@ -71,7 +71,7 @@ async def get_insights(
         projects_summary = ", ".join(list(set(projects_list))[:5]) or "None"
 
         system_prompt = (
-            "You are Orio AI Insights Engine. Analyze the user's indexed developer knowledge base, tags, and projects "
+            "You are Magnet AI Insights Engine. Analyze the user's indexed developer knowledge base, tags, and projects "
             "and output a JSON array of 3 distinct, intelligent, personalized insights for their developer dashboard.\n\n"
             "JSON structure: An array of 3 objects, each with:\n"
             "- 'id' (str): '1', '2', '3'\n"
@@ -107,12 +107,12 @@ async def get_insights(
         {
             "id": "1",
             "type": "summary",
-            "message": "Your Orio knowledge base is indexed and ready for AI synthesis."
+            "message": "Your Magnet knowledge base is indexed and ready for AI synthesis."
         },
         {
             "id": "2",
             "type": "relation",
-            "message": "Query Orio Chat to discover connections across your notes."
+            "message": "Query Magnet Chat to discover connections across your notes."
         },
         {
             "id": "3",
