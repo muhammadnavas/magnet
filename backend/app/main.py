@@ -9,7 +9,7 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(
-    title="Orio API",
+    title="Magnet API",
     description="Backend API orchestrating PostgreSQL, pgvector, Redis task queues, and AI models.",
     version="1.0.0",
     lifespan=lifespan
@@ -43,4 +43,4 @@ app.include_router(classroom.router, prefix="/api/v1")
 @app.get("/health", tags=["Healthcheck"])
 @app.get("/api/v1/health", tags=["Healthcheck"])
 def health_check():
-    return {"status": "ok", "app": "Orio Backend API", "version": "1.0.0"}
+    return {"status": "ok", "app": "Magnet Backend API", "version": "1.0.0"}
