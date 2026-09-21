@@ -102,7 +102,7 @@ export default function AskScreen() {
             <TextInput
               value={inputText}
               onChangeText={setInputText}
-              placeholder="Message Orio..."
+              placeholder="Message Magnet..."
               placeholderTextColor={themeColors.text.muted}
               className="flex-1 text-base max-h-28 px-1"
               multiline
