@@ -79,7 +79,7 @@ async def analyze_image(filepath: str) -> Dict[str, Any]:
         raise ValueError(f"Unsupported image type: {extension or 'unknown'}")
 
     prompt = """
-Analyze this image for Orio's personal knowledge base.
+Analyze this image for Magnet's personal knowledge base.
 
 Extract useful information for future semantic search. Prioritize readable text,
 code, error messages, commands, names, concepts, and technical details.
