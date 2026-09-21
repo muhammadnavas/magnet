@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Orio",
+    "name": "Magnet",
     "slug": "orio",
     "scheme": "orio",
     "owner": "muhammadnavas",
@@ -36,14 +36,14 @@
           "color": "#6C63FF",
           "sounds": [],
           "androidMode": "default",
-          "androidCollapsedTitle": "Orio Reminder"
+          "androidCollapsedTitle": "Magnet Reminder"
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Orio to access photos you choose to save to your knowledge library.",
-          "cameraPermission": "Allow Orio to use your camera to capture knowledge.",
+          "photosPermission": "Allow Magnet to access photos you choose to save to your knowledge library.",
+          "cameraPermission": "Allow Magnet to use your camera to capture knowledge.",
           "microphonePermission": false
         }
       ]
