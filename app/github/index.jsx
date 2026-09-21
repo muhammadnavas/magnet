@@ -57,7 +57,7 @@ export default function GitHubScreen() {
             </View>
             <View className="flex-1">
               <Text style={{ color: themeColors.text.primary }} className="text-base font-extrabold">Your Projects</Text>
-              <Text style={{ color: themeColors.text.muted }} className="text-xs mt-1">Repositories connected to Orio</Text>
+              <Text style={{ color: themeColors.text.muted }} className="text-xs mt-1">Repositories connected to Magnet</Text>
             </View>
             <View className="flex-row items-center">
               <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: connected ? "#10B981" : "#EF4444", marginRight: 6 }} />
