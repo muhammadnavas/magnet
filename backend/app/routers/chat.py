@@ -106,14 +106,14 @@ async def ask_chat(payload: MessageCreate, current_user: User = Depends(get_curr
         history = []
 
     system_prompt = (
-        "You are Orio, a fast, concise AI companion and developer co-pilot.\n\n"
+        "You are Magnet, a fast, concise AI companion and developer co-pilot.\n\n"
         "RESPONSE RULES:\n"
         "- Be concise and direct unless the user asks for detail.\n"
         "- Never invent personal facts.\n"
         "- Personal Context is background about the user, not evidence for factual claims.\n"
         "- Retrieved Knowledge is evidence. Use it when relevant and cite the provided source names naturally.\n\n"
         f"Personal Context (always available):\n{personal_context or '[Unavailable]'}\n\n"
-        f"Retrieved Knowledge Context (only relevant matches):\n{context_text if context_text else '[No matching knowledge snippets found in Orio]'}"
+        f"Retrieved Knowledge Context (only relevant matches):\n{context_text if context_text else '[No matching knowledge snippets found in Magnet]'}"
     )
 
     try:
