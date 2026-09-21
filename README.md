@@ -1,22 +1,22 @@
-# Orio
+# Magnet
 
 > **Capture. Understand. Remember.**
 >
 > An AI-powered personal second brain for developers and knowledge workers.
 
-Orio is a personal knowledge and productivity system designed to turn scattered information into searchable, connected, and useful knowledge.
+Magnet is a personal knowledge and productivity system designed to turn scattered information into searchable, connected, and useful knowledge.
 
-Instead of keeping PDFs, notes, screenshots, GitHub repositories, error messages, tasks, and conversations in separate places, Orio is designed to bring them together and make them available through semantic search and AI-powered retrieval.
+Instead of keeping PDFs, notes, screenshots, GitHub repositories, error messages, tasks, and conversations in separate places, Magnet is designed to bring them together and make them available through semantic search and AI-powered retrieval.
 
 ---
 
 ## ✨ Vision
 
-The goal of Orio is simple:
+The goal of Magnet is simple:
 
 > **Capture anything you learn or work on, let Orio understand it, and retrieve it when you need it.**
 
-Typical questions Orio should eventually answer include:
+Typical questions Magnet should eventually answer include:
 
 - What did I learn about Docker recently?
 - Show me everything related to my AI Interviewer project.
@@ -26,13 +26,13 @@ Typical questions Orio should eventually answer include:
 - What tasks are pending for a project?
 - What knowledge am I missing for a particular project?
 
-Orio combines **personal knowledge management, RAG, project context, developer error memory, and task management** into one system.
+Magnet combines **personal knowledge management, RAG, project context, developer error memory, and task management** into one system.
 
 ---
 
 ## 🧠 Core Concept
 
-Orio is built around a continuous knowledge loop:
+Magnet is built around a continuous knowledge loop:
 
 ```text
 Capture
@@ -78,7 +78,7 @@ PDF / Note / GitHub / Screenshot / Error
 
 ## 📱 Mobile Application
 
-Orio uses an Expo React Native mobile application as the primary user interface.
+Magnet uses an Expo React Native mobile application as the primary user interface.
 
 Current application areas include:
 
@@ -143,9 +143,9 @@ The objective is not simply to store files, but to make the information inside t
 
 ## 🤖 Ask AI
 
-Ask AI is Orio's natural-language interface to the user's knowledge base.
+Ask AI is Magnet's natural-language interface to the user's knowledge base.
 
-Instead of relying only on general model knowledge, Orio is designed to retrieve relevant personal knowledge before generating an answer.
+Instead of relying only on general model knowledge, Magnet is designed to retrieve relevant personal knowledge before generating an answer.
 
 Example:
 
@@ -203,7 +203,7 @@ or:
 
 ## 🐙 GitHub Integration
 
-Orio includes a GitHub integration direction for importing source code and repository information into the knowledge system.
+Magnet includes a GitHub integration direction for importing source code and repository information into the knowledge system.
 
 The intended workflow is selective rather than blindly importing everything:
 
@@ -229,9 +229,9 @@ This allows Orio to provide context-aware assistance around personal projects an
 
 ## 🐛 Developer Error Memory
 
-One of Orio's key differentiating ideas is **Developer Error Memory**.
+One of Magnet's key differentiating ideas is **Developer Error Memory**.
 
-When a developer encounters an error, Orio can store information such as:
+When a developer encounters an error, Magnet can store information such as:
 
 ```text
 Error
@@ -288,7 +288,7 @@ Task reminders can be handled on the mobile side while heavier processing remain
 
 # 🏗️ Architecture
 
-Orio follows a mobile + API + worker architecture.
+Magnet follows a mobile + API + worker architecture.
 
 ```text
 ┌──────────────────────────────┐
@@ -404,7 +404,7 @@ Google Drive is one of the intended storage integrations.
 # 📂 Project Structure
 
 ```text
-Orio/
+Magnet/
 │
 ├── app/                         # Expo Router screens
 │   ├── (tabs)/
@@ -522,7 +522,7 @@ Future retrieval improvements can include:
 
 # 🕸️ Knowledge Graph Direction
 
-Orio can evolve beyond isolated documents into a connected knowledge graph.
+Magnet can evolve beyond isolated documents into a connected knowledge graph.
 
 Example relationships:
 
@@ -548,7 +548,7 @@ These relationships can improve retrieval and enable higher-level insights about
 
 # 🔐 Security Principles
 
-Orio should follow these principles throughout development:
+Magnet should follow these principles throughout development:
 
 - Never place LLM/API secrets in the mobile application.
 - Store authentication tokens securely on the device.
@@ -808,7 +808,7 @@ Show citation
 
 # 📊 Current Project Status
 
-Orio is an active work-in-progress with a substantially developed mobile UI and backend foundation.
+Magnet is an active work-in-progress with a substantially developed mobile UI and backend foundation.
 
 The current priority is moving from **feature foundation** to a reliable **end-to-end knowledge/RAG workflow**.
 
@@ -822,7 +822,7 @@ Once this workflow is reliable, additional intelligence such as developer error 
 
 # 🎯 MVP Definition
 
-Orio's first meaningful MVP is complete when a user can:
+Magnet's first meaningful MVP is complete when a user can:
 
 1. Capture a real piece of knowledge.
 2. Have Orio process it in the background.
@@ -838,7 +838,7 @@ Everything beyond this improves the product, but this is the core capability tha
 
 # 🤝 Development Philosophy
 
-Orio is being built around a few principles:
+Magnet is being built around a few principles:
 
 ### Build for real data
 
@@ -868,7 +868,7 @@ This project is licensed under the **MIT License**.
 
 ---
 
-## Orio
+## Magnet
 
 **Capture. Understand. Remember.**
 
