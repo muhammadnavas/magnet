@@ -1,4 +1,4 @@
-# Orio Backend API
+# Magnet Backend API
 
 This is the Python FastAPI backend service orchestrating database sessions (via PostgreSQL + pgvector), vector similarity queries, task queueing (via ARQ + Redis), and JWT-based authentication.
 
