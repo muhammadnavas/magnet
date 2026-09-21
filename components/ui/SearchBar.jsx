@@ -3,7 +3,7 @@ import { View, TextInput, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAppTheme } from "../../store/themeStore";
 
-export const SearchBar = ({ value, onChangeText, placeholder = "Search your Orio brain...", onClear, style = "", ...props }) => {
+export const SearchBar = ({ value, onChangeText, placeholder = "Search your Magnet brain...", onClear, style = "", ...props }) => {
   const { themeColors } = useAppTheme();
 
   return (
