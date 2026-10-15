@@ -160,7 +160,7 @@ function AssignmentCard({ a, tc, localDone, onToggleDone }) {
           </View>
           {/* Status badge */}
           <View style={{ backgroundColor: tc.surfaceHover, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 10 }}>
-            <Text style={{ color: cfg.color, fontWeight: "800", fontSize: 10 }}>{cfg.label}</Text>
+            <Text style={{ color: isDone ? tc.success : cfg.color, fontWeight: "800", fontSize: 10 }}>{isDone ? "Done" : cfg.label}</Text>
           </View>
         </View>
 
@@ -409,6 +409,10 @@ export default function ClassroomScreen() {
       }
     } catch (e) {
       console.log("[CLASSROOM]", e?.response?.data || e?.message);
+      setConnected(false);
+      setEmail("");
+      setCourses([]);
+      setAssignments([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
