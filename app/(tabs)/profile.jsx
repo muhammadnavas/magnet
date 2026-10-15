@@ -47,7 +47,11 @@ export default function SettingsScreen() {
         setClassroomConnected(Boolean(res.data?.connected));
         setClassroomEmail(res.data?.email || "");
       })
-      .catch(() => {});
+      .catch((error) => {
+        setClassroomConnected(false);
+        setClassroomEmail("");
+        console.log("[CLASSROOM STATUS]", error?.response?.data || error?.message);
+      });
 
     const handleGithubCallback = ({ url }) => {
       if (!url?.startsWith("orio://github/callback")) return;
