@@ -82,8 +82,10 @@ export default function HomeScreen() {
 
       const doneRaw = await AsyncStorage.getItem("orio_classroom_done_ids");
       const doneIds = new Set(doneRaw ? JSON.parse(doneRaw) : []);
-      setClassroomOverdue(all.filter((a) => a.due_status === "overdue" && !doneIds.has(a.id)).length);
-      setClassroomDueSoon(all.filter((a) => a.due_status === "due_soon" && !doneIds.has(a.id)).length);
+      const isDone = (a) => doneIds.has(String(a.course_id || "") + ":" + String(a.id))
+        || doneIds.has(a.id) || ["TURNED_IN", "RETURNED"].includes(a.submission_state);
+      setClassroomOverdue(all.filter((a) => a.due_status === "overdue" && !isDone(a)).length);
+      setClassroomDueSoon(all.filter((a) => a.due_status === "due_soon" && !isDone(a)).length);
 
       // Notify about new assignments
       const raw     = await AsyncStorage.getItem(SEEN_KEY);
