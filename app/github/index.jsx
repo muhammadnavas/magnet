@@ -71,9 +71,7 @@ export default function GitHubScreen() {
             <Ionicons name="logo-github" size={34} color={themeColors.text.muted} />
             <Text style={{ color: themeColors.text.primary }} className="text-base font-extrabold mt-3">Connect GitHub first</Text>
             <Text style={{ color: themeColors.text.muted }} className="text-xs text-center mt-1 mb-4">Connect your GitHub account from Settings to see your projects here.</Text>
-            <Pressable onPress={() => router.push("/profile")} style={{ backgroundColor: themeColors.primary }} className="px-5 py-3 rounded-xl">
-              <Text className="text-white text-sm font-bold">Open Settings</Text>
-            </Pressable>
+
           </Card>
         ) : loading ? (
           <Card className="p-6 items-center"><Text style={{ color: themeColors.text.muted }} className="text-sm">Loading your projects...</Text></Card>
