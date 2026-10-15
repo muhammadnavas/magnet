@@ -57,6 +57,10 @@ services:
       - XAI_LLM_MODEL=${XAI_LLM_MODEL:-grok-4.6}
       - LLM_PROVIDER=${LLM_PROVIDER:-gemini}
       - ENVIRONMENT=${ENVIRONMENT:-development}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_CLASSROOM_REDIRECT_URI=${GOOGLE_CLASSROOM_REDIRECT_URI:-http://localhost:8000/api/v1/classroom/callback}
+      - GOOGLE_CLASSROOM_APP_REDIRECT_URI=${GOOGLE_CLASSROOM_APP_REDIRECT_URI:-magnet://classroom/callback}
       - PYTHONPATH=.
     depends_on:
       db:
