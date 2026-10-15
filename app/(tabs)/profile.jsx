@@ -1,9 +1,8 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { Alert, Linking, Pressable, Text, View, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
-import React, { useCallback } from "react";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
 import config from "../../constants/config";
