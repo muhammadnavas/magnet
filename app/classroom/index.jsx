@@ -109,7 +109,8 @@ function StatCard({ item, tc }) {
 // ─── Assignment card ────────────────────────────────────────────────────────
 function AssignmentCard({ a, tc, localDone, onToggleDone }) {
   const DSC      = getDueStatusConfig(tc);
-  const cfg      = DSC[a.due_status] || DSC.no_due_date;
+  const markedDone = localDone || SUBMISSION_CONFIG[a.submission_state]?.official;
+  const cfg      = markedDone ? { label: "Done", color: tc.success, icon: "checkmark-circle" } : (DSC[a.due_status] || DSC.no_due_date);
   const countdown = getCountdown(a.due_date);
   const typeIcon  = WORK_TYPE_ICONS[a.work_type] || "document-text-outline";
   const anim      = useRef(new Animated.Value(1)).current;
@@ -338,9 +339,10 @@ export default function ClassroomScreen() {
   }, []);
 
 
-  const upcomingCount = assignments.filter((a) => a.due_status === "upcoming").length;
-  const dueSoonCount  = assignments.filter((a) => a.due_status === "due_soon").length;
-  const overdueCount  = assignments.filter((a) => a.due_status === "overdue").length;
+  const isLocallyDone = (a) => localDoneIds.has(a.id);
+  const upcomingCount = assignments.filter((a) => a.due_status === "upcoming" && !isLocallyDone(a)).length;
+  const dueSoonCount  = assignments.filter((a) => a.due_status === "due_soon" && !isLocallyDone(a)).length;
+  const overdueCount  = assignments.filter((a) => a.due_status === "overdue" && !isLocallyDone(a)).length;
 
   const STAT_CARDS = [
     { label: "Upcoming", value: upcomingCount, icon: "sparkles",     color: tc.success },
@@ -357,7 +359,7 @@ export default function ClassroomScreen() {
   ];
 
   const filteredAssignments = assignments.filter((a) => {
-    const matchFilter = filter === "all" || a.due_status === filter;
+    const matchFilter = filter === "all" || (filter === "overdue" && a.due_status === "overdue" && !isLocallyDone(a)) || (filter === "due_soon" && a.due_status === "due_soon" && !isLocallyDone(a)) || (filter === "upcoming" && a.due_status === "upcoming" && !isLocallyDone(a)) || (filter === "no_due_date" && a.due_status === "no_due_date");
     const matchSearch = !search
       || a.title.toLowerCase().includes(search.toLowerCase())
       || a.course_name.toLowerCase().includes(search.toLowerCase());
