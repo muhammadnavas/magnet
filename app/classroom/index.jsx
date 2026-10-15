@@ -544,12 +544,18 @@ export default function ClassroomScreen() {
             <Text style={{ color: tc.text.primary, fontWeight: "900", fontSize: 18, textAlign: "center" }}>
               Connect Google Classroom
             </Text>
-            <Text style={{ color: tc.text.muted, fontSize: 13, textAlign: "center", marginTop: 8, marginBottom: 24, lineHeight: 20 }}>
+            <Text style={{ color: tc.text.muted, fontSize: 13, textAlign: "center", marginTop: 8, marginBottom: 16, lineHeight: 20 }}>
               Sync your courses and assignments, get deadline alerts, and never miss a submission.
             </Text>
-            <Button variant="primary" onPress={connectClassroom} disabled={connectLoading}>
-              {connectLoading ? "Opening Google..." : "Connect with Google"}
-            </Button>
+            <View style={{
+              flexDirection: "row", alignItems: "flex-start", backgroundColor: tc.surfaceHover,
+              borderRadius: 14, padding: 14, width: "100%",
+            }}>
+              <Ionicons name="settings-outline" size={18} color={tc.primary} style={{ marginRight: 10, marginTop: 1 }} />
+              <Text style={{ flex: 1, color: tc.text.muted, fontSize: 13, lineHeight: 19 }}>
+                To connect Google Classroom, open Settings and connect your Google account.
+              </Text>
+            </View>
           </View>
         )}
 
