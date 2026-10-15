@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Alert, Linking, Pressable, Text, View, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
+import React, { useCallback } from "react";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
 import config from "../../constants/config";
@@ -36,10 +37,10 @@ export default function SettingsScreen() {
       const response = await api.get("/github/status");
       setGithubConnected(Boolean(response.data?.connected));
       setGithubUsername(response.data?.username || "");
-    } catch (error) { console.log("[GITHUB STATUS]", error?.response?.data || error?.message); }
+    } catch (error) { setGithubConnected(false); setGithubUsername(""); console.log("[GITHUB STATUS]", error?.response?.data || error?.message); }
   };
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     loadGithubStatus();
     // Load classroom status
     api.get("/classroom/status")
@@ -62,7 +63,7 @@ export default function SettingsScreen() {
     const subscription = Linking.addEventListener("url", handleGithubCallback);
     Linking.getInitialURL().then((url) => url && handleGithubCallback({ url })).catch(() => {});
     return () => subscription.remove();
-  }, []);
+  }, []));
 
   const connectGithub = async () => {
     try { setGithubLoading(true); const response = await api.get("/github/authorize"); await Linking.openURL(response.data.authorization_url); }
