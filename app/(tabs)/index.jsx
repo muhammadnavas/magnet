@@ -61,6 +61,7 @@ export default function HomeScreen() {
       }
     } catch (e) {
       setGithubConnected(false);
+      setGithubUsername("");
       setGithubRepoCount(null);
     }
   };
@@ -70,7 +71,11 @@ export default function HomeScreen() {
       const statusRes = await api.get("/classroom/status");
       const isConnected = Boolean(statusRes.data?.connected);
       setClassroomConnected(isConnected);
-      if (!isConnected) return;
+      if (!isConnected) {
+        setClassroomOverdue(0);
+        setClassroomDueSoon(0);
+        return;
+      }
 
       const assignmentsRes = await api.get("/classroom/assignments");
       const all = Array.isArray(assignmentsRes.data) ? assignmentsRes.data : [];
