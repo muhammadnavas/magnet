@@ -44,17 +44,16 @@ def _clean_model_name(name: str) -> str:
 
 # Reliability-first fallback order — these are validated, currently available models.
 DEFAULT_COMPLETION_MODELS = [
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-lite",
-    "gemini-1.5-flash",
-    "gemini-1.5-flash-8b",
-    "gemini-1.5-pro",
+    "gemini-3.8-flash",
+    "gemini-3.6-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
 ]
 
 
 DEFAULT_EMBEDDING_MODELS = [
     "gemini-embedding-001",
-    "gemini-embedding-2",
+    "gemini-embedding-2-preview",
 ]
 
 
@@ -64,9 +63,10 @@ async def get_embedding(text: str) -> List[float]:
 
     try:
         client = _make_client()
-    except ValueError as e:
-        logger.warning(str(e))
-        return [0.0] * 1536
+    except ValueError:
+        # Retrieval can fail independently; callers should skip RAG rather than
+        # query pgvector with a fabricated zero vector.
+        raise
 
     configured_model = _clean_model_name(
         settings.GEMINI_EMBEDDING_MODEL or os.getenv("GEMINI_EMBEDDING_MODEL", "")
@@ -84,6 +84,7 @@ async def get_embedding(text: str) -> List[float]:
                 client.models.embed_content,
                 model=model_name,
                 contents=text,
+                config=types.EmbedContentConfig(output_dimensionality=1536),
             )
             values = response.embeddings[0].values if response.embeddings else []
             if values:
@@ -100,8 +101,7 @@ async def get_embedding(text: str) -> List[float]:
             if "429" in err or "503" in err or "RESOURCE_EXHAUSTED" in err or "UNAVAILABLE" in err:
                 await asyncio.sleep(1.0)
 
-    logger.error("All embedding model attempts failed. Returning zero vector.")
-    return [0.0] * 1536
+    raise RuntimeError("All configured Gemini embedding models failed; RAG retrieval is unavailable.")
 
 
 async def _get_gemini_completion(
@@ -126,9 +126,9 @@ async def _get_gemini_completion(
     )
     candidates = list(DEFAULT_COMPLETION_MODELS)
     if configured_model and configured_model not in candidates:
-        # Do not allow an obsolete/restricted 2.5 model configured in Render
-        # to re-enter the fallback chain.
-        if not configured_model.startswith("gemini-2.5-"):
+        # Avoid reintroducing retired model IDs from old deployment settings.
+        retired_models = {"gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro"}
+        if configured_model not in retired_models and not configured_model.startswith("gemini-2.5-"):
             candidates.append(configured_model)
 
     last_error = None
