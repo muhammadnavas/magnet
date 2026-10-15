@@ -84,7 +84,6 @@ async def get_embedding(text: str) -> List[float]:
                 client.models.embed_content,
                 model=model_name,
                 contents=text,
-                config=types.EmbedContentConfig(output_dimensionality=1536),
             )
             values = response.embeddings[0].values if response.embeddings else []
             if values:
