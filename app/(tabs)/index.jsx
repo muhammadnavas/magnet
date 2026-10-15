@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { View, Text, ScrollView, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Card from "../../components/ui/Card";
@@ -55,7 +55,7 @@ export default function HomeScreen() {
       setGithubUsername(status.data?.username || "");
       if (connected) {
         const response = await api.get("/github/repos");
-        setGithubRepoCount(Array.isArray(response.data) ? response.data.length : 0);
+        setGithubRepoCount(Array.isArray(response.data) ? response.data.length : null);
       } else {
         setGithubRepoCount(null);
       }
@@ -75,8 +75,10 @@ export default function HomeScreen() {
       const assignmentsRes = await api.get("/classroom/assignments");
       const all = Array.isArray(assignmentsRes.data) ? assignmentsRes.data : [];
 
-      setClassroomOverdue(all.filter((a) => a.due_status === "overdue").length);
-      setClassroomDueSoon(all.filter((a) => a.due_status === "due_soon").length);
+      const doneRaw = await AsyncStorage.getItem("orio_classroom_done_ids");
+      const doneIds = new Set(doneRaw ? JSON.parse(doneRaw) : []);
+      setClassroomOverdue(all.filter((a) => a.due_status === "overdue" && !doneIds.has(a.id)).length);
+      setClassroomDueSoon(all.filter((a) => a.due_status === "due_soon" && !doneIds.has(a.id)).length);
 
       // Notify about new assignments
       const raw     = await AsyncStorage.getItem(SEEN_KEY);
@@ -91,7 +93,10 @@ export default function HomeScreen() {
     } catch (_) {}
   };
 
-  useEffect(() => { loadGithubSummary(); checkClassroomNotifications(); }, []);
+  useFocusEffect(useCallback(() => {
+    loadGithubSummary();
+    checkClassroomNotifications();
+  }, []));
 
 
   const username = user?.full_name && user.full_name !== "Personal User" ? user.full_name : "Navas";
@@ -165,7 +170,7 @@ export default function HomeScreen() {
           <Card className="p-4">
             <View className="flex-row items-center">
               <View style={{ backgroundColor: themeColors.surfaceHover, borderColor: themeColors.border }} className="w-11 h-11 rounded-2xl border items-center justify-center mr-3"><Ionicons name="logo-github" size={22} color={themeColors.text.primary} /></View>
-              <View className="flex-1"><Text style={{ color: themeColors.text.primary }} className="text-sm font-extrabold">GitHub Projects</Text><Text style={{ color: themeColors.text.muted }} className="text-[11px] mt-1" numberOfLines={1}>{githubConnected ? `${githubRepoCount ?? "Your"} repositories${githubUsername ? ` · @${githubUsername}` : ""}` : "Connect GitHub to view your projects"}</Text></View>
+              <View className="flex-1"><Text style={{ color: themeColors.text.primary }} className="text-sm font-extrabold">GitHub Projects</Text><Text style={{ color: themeColors.text.muted }} className="text-[11px] mt-1" numberOfLines={1}>{githubConnected ? `Your repositories${githubUsername ? ` · @${githubUsername}` : ""}` : "Connect GitHub to view your projects"}</Text></View>
               <View className="items-end"><View className="flex-row items-center mb-1"><View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: githubConnected ? "#10B981" : themeColors.text.muted, marginRight: 5 }} /><Text style={{ color: githubConnected ? "#10B981" : themeColors.text.muted }} className="text-[10px] font-bold">{githubConnected ? "CONNECTED" : "NOT CONNECTED"}</Text></View><Ionicons name="chevron-forward" size={16} color={themeColors.primary} /></View>
             </View>
           </Card>
