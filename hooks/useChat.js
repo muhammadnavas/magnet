@@ -2,6 +2,19 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import useChatStore from "../store/chatStore";
 import api from "../lib/api";
 
+const getChatErrorMessage = (error) => {
+  const status = error?.response?.status;
+  const detail = error?.response?.data?.detail;
+  if (status === 401) return "Your session could not be authenticated. Please sign in again.";
+  if (status === 404) return "The chat endpoint was not found. Please check the backend deployment.";
+  if (status === 429) return "The AI service is receiving too many requests. Please try again shortly.";
+  if (status >= 500) return "The backend encountered an error while processing your message. Please try again.";
+  if (error?.code === "ECONNABORTED") return "The AI response took too long. Please try again.";
+  if (!error?.response) return "Unable to reach Magnet's chat service. Check your connection and try again.";
+  if (typeof detail === "string" && detail.length < 180) return `Chat request failed: ${detail}`;
+  return "Your message could not be sent. Please try again.";
+};
+
 export const useChat = () => {
   const queryClient = useQueryClient();
   const { 
@@ -83,7 +96,7 @@ export const useChat = () => {
       addMessage({
         id: Math.random().toString(),
         role: "assistant",
-        content: "System Alert: I could not contact the Orio API service. Please verify your connection status.",
+        content: getChatErrorMessage(err),
         sources: []
       });
     }
