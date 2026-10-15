@@ -313,6 +313,7 @@ export default function ClassroomScreen() {
   const [assignments,    setAssignments]    = useState([]);
   const [loading,        setLoading]        = useState(true);
   const [connectLoading, setConnectLoading] = useState(false);
+  const [connectError, setConnectError] = useState("");
   const [refreshing,     setRefreshing]     = useState(false);
   const [activeTab,      setActiveTab]      = useState("assignments");
   const [filter,         setFilter]         = useState("all");
@@ -424,7 +425,7 @@ export default function ClassroomScreen() {
         const isConnected = parsed.searchParams.get("connected") === "true";
         const cbError     = parsed.searchParams.get("error");
         if (isConnected) loadData();
-        else if (cbError) Alert.alert("Google Classroom", `Connection failed: ${cbError}`);
+        else if (cbError) setConnectError(`Connection failed: ${decodeURIComponent(cbError).replace(/_/g, " ")}`);
       } catch (e) {
         console.log("[CLASSROOM CALLBACK]", e);
       }
@@ -438,11 +439,12 @@ export default function ClassroomScreen() {
   // ── Connect ───────────────────────────────────────────────────────────
   const connectClassroom = async () => {
     try {
+      setConnectError("");
       setConnectLoading(true);
       const res = await api.get("/classroom/authorize");
       await Linking.openURL(res.data.authorization_url);
     } catch (e) {
-      Alert.alert("Google Classroom", e?.response?.data?.detail || "Could not start Google authorization.");
+      setConnectError(e?.response?.data?.detail || "Could not start Google authorization. Please try again.");
     } finally {
       setConnectLoading(false);
     }
@@ -490,6 +492,30 @@ export default function ClassroomScreen() {
             <Ionicons name="school" size={22} color={tc.primary} />
           </View>
         </View>
+
+        {Boolean(connectError) && (
+          <View style={{
+            flexDirection: "row", alignItems: "flex-start", backgroundColor: tc.card,
+            borderRadius: 16, padding: 14, marginBottom: 18, borderWidth: 1,
+            borderColor: tc.error || "#EF4444",
+          }}>
+            <Ionicons name="alert-circle-outline" size={20} color={tc.error || "#EF4444"} style={{ marginRight: 10, marginTop: 1 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: tc.text.primary, fontSize: 14, fontWeight: "800", marginBottom: 4 }}>
+                Could not connect Google Classroom
+              </Text>
+              <Text style={{ color: tc.text.muted, fontSize: 13, lineHeight: 19 }}>
+                {connectError}
+              </Text>
+              <Text style={{ color: tc.text.muted, fontSize: 12, lineHeight: 18, marginTop: 8 }}>
+                Check the Google Classroom OAuth settings on the backend, then try again from Settings.
+              </Text>
+            </View>
+            <Pressable onPress={() => setConnectError("")} hitSlop={8}>
+              <Ionicons name="close" size={18} color={tc.text.muted} />
+            </Pressable>
+          </View>
+        )}
 
         {/* ── Connection banner ────────────────────────────────────── */}
         <View
