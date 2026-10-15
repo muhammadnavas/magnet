@@ -208,21 +208,32 @@ async def list_github_repositories(
         raise HTTPException(status_code=409, detail="Connect GitHub before listing repositories")
 
     token = _decrypt_token(connection.access_token)
-    response = await _github_request(
-        token,
-        "/user/repos",
-        params={
-            "visibility": "all",
-            "affiliation": "owner,collaborator,organization_member",
-            "sort": "updated",
-            "direction": "desc",
-            "per_page": 100,
-        },
-    )
-    if response.status_code == 401:
-        raise HTTPException(status_code=401, detail="GitHub authorization has expired or been revoked")
-    if response.status_code != 200:
-        raise HTTPException(status_code=502, detail="Could not fetch GitHub repositories")
+    repositories = []
+    page = 1
+    while True:
+        response = await _github_request(
+            token,
+            "/user/repos",
+            params={
+                "visibility": "all",
+                "affiliation": "owner,collaborator,organization_member",
+                "sort": "updated",
+                "direction": "desc",
+                "per_page": 100,
+                "page": page,
+            },
+        )
+        if response.status_code == 401:
+            raise HTTPException(status_code=401, detail="GitHub authorization has expired or been revoked")
+        if response.status_code != 200:
+            raise HTTPException(status_code=502, detail="Could not fetch GitHub repositories")
+        batch = response.json()
+        if not isinstance(batch, list):
+            raise HTTPException(status_code=502, detail="GitHub returned an invalid repository list")
+        repositories.extend(batch)
+        if len(batch) < 100:
+            break
+        page += 1
 
     return [
         {
@@ -235,7 +246,7 @@ async def list_github_repositories(
             "html_url": repo.get("html_url"),
             "updated_at": repo.get("updated_at"),
         }
-        for repo in response.json()
+        for repo in repositories
     ]
 
 
