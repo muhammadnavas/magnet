@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Linking, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
+import React, { useCallback } from "react";
 import Card from "../../components/ui/Card";
 import { useAppTheme } from "../../store/themeStore";
 import api from "../../lib/api";
@@ -25,13 +26,15 @@ export default function GitHubScreen() {
       const response = await api.get("/github/repos");
       setRepos(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
+      setConnected(false);
+      setRepos([]);
       console.log("[GITHUB PAGE]", error?.response?.data || error?.message);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { loadRepos(); }, []);
+  useFocusEffect(useCallback(() => { loadRepos(); }, []));
 
   const openRepo = (repo) => {
     if (repo?.html_url) Linking.openURL(repo.html_url);
