@@ -168,7 +168,7 @@ function AssignmentCard({ a, tc, localDone, onToggleDone }) {
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
           {/* Left: submission state */}
           <Pressable
-            onPress={() => !subCfg.official && onToggleDone(a.id)}
+            onPress={() => !subCfg.official && onToggleDone(a)}
             style={{
               flexDirection: "row", alignItems: "center", gap: 5,
               backgroundColor: tc.surfaceHover,
@@ -329,17 +329,23 @@ export default function ClassroomScreen() {
     } catch (_) {}
   }, []);
 
-  const toggleDone = useCallback(async (id) => {
+  const assignmentDoneKey = (a) => `${a.course_id || ""}:${a.id}`;
+  const isLocallyDone = (a) => localDoneIds.has(assignmentDoneKey(a)) || localDoneIds.has(a.id);
+
+  const toggleDone = useCallback(async (assignment) => {
+    const key = assignmentDoneKey(assignment);
     setLocalDoneIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(key) || next.has(assignment.id)) {
+        next.delete(key);
+        next.delete(assignment.id);
+      } else {
+        next.add(key);
+      }
       AsyncStorage.setItem(DONE_KEY, JSON.stringify([...next])).catch(() => {});
       return next;
     });
   }, []);
-
-
-  const isLocallyDone = (a) => localDoneIds.has(a.id);
   const upcomingCount = assignments.filter((a) => a.due_status === "upcoming" && !isLocallyDone(a)).length;
   const dueSoonCount  = assignments.filter((a) => a.due_status === "due_soon" && !isLocallyDone(a)).length;
   const overdueCount  = assignments.filter((a) => a.due_status === "overdue" && !isLocallyDone(a)).length;
