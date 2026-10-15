@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     
     GEMINI_API_KEY: str = ""
     GEMINI_EMBEDDING_MODEL: str = "gemini-embedding-001"  # default; overridden by ai.py fallback chain
-    GEMINI_LLM_MODEL: str = "gemini-2.0-flash"            # default; overridden by ai.py fallback chain
+    GEMINI_LLM_MODEL: str = "gemini-3.8-flash"            # current stable default; ai.py provides fallbacks
 
     # xAI / Grok LLM
     XAI_API_KEY: str = ""
