@@ -148,7 +148,20 @@ export default function KnowledgeDetailScreen() {
           originWhitelist={["*"]}
           startInLoadingState
           renderLoading={() => <View className="flex-1 items-center justify-center"><ActivityIndicator color={themeColors.primary} /></View>}
-          onError={() => setSourceError("The PDF could not be displayed in the viewer.")}
+          onError={(event) => {
+            const description = event?.nativeEvent?.description;
+            console.error("PDF WebView load failed:", description || "unknown error");
+            setSourceError(description ? `The PDF viewer failed: ${description}` : "The PDF could not be displayed. Check the file and backend response.");
+          }}
+          onHttpError={(event) => {
+            const status = event?.nativeEvent?.statusCode;
+            console.error("PDF source request failed:", status, event?.nativeEvent?.description);
+            if (status >= 400) {
+              setSourceError(status === 404
+                ? "The original PDF is missing from storage. Upload the document again."
+                : `The server could not load this PDF (HTTP ${status}). Please try again after the backend is updated.`);
+            }
+          }}
         />
       );
     }
