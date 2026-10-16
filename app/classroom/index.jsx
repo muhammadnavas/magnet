@@ -13,7 +13,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import Button from "../../components/ui/Button";
 import { useAppTheme } from "../../store/themeStore";
 import { notifyNewAssignment } from "../../lib/notifications";
@@ -427,10 +427,13 @@ export default function ClassroomScreen() {
   }, []);
 
 
+  useFocusEffect(useCallback(() => {
+    loadData();
+  }, [loadData]));
+
   // ── Deep-link listener ────────────────────────────────────────────────
   useEffect(() => {
     loadLocalDone();
-    loadData();
     const handleCallback = ({ url }) => {
       if (!url?.startsWith("orio://classroom/callback")) return;
       try {
