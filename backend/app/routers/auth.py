@@ -10,7 +10,7 @@ from app.schemas.auth import UserOut
 
 router = APIRouter(prefix="/auth", tags=["Personal Profile"])
 
-PERSONAL_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+PERSONAL_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000000")
 
 
 def get_current_user() -> UserOut:
