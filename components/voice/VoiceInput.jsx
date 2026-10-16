@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, TouchableOpacity, Text, View } from "react-native";
+import { Alert, TouchableOpacity, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import {
   ExpoSpeechRecognitionModule,
@@ -16,7 +16,6 @@ export default function VoiceInput({ onTranscript, mode = "quick", disabled = fa
   const { themeColors } = useAppTheme();
   const [recording, setRecording] = useState(false);
   const [starting, setStarting] = useState(false);
-  const [transcript, setTranscript] = useState("");
   const instanceId = useRef(null);
   const transcriptRef = useRef("");
   const onTranscriptRef = useRef(onTranscript);
@@ -30,7 +29,6 @@ export default function VoiceInput({ onTranscript, mode = "quick", disabled = fa
     const recognized = String(event.results?.[0]?.transcript || "").trim();
     if (!recognized) return;
     transcriptRef.current = recognized;
-    setTranscript(recognized);
   });
 
   useSpeechRecognitionEvent("start", () => {
@@ -71,7 +69,6 @@ export default function VoiceInput({ onTranscript, mode = "quick", disabled = fa
       }
     }
     transcriptRef.current = "";
-    setTranscript("");
   });
 
   useEffect(() => () => {
