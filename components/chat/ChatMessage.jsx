@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text } from "react-native";
+import * as Speech from "expo-speech";
+import { View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Markdown from "react-native-markdown-display";
 import SourceCitation from "./SourceCitation";
@@ -46,6 +47,7 @@ export const ChatMessage = ({ message }) => {
         className={`max-w-[80%] rounded-2xl px-4 py-3 ${isUser ? "rounded-tr-none" : "rounded-tl-none"}`}
       >
         <Markdown style={markdownStyles}>{content}</Markdown>
+        {!isUser && Boolean(content) && <TouchableOpacity accessibilityRole="button" accessibilityLabel="Read answer aloud" onPress={() => Speech.speak(String(content).replace(/[`*_#>]/g, ""), { rate: 0.95 })} style={{ alignSelf: "flex-end", marginTop: 6, padding: 4 }}><Ionicons name="volume-medium-outline" size={18} color={themeColors.text.secondary} /></TouchableOpacity>}
 
         {!isUser && sources?.length > 0 && (
           <View style={{ borderTopColor: themeColors.border }} className="border-t mt-3 pt-2">
