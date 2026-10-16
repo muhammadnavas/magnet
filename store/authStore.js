@@ -2,7 +2,7 @@ import { create } from "zustand";
 
 // Personal single-user mode: no account, password, or bearer-token lifecycle.
 const personalUser = {
-  id: "00000000-0000-0000-0000-000000000001",
+  id: "00000000-0000-0000-0000-000000000000",
   email: "personal@magnet.local",
   full_name: "Personal User",
   is_active: true,
