@@ -10,6 +10,7 @@ import { useAppTheme } from "../../store/themeStore";
 import { requestNotificationPermissions } from "../../lib/notifications";
 import { parseTaskDateTime } from "../../lib/taskDateTime";
 import TaskCard from "../../components/tasks/TaskCard";
+import VoiceInput from "../../components/voice/VoiceInput";
 
 const FILTERS = [
   { key: null, label: "All" },
@@ -126,6 +127,7 @@ export default function TasksScreen() {
         <View style={{ borderTopWidth: 1, borderTopColor: themeColors.border, backgroundColor: themeColors.background, padding: 12 }}>
           <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1, borderRadius: 28, paddingLeft: 16, paddingRight: 6, paddingVertical: 6 }}>
             <TextInput ref={inputRef} value={input} onChangeText={setInput} onFocus={handleInputFocus} placeholder='e.g. "Submit assignment by Thursday"' placeholderTextColor={themeColors.text.muted} multiline style={{ flex: 1, color: themeColors.text.primary, fontSize: 14, maxHeight: 100, paddingTop: Platform.OS === "ios" ? 8 : 4, paddingBottom: Platform.OS === "ios" ? 8 : 4 }} onSubmitEditing={handleSend} blurOnSubmit={false} />
+            <VoiceInput onTranscript={(transcript) => setInput((current) => current ? `${current} ${transcript}` : transcript)} disabled={createTask.isPending || parseTask.isPending} />
             <TouchableOpacity onPress={handleSend} disabled={!input.trim() || createTask.isPending || parseTask.isPending} style={{ width: 36, height: 36, borderRadius: 18, marginLeft: 8, backgroundColor: input.trim() ? themeColors.primary : themeColors.border, alignItems: "center", justifyContent: "center" }}>
               {createTask.isPending || parseTask.isPending ? <ActivityIndicator size="small" color="#FFF" /> : <Ionicons name="arrow-up" size={18} color="#FFF" />}
             </TouchableOpacity>
