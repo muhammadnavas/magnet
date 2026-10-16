@@ -1,113 +1,30 @@
 import { create } from "zustand";
-import { tokenStorage } from "../lib/storage";
+
+// Personal single-user mode: no account, password, or bearer-token lifecycle.
+const personalUser = {
+  id: "00000000-0000-0000-0000-000000000001",
+  email: "personal@magnet.local",
+  full_name: "Personal User",
+  is_active: true,
+};
 
 export const useAuthStore = create((set) => ({
-  user: null,
+  user: personalUser,
   accessToken: null,
   refreshToken: null,
-  isAuthenticated: false,
-  isLoading: true,
-
-  initializeAuth: async () => {
-    try {
-      const accessToken = await tokenStorage.getToken("accessToken");
-      const refreshToken = await tokenStorage.getToken("refreshToken");
-      const userJson = await tokenStorage.getToken("user");
-
-      if (accessToken && refreshToken && userJson) {
-        set({
-          user: JSON.parse(userJson),
-          accessToken,
-          refreshToken,
-          isAuthenticated: true,
-          isLoading: false,
-        });
-      } else {
-        // Auto-login with default seeded developer account for single-user personal mode
-        try {
-          const api = require("../lib/api").default; // Dynamic import to prevent circular dependency
-          const response = await api.post("/auth/login", {
-            email: "personal-app@orio.com",
-            password: "password"
-          });
-          const { user, access_token, refresh_token } = response.data;
-          
-          await tokenStorage.setToken("accessToken", access_token);
-          await tokenStorage.setToken("refreshToken", refresh_token);
-          await tokenStorage.setToken("user", JSON.stringify(user));
-          
-          set({
-            user,
-            accessToken: access_token,
-            refreshToken: refresh_token,
-            isAuthenticated: true,
-            isLoading: false,
-          });
-        } catch (authError) {
-          console.warn("Auto-login failed. Backend may be offline.", authError.message);
-          set({ isLoading: false });
-        }
-      }
-    } catch (e) {
-      console.error("Failed to initialize auth store", e);
-      set({ isLoading: false });
-    }
-  },
-
-  login: async (user, accessToken, refreshToken) => {
-    try {
-      await tokenStorage.setToken("accessToken", accessToken);
-      await tokenStorage.setToken("refreshToken", refreshToken);
-      await tokenStorage.setToken("user", JSON.stringify(user));
-      
-      set({
-        user,
-        accessToken,
-        refreshToken,
-        isAuthenticated: true,
-        isLoading: false,
-      });
-    } catch (e) {
-      console.error("Login save token failed", e);
-    }
-  },
-
-  logout: async () => {
-    try {
-      await tokenStorage.removeToken("accessToken");
-      await tokenStorage.removeToken("refreshToken");
-      await tokenStorage.removeToken("user");
-      
-      set({
-        user: null,
-        accessToken: null,
-        refreshToken: null,
-        isAuthenticated: false,
-        isLoading: false,
-      });
-    } catch (e) {
-      console.error("Logout remove token failed", e);
-    }
-  },
-
-  updateUser: async (user) => {
-    try {
-      await tokenStorage.setToken("user", JSON.stringify(user));
-      set({ user });
-    } catch (e) {
-      console.error("Failed to update user profile in storage", e);
-    }
-  },
-
-  setTokens: async (accessToken, refreshToken) => {
-    try {
-      await tokenStorage.setToken("accessToken", accessToken);
-      await tokenStorage.setToken("refreshToken", refreshToken);
-      set({ accessToken, refreshToken });
-    } catch (e) {
-      console.error("Failed to update tokens", e);
-    }
-  }
+  isAuthenticated: true,
+  isLoading: false,
+  initializeAuth: async () => set({
+    user: personalUser,
+    accessToken: null,
+    refreshToken: null,
+    isAuthenticated: true,
+    isLoading: false,
+  }),
+  login: async () => set({ user: personalUser, isAuthenticated: true, isLoading: false }),
+  logout: async () => set({ user: personalUser, isAuthenticated: true, isLoading: false }),
+  updateUser: async (user) => set({ user: { ...personalUser, ...user } }),
+  setTokens: async () => set({ accessToken: null, refreshToken: null }),
 }));
 
 export default useAuthStore;
