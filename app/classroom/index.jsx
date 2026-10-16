@@ -124,10 +124,7 @@ function AssignmentCard({ a, tc, localDone, onToggleDone }) {
 
   return (
     <Animated.View style={{ marginBottom: 10, transform: [{ scale: anim }], opacity: isDone ? 0.75 : 1 }}>
-      <Pressable
-        onPressIn={() => Animated.spring(anim, { toValue: 0.97, useNativeDriver: true }).start()}
-        onPressOut={() => Animated.spring(anim, { toValue: 1, useNativeDriver: true }).start()}
-        onPress={() => a.alternate_link && Linking.openURL(a.alternate_link)}
+      <View
         style={{
           backgroundColor: tc.card,
           borderRadius: 18,
@@ -205,10 +202,14 @@ function AssignmentCard({ a, tc, localDone, onToggleDone }) {
                 <Text style={{ color: cfg.color, fontSize: 10, fontWeight: "700" }}>{countdown}</Text>
               </View>
             )}
-            <Ionicons name="open-outline" size={13} color={tc.text.muted} />
+            {a.alternate_link ? (
+              <Pressable onPress={() => Linking.openURL(a.alternate_link)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Open assignment in Google Classroom">
+                <Ionicons name="open-outline" size={15} color={tc.primary} />
+              </Pressable>
+            ) : null}
           </View>
         </View>
-      </Pressable>
+      </View>
     </Animated.View>
   );
 }
