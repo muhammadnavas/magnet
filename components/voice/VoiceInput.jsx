@@ -15,11 +15,12 @@ export default function VoiceInput({ onTranscript, mode = "quick", disabled = fa
   const [busy, setBusy] = useState(false);
   const [duration, setDuration] = useState(0);
   const timerRef = useRef(null);
+  const recordingRef = useRef(null);
 
   useEffect(() => () => {
     if (timerRef.current) clearInterval(timerRef.current);
-    if (recording) recording.stopAndUnloadAsync().catch(() => {});
-  }, [recording]);
+    if (recordingRef.current) recordingRef.current.stopAndUnloadAsync().catch(() => {});
+  }, []);
 
   const startRecording = async () => {
     try {
@@ -30,6 +31,7 @@ export default function VoiceInput({ onTranscript, mode = "quick", disabled = fa
       }
       await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
       const created = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      recordingRef.current = created.recording;
       setRecording(created.recording);
       setDuration(0);
       timerRef.current = setInterval(() => setDuration((value) => value + 1), 1000);
@@ -47,6 +49,7 @@ export default function VoiceInput({ onTranscript, mode = "quick", disabled = fa
       await recording.stopAndUnloadAsync();
       const uri = recording.getURI();
       setRecording(null);
+      recordingRef.current = null;
       await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
       if (!uri) throw new Error("Recording file was not created.");
       const form = new FormData();
@@ -67,6 +70,7 @@ export default function VoiceInput({ onTranscript, mode = "quick", disabled = fa
       Alert.alert("Voice input failed", typeof detail === "string" ? detail : "Check your connection and try again.");
     } finally {
       setRecording(null);
+      recordingRef.current = null;
       setBusy(false);
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = null;
