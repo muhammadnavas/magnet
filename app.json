@@ -52,6 +52,14 @@
           "cameraPermission": "Allow Magnet to use your camera to capture knowledge.",
           "microphonePermission": false
         }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow Orio to use the microphone for voice input.",
+          "speechRecognitionPermission": "Allow Orio to convert your speech into text.",
+          "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox"]
+        }
       ]
     ],
     "extra": {
