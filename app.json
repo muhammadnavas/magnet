@@ -10,11 +10,17 @@
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.muhammadnavas.orio"
+      "bundleIdentifier": "com.muhammadnavas.orio",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Orio uses the microphone when you choose voice input for notes, AI questions, and tasks."
+      }
     },
     "android": {
       "package": "com.muhammadnavas.orio",
-      "permissions": ["android.permission.SCHEDULE_EXACT_ALARM"],
+      "permissions": [
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.RECORD_AUDIO"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#0A0A0F",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -45,6 +51,14 @@
           "photosPermission": "Allow Magnet to access photos you choose to save to your knowledge library.",
           "cameraPermission": "Allow Magnet to use your camera to capture knowledge.",
           "microphonePermission": false
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow Orio to use the microphone for voice input.",
+          "speechRecognitionPermission": "Allow Orio to convert your speech into text.",
+          "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox"]
         }
       ]
     ],
