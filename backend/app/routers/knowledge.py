@@ -63,7 +63,7 @@ async def upload_knowledge(title: str = Form("Untitled Item"), content_type: str
                 from app.services.gdrive import upload_file_to_gdrive
                 gdrive_res = upload_file_to_gdrive(file_path, urllib.parse.unquote(file.filename), file.content_type)
                 if "error" not in gdrive_res:
-                    gdrive_meta = {"gdrive_file_id": gdrive_res.get("id"), "gdrive_web_view_link": gdrive_res.get("webViewLink")}
+                    gdrive_meta = {"gdrive_file_id": gdrive_res.get("id"), "gdrive_web_view_link": gdrive_res.get("webViewLink"), "mime_type": file.content_type, "original_filename": urllib.parse.unquote(file.filename or "")}
             except Exception as ge:
                 logger.warning(f"GDrive integration skipped: {ge}")
         except Exception as e:
@@ -138,38 +138,68 @@ async def get_knowledge_source(id: uuid.UUID, current_user: User = Depends(get_c
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
 
+    # Resolve paths against the backend working directory as well as the
+    # configured uploads directory. Relative paths can break after deployment
+    # if the process starts from a different working directory.
     file_path = item.file_path
+    if file_path and not os.path.isabs(file_path):
+        candidates = [os.path.abspath(file_path), os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", file_path))]
+        file_path = next((candidate for candidate in candidates if os.path.isfile(candidate)), candidates[0])
+
     if not file_path or not os.path.isfile(file_path):
-        gdrive_file_id = (item.meta or {}).get("gdrive_file_id")
+        meta = item.meta or {}
+        gdrive_file_id = meta.get("gdrive_file_id")
         if gdrive_file_id:
-            os.makedirs("uploads", exist_ok=True)
-            extension = mimetypes.guess_extension((item.meta or {}).get("mime_type", "")) or ""
-            file_path = f"uploads/{uuid.uuid4()}{extension}"
+            # Preserve the original extension so Google Drive downloads remain
+            # recognizable to MIME detection and PDF viewers.
+            extension = os.path.splitext(item.title or "")[1]
+            if not extension:
+                extension = mimetypes.guess_extension(meta.get("mime_type") or "") or (".pdf" if item.content_type == "pdf" else "")
+            uploads_dir = os.path.abspath("uploads")
+            os.makedirs(uploads_dir, exist_ok=True)
+            restored_path = os.path.join(uploads_dir, f"{uuid.uuid4()}{extension}")
             try:
                 from app.services.gdrive import download_file_from_gdrive
-                if not download_file_from_gdrive(gdrive_file_id, file_path):
+                restored = download_file_from_gdrive(gdrive_file_id, restored_path)
+                if restored and os.path.isfile(restored_path) and os.path.getsize(restored_path) > 0:
+                    file_path = restored_path
+                    # Cache the restored path so subsequent previews do not
+                    # need to download the same document again.
+                    item.file_path = file_path
+                    await db.commit()
+                else:
+                    if os.path.exists(restored_path):
+                        os.remove(restored_path)
                     file_path = None
-            except Exception as ge:
-                logger.error(f"Failed to restore source from Google Drive: {ge}")
+            except Exception:
+                logger.exception("Failed to restore source from Google Drive for knowledge item %s", id)
+                if os.path.exists(restored_path):
+                    try:
+                        os.remove(restored_path)
+                    except OSError:
+                        pass
                 file_path = None
 
     if not file_path or not os.path.isfile(file_path):
-        raise HTTPException(status_code=404, detail="Original source is unavailable")
+        logger.warning("Original source unavailable for knowledge item %s (type=%s)", id, item.content_type)
+        raise HTTPException(status_code=404, detail="Original source is unavailable. The file may need to be uploaded again.")
 
-    media_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
-    if item.content_type == "pdf":
-        media_type = "application/pdf"
-    elif item.content_type == "image":
-        media_type = mimetypes.guess_type(file_path)[0] or "image/*"
+    media_type = "application/pdf" if item.content_type == "pdf" else (mimetypes.guess_type(file_path)[0] or "application/octet-stream")
+    if item.content_type == "image":
+        media_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
     elif item.content_type in {"note", "code", "error"}:
         media_type = "text/plain"
 
     extension = os.path.splitext(file_path)[1] or (".pdf" if item.content_type == "pdf" else "")
-    filename = item.title or f"orio-source{extension}"
+    filename = os.path.basename(item.title or f"orio-source{extension}")
     if extension and not os.path.splitext(filename)[1]:
         filename = f"{filename}{extension}"
 
-    return FileResponse(file_path, media_type=media_type, filename=filename, content_disposition_type="inline")
+    try:
+        return FileResponse(file_path, media_type=media_type, filename=filename, content_disposition_type="inline")
+    except Exception:
+        logger.exception("Could not serve original source for knowledge item %s", id)
+        raise HTTPException(status_code=500, detail="Could not open the original source file.")
 
 
 @router.get("/{id}", response_model=KnowledgeItemOut)
