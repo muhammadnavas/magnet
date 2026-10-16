@@ -1,99 +1,151 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, ActivityIndicator, TouchableOpacity, Text, View } from "react-native";
+import { Alert, TouchableOpacity, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Audio } from "expo-av";
-import api from "../../lib/api";
+import {
+  ExpoSpeechRecognitionModule,
+  useSpeechRecognitionEvent,
+} from "expo-speech-recognition";
 import { useAppTheme } from "../../store/themeStore";
 
-/**
- * Shared voice capture for quick dictation and turn-based conversational voice.
- * The caller decides what to do with the returned transcript.
- */
+// Speech recognition is a shared native service. Only the component that starts
+// a session should consume its events (Ask AI renders two voice controls).
+let activeRecognitionId = null;
+let nextRecognitionId = 1;
+
 export default function VoiceInput({ onTranscript, mode = "quick", disabled = false }) {
   const { themeColors } = useAppTheme();
-  const [recording, setRecording] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [duration, setDuration] = useState(0);
-  const timerRef = useRef(null);
-  const recordingRef = useRef(null);
+  const [recording, setRecording] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const instanceId = useRef(null);
+  const transcriptRef = useRef("");
+  const onTranscriptRef = useRef(onTranscript);
+  const errorRef = useRef(null);
+
+  if (instanceId.current === null) instanceId.current = nextRecognitionId++;
+  onTranscriptRef.current = onTranscript;
+
+  useSpeechRecognitionEvent("result", (event) => {
+    if (activeRecognitionId !== instanceId.current) return;
+    const recognized = String(event.results?.[0]?.transcript || "").trim();
+    if (!recognized) return;
+    transcriptRef.current = recognized;
+    setTranscript(recognized);
+  });
+
+  useSpeechRecognitionEvent("start", () => {
+    if (activeRecognitionId !== instanceId.current) return;
+    setStarting(false);
+    setRecording(true);
+  });
+
+  useSpeechRecognitionEvent("error", (event) => {
+    if (activeRecognitionId !== instanceId.current) return;
+    if (event.error === "aborted") return;
+    errorRef.current = event.error || "unknown";
+    setStarting(false);
+    setRecording(false);
+  });
+
+  useSpeechRecognitionEvent("end", () => {
+    if (activeRecognitionId !== instanceId.current) return;
+    activeRecognitionId = null;
+    setStarting(false);
+    setRecording(false);
+    const finalTranscript = transcriptRef.current.trim();
+    if (finalTranscript) {
+      onTranscriptRef.current?.(finalTranscript);
+    } else if (!errorRef.current) {
+      Alert.alert("No speech detected", "Try speaking a little closer to the microphone.");
+    }
+    if (errorRef.current) {
+      const code = errorRef.current;
+      errorRef.current = null;
+      if (code !== "aborted") {
+        Alert.alert(
+          "Voice input unavailable",
+          code === "not-allowed"
+            ? "Allow microphone and speech-recognition permissions in your device settings."
+            : "Your device's speech service could not transcribe that. Please try again."
+        );
+      }
+    }
+    transcriptRef.current = "";
+    setTranscript("");
+  });
 
   useEffect(() => () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (recordingRef.current) recordingRef.current.stopAndUnloadAsync().catch(() => {});
+    if (activeRecognitionId === instanceId.current) {
+      activeRecognitionId = null;
+      try { ExpoSpeechRecognitionModule.abort(); } catch (_) {}
+    }
   }, []);
 
-  const startRecording = async () => {
+  const toggleRecognition = async () => {
+    if (recording || starting) {
+      try {
+        ExpoSpeechRecognitionModule.stop();
+      } catch (error) {
+        console.warn("Could not stop speech recognition:", error);
+      }
+      return;
+    }
+
     try {
-      const permission = await Audio.requestPermissionsAsync();
+      const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert("Microphone permission", "Allow microphone access to use voice input.");
+        Alert.alert("Microphone permission", "Allow microphone and speech-recognition access to use voice input.");
         return;
       }
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const created = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      recordingRef.current = created.recording;
-      setRecording(created.recording);
-      setDuration(0);
-      timerRef.current = setInterval(() => setDuration((value) => value + 1), 1000);
-    } catch (error) {
-      console.error("Could not start voice recording:", error);
-      Alert.alert("Recording unavailable", "Orio could not start recording. Please try again.");
-    }
-  };
-
-  const stopAndTranscribe = async () => {
-    if (!recording || busy) return;
-    setBusy(true);
-    if (timerRef.current) clearInterval(timerRef.current);
-    try {
-      await recording.stopAndUnloadAsync();
-      const uri = recording.getURI();
-      setRecording(null);
-      recordingRef.current = null;
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
-      if (!uri) throw new Error("Recording file was not created.");
-      const form = new FormData();
-      form.append("file", { uri, name: "orio-voice.m4a", type: "audio/m4a" });
-      const response = await api.post("/voice/transcribe", form, {
-        headers: { "Content-Type": "multipart/form-data" },
-        timeout: 120000,
+      transcriptRef.current = "";
+      errorRef.current = null;
+      setTranscript("");
+      setStarting(true);
+      activeRecognitionId = instanceId.current;
+      ExpoSpeechRecognitionModule.start({
+        lang: "en-IN",
+        interimResults: true,
+        continuous: false,
+        addsPunctuation: true,
+        requiresOnDeviceRecognition: false,
       });
-      const transcript = String(response.data?.text || "").trim();
-      if (!transcript) {
-        Alert.alert("No speech detected", "Try speaking a little closer to the microphone.");
-        return;
-      }
-      onTranscript?.(transcript);
     } catch (error) {
-      console.error("Voice transcription failed:", error);
-      const detail = error?.response?.data?.detail;
-      Alert.alert("Voice input failed", typeof detail === "string" ? detail : "Check your connection and try again.");
-    } finally {
-      setRecording(null);
-      recordingRef.current = null;
-      setBusy(false);
-      if (timerRef.current) clearInterval(timerRef.current);
-      timerRef.current = null;
+      activeRecognitionId = null;
+      setStarting(false);
+      setRecording(false);
+      console.error("Could not start speech recognition:", error);
+      Alert.alert("Voice input unavailable", "Check that a speech-recognition service is enabled on your device.");
     }
   };
 
-  const isRecording = Boolean(recording);
+  const isActive = recording || starting;
   return (
     <TouchableOpacity
       accessibilityRole="button"
-      accessibilityLabel={isRecording ? "Stop recording and transcribe" : mode === "conversation" ? "Record a voice conversation turn" : "Dictate text"}
-      disabled={disabled || busy}
-      onPress={isRecording ? stopAndTranscribe : startRecording}
+      accessibilityLabel={isActive ? "Stop voice input" : mode === "conversation" ? "Ask AI using voice" : "Dictate text"}
+      accessibilityState={{ busy: starting }}
+      disabled={disabled}
+      onPress={toggleRecognition}
       style={{
-        minWidth: 40, height: 40, paddingHorizontal: mode === "conversation" ? 12 : 0,
-        borderRadius: 22, alignItems: "center", justifyContent: "center",
-        flexDirection: "row", backgroundColor: isRecording ? "#DC2626" : themeColors.surfaceHover,
-        borderWidth: 1, borderColor: isRecording ? "#DC2626" : themeColors.border,
-        opacity: disabled || busy ? 0.55 : 1,
+        minWidth: 40,
+        height: 40,
+        paddingHorizontal: mode === "conversation" ? 12 : 0,
+        borderRadius: 22,
+        alignItems: "center",
+        justifyContent: "center",
+        flexDirection: "row",
+        backgroundColor: isActive ? "#DC2626" : themeColors.surfaceHover,
+        borderWidth: 1,
+        borderColor: isActive ? "#DC2626" : themeColors.border,
+        opacity: disabled ? 0.55 : 1,
       }}
     >
-      {busy ? <ActivityIndicator size="small" color={themeColors.primary} /> : <Ionicons name={isRecording ? "stop" : "mic-outline"} size={19} color={isRecording ? "#FFFFFF" : themeColors.primary} />}
-      {mode === "conversation" && <Text style={{ color: isRecording ? "#FFFFFF" : themeColors.text.primary, fontSize: 11, fontWeight: "700", marginLeft: 6 }}>{busy ? "Transcribing" : isRecording ? `Stop ${duration}s` : "Voice turn"}</Text>}
+      <Ionicons name={isActive ? "stop" : "mic-outline"} size={19} color={isActive ? "#FFFFFF" : themeColors.primary} />
+      {mode === "conversation" && (
+        <Text style={{ color: isActive ? "#FFFFFF" : themeColors.text.primary, fontSize: 11, fontWeight: "700", marginLeft: 6 }}>
+          {starting ? "Starting…" : recording ? "Stop voice" : "Voice turn"}
+        </Text>
+      )}
     </TouchableOpacity>
   );
 }
