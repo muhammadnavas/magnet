@@ -9,6 +9,7 @@ import ProcessingIndicator from "../../components/knowledge/ProcessingIndicator"
 import useKnowledgeStore from "../../store/knowledgeStore";
 import Card from "../../components/ui/Card";
 import Logo from "../../components/ui/Logo";
+import VoiceInput from "../../components/voice/VoiceInput";
 import { useAppTheme } from "../../store/themeStore";
 
 export default function CaptureScreen() {
@@ -179,6 +180,8 @@ export default function CaptureScreen() {
           <View style={{ backgroundColor: themeColors.card, borderColor: themeColors.border, width: "100%", maxWidth: 760, alignSelf: "center" }} className="flex-row items-center border rounded-3xl p-2.5 px-3">
             <TouchableOpacity onPress={() => setShowUploadSheet(true)} style={{ backgroundColor: themeColors.surfaceHover, borderColor: themeColors.border }} className="w-9 h-9 rounded-full items-center justify-center mr-2 border"><Ionicons name="add" size={22} color={themeColors.primary} /></TouchableOpacity>
             <TextInput value={inputText} onChangeText={setInputText} onSubmitEditing={handleCapture} placeholder="Capture anything... notes, URLs, code, or logs" placeholderTextColor={themeColors.text.muted} className="flex-1 text-base px-1" returnKeyType="send" blurOnSubmit style={{ color: themeColors.text.primary, paddingTop: Platform.OS === "ios" ? 8 : 4, paddingBottom: Platform.OS === "ios" ? 8 : 4 }} />
+            <VoiceInput onTranscript={(transcript) => setInputText((current) => current ? `${current} ${transcript}` : transcript)} disabled={Boolean(processingState)} />
+            <View style={{ width: 6 }} />
             <TouchableOpacity onPress={handleCapture} disabled={!inputText.trim()} style={{ backgroundColor: inputText.trim() ? themeColors.primary : themeColors.border }} className="w-9 h-9 rounded-full items-center justify-center ml-2"><Ionicons name="arrow-up" size={20} color="#FFFFFF" /></TouchableOpacity>
           </View>
         </View>
