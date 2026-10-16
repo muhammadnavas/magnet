@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     MONGODB_URL: str = "mongodb+srv://navasns0409:rx4Fvt8un1dCovaz@cluster0.lz452k4.mongodb.net/"
     REDIS_URL: str = "redis://redis:6379/0"
     
-    OPENAI_API_KEY: str = ""  # server-side speech transcription; never expose to mobile clients\n    GEMINI_API_KEY: str = ""
+    GEMINI_API_KEY: str = ""
     GEMINI_EMBEDDING_MODEL: str = "gemini-embedding-001"  # default; overridden by ai.py fallback chain
     GEMINI_LLM_MODEL: str = "gemini-3.8-flash"            # current stable default; ai.py provides fallbacks
 
