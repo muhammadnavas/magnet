@@ -7,6 +7,7 @@ import TypingIndicator from "../../components/chat/TypingIndicator";
 import Card from "../../components/ui/Card";
 import useChat from "../../hooks/useChat";
 import Logo from "../../components/ui/Logo";
+import VoiceInput from "../../components/voice/VoiceInput";
 import { useAppTheme } from "../../store/themeStore";
 
 const SUGGESTED_QUESTIONS = [
@@ -109,6 +110,10 @@ export default function AskScreen() {
               style={{ color: themeColors.text.primary, paddingTop: Platform.OS === "ios" ? 8 : 4, paddingBottom: Platform.OS === "ios" ? 8 : 4 }}
               editable={!isSending}
             />
+
+            <VoiceInput onTranscript={setInputText} disabled={isSending} />
+            <View style={{ width: 6 }} />
+            <VoiceInput mode="conversation" onTranscript={(transcript) => handleSend(transcript)} disabled={isSending} />
 
             <TouchableOpacity
               onPress={() => handleSend()}
