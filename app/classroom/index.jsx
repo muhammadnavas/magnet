@@ -420,6 +420,10 @@ export default function ClassroomScreen() {
 
   useFocusEffect(useCallback(() => {
     loadData();
+    // Refresh the feed while this screen remains open, so newly posted work
+    // appears without requiring a manual pull-to-refresh.
+    const refreshInterval = setInterval(() => loadData(), 5 * 60 * 1000);
+    return () => clearInterval(refreshInterval);
   }, [loadData]));
 
   // ── Deep-link listener ────────────────────────────────────────────────
