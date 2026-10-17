@@ -160,7 +160,7 @@ export default function VoiceInput({ onTranscript, mode = "quick", disabled = fa
         opacity: disabled ? 0.55 : 1,
       }}
     >
-      <Ionicons name={isActive ? "stop" : "mic-outline"} size={19} color={isActive ? "#FFFFFF" : themeColors.primary} />
+      <Ionicons name={isActive ? "stop" : mode === "conversation" ? "chatbubble-ellipses-outline" : "mic-outline"} size={19} color={isActive ? "#FFFFFF" : themeColors.primary} />
       {mode === "conversation" && (
         <Text style={{ color: isActive ? "#FFFFFF" : themeColors.text.primary, fontSize: 11, fontWeight: "700", marginLeft: 6 }}>
           {starting ? "Starting…" : recording ? "Stop voice" : "Voice turn"}
