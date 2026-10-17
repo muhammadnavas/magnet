@@ -48,7 +48,7 @@ export default function RootLayout() {
     registerClassroomBackgroundSync();
     const notificationSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data || {};
-      if (typeof data.url === "string" && /^https?:\\/\\//i.test(data.url)) {
+      if (typeof data.url === "string" && /^https?:\/\//i.test(data.url)) {
         Linking.openURL(data.url).catch((error) => console.warn("Could not open Classroom assignment:", error));
       } else if (data.type === "new_assignment" || data.type === "classroom_deadline") {
         router.push("/classroom");
