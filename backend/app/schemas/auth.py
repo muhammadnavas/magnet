@@ -15,6 +15,11 @@ class UserLogin(BaseModel):
     password: str
 
 class UserOut(UserBase):
+    # The single-user personal mode uses an internal placeholder email
+    # (personal@magnet.local), which is intentionally not a deliverable email
+    # address. Keep EmailStr validation for registration/login inputs, but
+    # serialize the internal profile's email as a plain string.
+    email: str
     id: uuid.UUID
     avatar_url: Optional[str] = None
     is_active: bool
