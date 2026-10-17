@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, TouchableOpacity, Text, Linking, Platform } from "react-native";
+import { Alert, TouchableOpacity, Text, Linking } from "react-native";
 import { Audio } from "expo-av";
 import { Ionicons } from "@expo/vector-icons";
 import {
