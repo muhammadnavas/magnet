@@ -12,7 +12,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.muhammadnavas.orio",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Orio uses the microphone when you choose voice input for notes, AI questions, and tasks."
+        "NSMicrophoneUsageDescription": "Orio uses the microphone when you choose voice input for notes, AI questions, and tasks.",
+        "UIBackgroundModes": ["fetch"]
       }
     },
     "android": {
