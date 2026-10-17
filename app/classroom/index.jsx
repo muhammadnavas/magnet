@@ -193,7 +193,7 @@ function AssignmentCard({ a, tc, localDone, onToggleDone }) {
             )}
             {a.max_points != null && (
               <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
-                <Ionicons name="star-outline" size={11} color={tc.text.muted} />
+                <Ionicons name="ribbon-outline" size={11} color={tc.text.muted} />
                 <Text style={{ color: tc.text.muted, fontSize: 11 }}>{a.max_points}pt</Text>
               </View>
             )}
