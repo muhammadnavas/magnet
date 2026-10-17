@@ -1,12 +1,13 @@
 import React from "react";
 import * as Speech from "expo-speech";
+import * as Clipboard from "expo-clipboard";
 import { View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Markdown from "react-native-markdown-display";
 import SourceCitation from "./SourceCitation";
 import { useAppTheme } from "../../store/themeStore";
 
-export const ChatMessage = ({ message }) => {
+export const ChatMessage = ({ message, onEdit }) => {
   const { role, content, sources } = message;
   const isUser = role === "user";
   const { themeColors } = useAppTheme();
@@ -47,7 +48,39 @@ export const ChatMessage = ({ message }) => {
         className={`max-w-[80%] rounded-2xl px-4 py-3 ${isUser ? "rounded-tr-none" : "rounded-tl-none"}`}
       >
         <Markdown style={markdownStyles}>{content}</Markdown>
-        {!isUser && Boolean(content) && <TouchableOpacity accessibilityRole="button" accessibilityLabel="Read answer aloud" onPress={() => Speech.speak(String(content).replace(/[`*_#>]/g, ""), { rate: 0.95 })} style={{ alignSelf: "flex-end", marginTop: 6, padding: 4 }}><Ionicons name="volume-medium-outline" size={18} color={themeColors.text.secondary} /></TouchableOpacity>}
+        {!isUser && Boolean(content) && (
+          <View className="flex-row items-center justify-end mt-2" style={{ gap: 14 }}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Copy AI response"
+              onPress={async () => {
+                try {
+                  await Clipboard.setStringAsync(String(content));
+                } catch (error) {
+                  console.warn("Could not copy AI response:", error);
+                }
+              }}
+              hitSlop={8}
+              style={{ padding: 4 }}
+            >
+              <Ionicons name="copy-outline" size={17} color={themeColors.text.secondary} />
+            </TouchableOpacity>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Read answer aloud" onPress={() => Speech.speak(String(content).replace(/[`*_#>]/g, ""), { rate: 0.95 })} hitSlop={8} style={{ padding: 4 }}>
+              <Ionicons name="volume-medium-outline" size={18} color={themeColors.text.secondary} />
+            </TouchableOpacity>
+          </View>
+        )}
+        {isUser && Boolean(content) && (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Edit your message"
+            onPress={() => onEdit?.(String(content))}
+            hitSlop={8}
+            style={{ alignSelf: "flex-end", marginTop: 6, padding: 4 }}
+          >
+            <Ionicons name="create-outline" size={17} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
 
         {!isUser && sources?.length > 0 && (
           <View style={{ borderTopColor: themeColors.border }} className="border-t mt-3 pt-2">
