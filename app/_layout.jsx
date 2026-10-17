@@ -8,6 +8,7 @@ import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import useAuthStore from "../store/authStore";
 import useThemeStore from "../store/themeStore";
 import "../global.css";
+import { registerClassroomBackgroundSync } from "../lib/classroomBackgroundSync";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -39,6 +40,9 @@ export default function RootLayout() {
   useEffect(() => {
     initializeAuth();
     initTheme(); // Restore saved theme from AsyncStorage (mobile) or localStorage (web)
+    // Importing the module defines the task at startup; registration lets the OS
+    // poll for new Classroom assignments when the app is backgrounded or closed.
+    registerClassroomBackgroundSync();
   }, []);
 
   return (
