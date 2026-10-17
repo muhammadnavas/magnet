@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import * as Speech from "expo-speech";
 import * as Clipboard from "expo-clipboard";
 import { View, Text, TouchableOpacity } from "react-native";
@@ -11,6 +11,9 @@ export const ChatMessage = ({ message, onEdit }) => {
   const { role, content, sources } = message;
   const isUser = role === "user";
   const { themeColors } = useAppTheme();
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  useEffect(() => () => { Speech.stop(); }, []);
 
   const markdownStyles = {
     body: { color: isUser ? "#FFFFFF" : themeColors.text.primary, fontSize: 14, lineHeight: 20 },
@@ -65,8 +68,30 @@ export const ChatMessage = ({ message, onEdit }) => {
             >
               <Ionicons name="copy-outline" size={17} color={themeColors.text.secondary} />
             </TouchableOpacity>
-            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Read answer aloud" onPress={() => Speech.speak(String(content).replace(/[`*_#>]/g, ""), { rate: 0.95 })} hitSlop={8} style={{ padding: 4 }}>
-              <Ionicons name="volume-medium-outline" size={18} color={themeColors.text.secondary} />
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={isSpeaking ? "Stop reading answer" : "Read answer aloud"}
+              onPress={async () => {
+                if (isSpeaking) {
+                  await Speech.stop();
+                  setIsSpeaking(false);
+                  return;
+                }
+                // Clear any queued utterance first so repeated taps never
+                // append the same response to the speech queue.
+                await Speech.stop();
+                setIsSpeaking(true);
+                Speech.speak(String(content).replace(/[`*_#>]/g, ""), {
+                  rate: 0.95,
+                  onDone: () => setIsSpeaking(false),
+                  onStopped: () => setIsSpeaking(false),
+                  onError: () => setIsSpeaking(false),
+                });
+              }}
+              hitSlop={8}
+              style={{ padding: 4 }}
+            >
+              <Ionicons name={isSpeaking ? "stop-circle-outline" : "volume-medium-outline"} size={18} color={isSpeaking ? themeColors.primary : themeColors.text.secondary} />
             </TouchableOpacity>
           </View>
         )}
