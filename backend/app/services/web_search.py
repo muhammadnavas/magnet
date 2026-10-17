@@ -18,12 +18,12 @@ SEARCH_TIMEOUT_SECONDS = 8
 # Search only when the user explicitly asks for the web or asks about information
 # that is likely to change. Avoid sending every ordinary chat message to search.
 _WEB_INTENT = re.compile(
-    r"\\b("
+    r"\b("
     r"search (?:the )?web|web search|look up|google it|find online|search online|"
     r"latest|current|currently|today|tonight|this week|this month|recent|"
-    r"news|weather|price|pricing|release date|new version|updated in \\d{4}|"
+    r"news|weather|price|pricing|release date|new version|updated in \d{4}|"
     r"who is the (?:current|latest)|what happened"
-    r")\\b",
+    r")\b",
     re.IGNORECASE,
 )
 
