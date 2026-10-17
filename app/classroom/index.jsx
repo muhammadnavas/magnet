@@ -407,7 +407,7 @@ export default function ClassroomScreen() {
           // Only notify if we had previous data (not first load)
           if (seenIds.size > 0 && newOnes.length > 0) {
             for (const a of newOnes) {
-              await notifyNewAssignment(a.title, a.course_name);
+              await notifyNewAssignment(a.title, a.course_name, a.alternate_link);
             }
           }
           // Save current IDs as seen
