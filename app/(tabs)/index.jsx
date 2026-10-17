@@ -79,7 +79,7 @@ export default function HomeScreen() {
       }
 
       const assignmentsRes = await api.get("/classroom/assignments");
-      const all = Array.isArray(assignmentsRes.data) ? assignmentsRes.data : [];
+      const all = deduplicateClassroomAssignments(assignmentsRes.data);
 
       const doneRaw = await AsyncStorage.getItem("orio_classroom_done_ids");
       const doneIds = new Set(doneRaw ? JSON.parse(doneRaw).map(String) : []);
@@ -89,17 +89,7 @@ export default function HomeScreen() {
       setClassroomOverdue(all.filter((a) => a.due_status === "overdue" && !isDone(a)).length);
       setClassroomDueSoon(all.filter((a) => a.due_status === "due_soon" && !isDone(a)).length);
 
-      // Notify about new assignments
-      const raw     = await AsyncStorage.getItem(SEEN_KEY);
-      const seenIds = new Set(raw ? JSON.parse(raw) : []);
-      const assignmentKey = (a) => String(a.course_id || "") + ":" + String(a.id);
-      const newOnes = all.filter((a) => !seenIds.has(assignmentKey(a)) && !seenIds.has(a.id));
-      if (seenIds.size > 0 && newOnes.length > 0) {
-        for (const a of newOnes) {
-          await notifyNewAssignment(a.title, a.course_name, a.alternate_link);
-        }
-      }
-      await AsyncStorage.setItem(SEEN_KEY, JSON.stringify(all.map(assignmentKey)));
+      await syncClassroomAssignmentNotifications(all);
     } catch (_) {}
   };
 
