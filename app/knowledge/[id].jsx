@@ -188,8 +188,30 @@ export default function KnowledgeDetailScreen() {
     }
 
     if (isPdf) {
-      if (sourceLoading || !sourceToken || !pdfBase64) {
+      if (sourceLoading) {
         return <View className="flex-1 items-center justify-center"><ActivityIndicator color={themeColors.primary} /><Text style={{ color: themeColors.text.muted }} className="text-xs mt-3">Loading PDF…</Text></View>;
+      }
+      if (sourceError || !sourceToken || !pdfBase64) {
+        return (
+          <View className="flex-1 items-center justify-center px-8">
+            <Ionicons name="document-text-outline" size={42} color={themeColors.text.muted} />
+            <Text style={{ color: themeColors.text.primary }} className="text-base font-bold text-center mt-4">PDF unavailable</Text>
+            <Text style={{ color: themeColors.text.secondary }} className="text-sm text-center mt-2">{sourceError || "The PDF could not be loaded."}</Text>
+            <Pressable
+              onPress={() => {
+                setSourceError("");
+                setPdfBase64("");
+                setSourceToken(null);
+                setShowSourceViewer(false);
+                setTimeout(() => setShowSourceViewer(true), 150);
+              }}
+              style={{ backgroundColor: themeColors.primary }}
+              className="mt-5 px-5 py-3 rounded-xl"
+            >
+              <Text className="text-white font-bold text-sm">Try again</Text>
+            </Pressable>
+          </View>
+        );
       }
       const viewerHtml = `<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=3"><style>
         *{box-sizing:border-box}body{margin:0;padding:12px;background:${themeColors.background};color:${themeColors.text.primary};font-family:Arial,sans-serif}
