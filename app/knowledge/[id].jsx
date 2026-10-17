@@ -17,7 +17,7 @@ import * as FileSystem from "expo-file-system/legacy";
 
 export default function KnowledgeDetailScreen() {
   const { id } = useLocalSearchParams();
-  const { useGetItemDetail, toggleFavorite, deleteItem } = useKnowledge();
+  const { useGetItemDetail, deleteItem } = useKnowledge();
   const { data: item, isLoading, error } = useGetItemDetail(id);
   const { themeColors } = useAppTheme();
 
@@ -105,9 +105,8 @@ export default function KnowledgeDetailScreen() {
     );
   }
 
-  const { title, summary, project, createdAt, rawContent, keyPoints = [], relatedItems = [], isFavorite } = item;
+  const { title, summary, project, createdAt, rawContent, keyPoints = [], relatedItems = [] } = item;
 
-  const handleFavoriteToggle = () => toggleFavorite(id);
 
   const handleDelete = () => {
     setShowDeleteConfirm(false);
@@ -272,9 +271,7 @@ export default function KnowledgeDetailScreen() {
           <Pressable onPress={() => setShowDeleteConfirm(true)} hitSlop={10} style={{ backgroundColor: `${themeColors.error || '#EF4444'}18` }} className="w-9 h-9 rounded-full items-center justify-center">
             <Ionicons name="trash-outline" size={18} color={themeColors.error || "#EF4444"} />
           </Pressable>
-          <Pressable onPress={handleFavoriteToggle} hitSlop={10} style={{ backgroundColor: isFavorite ? `${themeColors.warning}18` : themeColors.surfaceHover }} className="w-9 h-9 rounded-full items-center justify-center">
-            <Ionicons name={isFavorite ? "star" : "star-outline"} size={18} color={isFavorite ? themeColors.warning : themeColors.text.primary} />
-          </Pressable>
+
         </View>
       </View>
 
