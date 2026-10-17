@@ -58,7 +58,7 @@ export default function AskScreen() {
         {/* Messages */}
         <ScrollView
           ref={scrollViewRef}
-          contentContainerStyle={{ flexGrow: 1, padding: 20 }}
+          contentContainerStyle={{ flexGrow: 1, padding: 16 }}
           onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
           showsVerticalScrollIndicator={false}
           className="flex-1"
@@ -93,7 +93,7 @@ export default function AskScreen() {
         </ScrollView>
 
         {/* Bottom Input Bar */}
-        <View style={{ backgroundColor: themeColors.background, borderTopColor: themeColors.border }} className="p-4 border-t">
+        <View style={{ backgroundColor: themeColors.background, borderTopColor: themeColors.border }} className="p-3 border-t">
           <View style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }} className="flex-row items-center border rounded-3xl p-2.5 px-3">
             <TouchableOpacity
               accessibilityRole="button"
