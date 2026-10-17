@@ -177,8 +177,8 @@ export default function HomeScreen() {
           <Card className="p-4">
             <View className="flex-row items-center">
               <View style={{ backgroundColor: themeColors.surfaceHover, borderColor: themeColors.border }} className="w-11 h-11 rounded-2xl border items-center justify-center mr-3"><Ionicons name="logo-github" size={22} color={themeColors.text.primary} /></View>
-              <View className="flex-1"><Text style={{ color: themeColors.text.primary }} className="text-sm font-extrabold">GitHub Projects</Text><Text style={{ color: themeColors.text.muted }} className="text-[11px] mt-1" numberOfLines={1}>{githubConnected ? `${githubRepoCount == null ? "Repositories connected" : `${githubRepoCount} repositories`}${githubUsername ? ` · @${githubUsername}` : ""}` : "Not connected · Link GitHub in Settings"}</Text></View>
-              <View className="items-end"><View className="flex-row items-center mb-1"><View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: githubConnected ? "#10B981" : themeColors.text.muted, marginRight: 5 }} /><Text style={{ color: githubConnected ? "#10B981" : themeColors.text.muted }} className="text-[10px] font-bold">{githubConnected ? "CONNECTED" : "NOT CONNECTED"}</Text></View><Ionicons name="chevron-forward" size={16} color={themeColors.primary} /></View>
+              <View className="flex-1"><Text style={{ color: themeColors.text.primary }} className="text-sm font-extrabold">GitHub Projects</Text>{githubConnected && <Text style={{ color: themeColors.text.muted }} className="text-[11px] mt-1" numberOfLines={1}>{`${githubRepoCount == null ? "Repositories connected" : `${githubRepoCount} repositories`}${githubUsername ? ` · @${githubUsername}` : ""}`}</Text>}</View>
+              <View className="items-end"><Ionicons name="chevron-forward" size={16} color={themeColors.primary} /></View>
             </View>
           </Card>
         </Pressable>
