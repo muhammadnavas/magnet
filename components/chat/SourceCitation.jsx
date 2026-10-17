@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, Text } from "react-native";
+import { Pressable, Text, Linking } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAppTheme } from "../../store/themeStore";
@@ -9,6 +9,10 @@ export const SourceCitation = ({ source }) => {
   const { themeColors } = useAppTheme();
 
   const handlePress = () => {
+    if (type === "web" && source.url) {
+      Linking.openURL(source.url).catch((error) => console.warn("Could not open web source:", error));
+      return;
+    }
     if (id) {
       router.push(`/knowledge/${id}`);
     }
@@ -21,7 +25,8 @@ export const SourceCitation = ({ source }) => {
       case "code":
         return "code-working-outline";
       case "url":
-        return "link-outline";
+      case "web":
+        return "globe-outline";
       case "error":
         return "bug-outline";
       case "note":
