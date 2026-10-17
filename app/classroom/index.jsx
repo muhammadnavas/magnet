@@ -417,6 +417,7 @@ export default function ClassroomScreen() {
           );
         } catch (_) {}
       } else {
+        await syncClassroomDeadlineNotifications([], []);
         setCourses([]);
         setAssignments([]);
       }
