@@ -101,8 +101,7 @@ export default function GitHubScreen() {
                       <Text style={{ color: themeColors.text.muted }} className="text-[11px] mt-1" numberOfLines={2}>{repo.description || "No description"}</Text>
                       <View className="flex-row items-center mt-2">
                         {repo.language ? <Text style={{ color: themeColors.text.secondary }} className="text-[10px] font-semibold mr-3">{repo.language}</Text> : null}
-                        <Ionicons name="star-outline" size={12} color={themeColors.text.muted} />
-                        <Text style={{ color: themeColors.text.muted }} className="text-[10px] ml-1">{repo.stargazers_count || 0}</Text>
+                        <Text style={{ color: themeColors.text.muted }} className="text-[10px]">{repo.stargazers_count || 0} stars</Text>
                       </View>
                     </View>
                     <Ionicons name="chevron-forward" size={18} color={themeColors.text.muted} />
