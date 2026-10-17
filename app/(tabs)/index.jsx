@@ -13,7 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import api from "../../lib/api";
 import Logo from "../../components/ui/Logo";
 import { useAppTheme } from "../../store/themeStore";
-import { notifyNewAssignment } from "../../lib/notifications";
+import { notifyNewAssignment, syncClassroomDeadlineNotifications } from "../../lib/notifications";
 
 const SEEN_KEY = "orio_classroom_seen_ids";
 
@@ -81,7 +81,8 @@ export default function HomeScreen() {
       const all = Array.isArray(assignmentsRes.data) ? assignmentsRes.data : [];
 
       const doneRaw = await AsyncStorage.getItem("orio_classroom_done_ids");
-      const doneIds = new Set(doneRaw ? JSON.parse(doneRaw) : []);
+      const doneIds = new Set(doneRaw ? JSON.parse(doneRaw).map(String) : []);
+      await syncClassroomDeadlineNotifications(all, [...doneIds]);
       const isDone = (a) => doneIds.has(String(a.course_id || "") + ":" + String(a.id))
         || doneIds.has(a.id) || ["TURNED_IN", "RETURNED"].includes(a.submission_state);
       setClassroomOverdue(all.filter((a) => a.due_status === "overdue" && !isDone(a)).length);
@@ -90,13 +91,14 @@ export default function HomeScreen() {
       // Notify about new assignments
       const raw     = await AsyncStorage.getItem(SEEN_KEY);
       const seenIds = new Set(raw ? JSON.parse(raw) : []);
-      const newOnes = all.filter((a) => !seenIds.has(a.id));
+      const assignmentKey = (a) => String(a.course_id || "") + ":" + String(a.id);
+      const newOnes = all.filter((a) => !seenIds.has(assignmentKey(a)) && !seenIds.has(a.id));
       if (seenIds.size > 0 && newOnes.length > 0) {
         for (const a of newOnes) {
           await notifyNewAssignment(a.title, a.course_name);
         }
       }
-      await AsyncStorage.setItem(SEEN_KEY, JSON.stringify(all.map((a) => a.id)));
+      await AsyncStorage.setItem(SEEN_KEY, JSON.stringify(all.map(assignmentKey)));
     } catch (_) {}
   };
 
