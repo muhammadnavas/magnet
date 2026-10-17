@@ -23,6 +23,7 @@ export default function AskScreen() {
   const { theme, themeColors } = useAppTheme();
   const { messages, sendMessage, isSending, isTyping, clearChat } = useChat();
   const scrollViewRef = useRef(null);
+  const inputRef = useRef(null);
 
   const handleSend = (textToSend) => {
     const text = textToSend || inputText;
@@ -85,7 +86,7 @@ export default function AskScreen() {
               ))}
             </View>
           ) : (
-            messages.map((msg) => <ChatMessage key={msg.id} message={msg} />)
+            messages.map((msg) => <ChatMessage key={msg.id} message={msg} onEdit={(text) => { setInputText(text); inputRef.current?.focus(); }} />)
           )}
 
           {isTyping && <TypingIndicator />}
@@ -105,6 +106,7 @@ export default function AskScreen() {
             </TouchableOpacity>
 
             <TextInput
+              ref={inputRef}
               value={inputText}
               onChangeText={setInputText}
               placeholder="Message Magnet..."
