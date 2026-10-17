@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import ChatMessage from "../../components/chat/ChatMessage";
 import TypingIndicator from "../../components/chat/TypingIndicator";
@@ -94,6 +95,9 @@ export default function AskScreen() {
         <View style={{ backgroundColor: themeColors.background, borderTopColor: themeColors.border }} className="p-4 border-t">
           <View style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }} className="flex-row items-center border rounded-3xl p-2.5 px-3">
             <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Capture new content"
+              onPress={() => router.push("/(tabs)/capture")}
               style={{ backgroundColor: themeColors.surfaceHover, borderColor: themeColors.border }}
               className="w-9 h-9 rounded-full items-center justify-center mr-2 border"
             >
