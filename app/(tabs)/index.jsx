@@ -95,7 +95,7 @@ export default function HomeScreen() {
       const newOnes = all.filter((a) => !seenIds.has(assignmentKey(a)) && !seenIds.has(a.id));
       if (seenIds.size > 0 && newOnes.length > 0) {
         for (const a of newOnes) {
-          await notifyNewAssignment(a.title, a.course_name);
+          await notifyNewAssignment(a.title, a.course_name, a.alternate_link);
         }
       }
       await AsyncStorage.setItem(SEEN_KEY, JSON.stringify(all.map(assignmentKey)));
