@@ -6,6 +6,7 @@ from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from app.database import get_db
 from app.routers.auth import get_current_user
@@ -105,8 +106,14 @@ async def ask_chat(payload: MessageCreate, current_user: User = Depends(get_curr
         logger.warning(f"Failed to fetch conversation history: {e}")
         history = []
 
+    # Supply a real server-side clock so the model can answer date/time
+    # questions instead of claiming it has no access to the current time.
+    now_local = datetime.now(ZoneInfo("Asia/Kolkata"))
+    current_datetime = now_local.strftime("%A, %d %B %Y, %I:%M:%S %p %Z")
+
     system_prompt = (
-        "You are Magnet, a fast, concise AI companion and developer co-pilot.\n\n"
+        "You are Magnet, a fast, concise AI companion and developer co-pilot.\n"
+        f"Current date and time: {current_datetime}. Use this as the current time reference for date/time questions. Do not claim you lack access to the current date or time.\n\n"
         "RESPONSE RULES:\n"
         "- Be concise and direct unless the user asks for detail.\n"
         "- Never invent personal facts.\n"
