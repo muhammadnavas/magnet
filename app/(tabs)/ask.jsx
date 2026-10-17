@@ -115,9 +115,11 @@ export default function AskScreen() {
               editable={!isSending}
             />
 
-            <VoiceInput onTranscript={setInputText} disabled={isSending} />
-            <View style={{ width: 6 }} />
-            <VoiceInput mode="conversation" onTranscript={(transcript) => handleSend(transcript)} disabled={isSending} />
+            <VoiceInput
+              mode="conversation"
+              onTranscript={(transcript) => handleSend(transcript)}
+              disabled={isSending}
+            />
 
             <TouchableOpacity
               onPress={() => handleSend()}
