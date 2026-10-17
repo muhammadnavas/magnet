@@ -48,7 +48,7 @@ export const ChatMessage = ({ message, onEdit }) => {
           ? { backgroundColor: themeColors.primary }
           : { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1 }
         }
-        className={`max-w-[84%] rounded-2xl px-3.5 py-2.5 ${isUser ? "rounded-tr-none" : "rounded-tl-none"}`}
+        className={`max-w-[84%] rounded-2xl px-3 py-2 ${isUser ? "rounded-tr-none" : "rounded-tl-none"}`}
       >
         <Markdown style={markdownStyles}>{content}</Markdown>
         {!isUser && Boolean(content) && (
