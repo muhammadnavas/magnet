@@ -41,14 +41,21 @@ export default function KnowledgeDetailScreen() {
     setSourceLoading(true);
     setSourceError("");
     tokenStorage.getToken("accessToken").then((token) => {
-      if (mounted) {
-        setSourceToken(token);
+      if (!mounted) return;
+      if (!token) {
+        setSourceToken(null);
         setSourceLoading(false);
+        setSourceError("Your session has expired. Close this viewer, sign in again, and reopen the PDF.");
+        return;
       }
-    }).catch(() => {
+      setSourceToken(token);
+      setSourceLoading(false);
+    }).catch((error) => {
+      console.error("Could not retrieve access token for source viewer:", error);
       if (mounted) {
+        setSourceToken(null);
         setSourceLoading(false);
-        setSourceError("Could not authenticate the document viewer.");
+        setSourceError("Could not authenticate the document viewer. Please sign in again.");
       }
     });
     return () => { mounted = false; };
@@ -65,9 +72,15 @@ export default function KnowledgeDetailScreen() {
       setPdfBase64("");
       let localUri;
       try {
-        const result = await FileSystem.downloadAsync(sourceUrl, `${FileSystem.cacheDirectory}orio-source-${id}.pdf`, {
+        const downloadPromise = FileSystem.downloadAsync(sourceUrl, `${FileSystem.cacheDirectory}orio-source-${id}.pdf`, {
           headers: { Authorization: `Bearer ${sourceToken}` },
         });
+        // Avoid leaving the preview spinner running forever when the API or
+        // storage provider does not complete the protected file request.
+        const result = await Promise.race([
+          downloadPromise,
+          new Promise((_, reject) => setTimeout(() => reject(new Error("The PDF server took too long to respond. Check your connection and try again.")), 25000)),
+        ]);
         if (result.status < 200 || result.status >= 300) {
           throw new Error(result.status === 404
             ? "The original PDF is missing from storage. Upload the document again."
