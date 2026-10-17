@@ -111,7 +111,7 @@ async def ask_chat(payload: MessageCreate, current_user: User = Depends(get_curr
         "- Be concise and direct unless the user asks for detail.\n"
         "- Never invent personal facts.\n"
         "- Personal Context is background about the user, not evidence for factual claims.\n"
-        "- Retrieved Knowledge is evidence. Use it when relevant and cite the provided source names naturally.\n\n"
+        "- Retrieved Knowledge is evidence. Use only relevant snippets. When relying on a retrieved document, mention its exact source title in the answer. Do not list documents that were not used.\n\n"
         f"Personal Context (always available):\n{personal_context or '[Unavailable]'}\n\n"
         f"Retrieved Knowledge Context (only relevant matches):\n{context_text if context_text else '[No matching knowledge snippets found in Magnet]'}"
     )
@@ -121,6 +121,17 @@ async def ask_chat(payload: MessageCreate, current_user: User = Depends(get_curr
     except Exception as e:
         logger.error(f"Error during LLM response generation: {e}")
         ai_reply = f"Error generating response: {str(e)}"
+
+    # Only expose sources the generated answer explicitly references by title.
+    # The retrieval candidate list may contain related chunks that were not
+    # actually used in the final answer; do not show those as citations.
+    if sources and ai_reply:
+        reply_lower = ai_reply.casefold()
+        referenced_sources = [
+            source for source in sources
+            if source.get("title") and source["title"].casefold() in reply_lower
+        ]
+        sources = referenced_sources
 
     assistant_msg = Message(conversation_id=conv.id, role="assistant", content=ai_reply, sources=sources)
     db.add(assistant_msg)
