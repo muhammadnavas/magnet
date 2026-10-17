@@ -27,6 +27,7 @@ export default function KnowledgeDetailScreen() {
   const [sourceLoading, setSourceLoading] = useState(false);
   const [sourceError, setSourceError] = useState("");
   const [pdfBase64, setPdfBase64] = useState("");
+  const [imageUri, setImageUri] = useState(null);
 
   const sourceUrl = `${config.API_URL}/knowledge/${id}/source`;
   const contentType = (item?.contentType || "note").toLowerCase();
@@ -60,6 +61,45 @@ export default function KnowledgeDetailScreen() {
     });
     return () => { mounted = false; };
   }, [showSourceViewer]);
+
+  // Download protected images with the same authenticated flow used for PDFs.
+  // React Native's remote Image loader can otherwise remain blank on failed
+  // bearer-authenticated requests without surfacing the HTTP status.
+  useEffect(() => {
+    if (!showSourceViewer || !isImage || !sourceToken) return;
+    let cancelled = false;
+    const loadImage = async () => {
+      setSourceLoading(true);
+      setSourceError("");
+      setImageUri(null);
+      const extension = /\\.(png|webp|gif|jpeg|jpg)$/i.exec(title || "")?.[1] || "jpg";
+      const destination = `${FileSystem.cacheDirectory}orio-source-${id}.${extension}`;
+      try {
+        const downloadPromise = FileSystem.downloadAsync(sourceUrl, destination, {
+          headers: { Authorization: `Bearer ${sourceToken}` },
+        });
+        const result = await Promise.race([
+          downloadPromise,
+          new Promise((_, reject) => setTimeout(() => reject(new Error("The image server took too long to respond. Check your connection and try again.")), 25000)),
+        ]);
+        if (result.status < 200 || result.status >= 300) {
+          throw new Error(result.status === 404
+            ? "The original image is missing from storage. Upload it again."
+            : `The server could not load this image (HTTP ${result.status}).`);
+        }
+        const info = await FileSystem.getInfoAsync(result.uri);
+        if (!info.exists || !info.size) throw new Error("The server returned an empty image file.");
+        if (!cancelled) setImageUri(result.uri);
+      } catch (error) {
+        console.error("Image download failed:", error);
+        if (!cancelled) setSourceError(error?.message || "Could not download the original image.");
+      } finally {
+        if (!cancelled) setSourceLoading(false);
+      }
+    };
+    loadImage();
+    return () => { cancelled = true; };
+  }, [showSourceViewer, isImage, sourceToken, sourceUrl, id, title]);
 
   // Android WebView does not render PDF files natively. Download the protected
   // source with the user's bearer token and render its bytes with PDF.js.
@@ -173,15 +213,37 @@ export default function KnowledgeDetailScreen() {
     }
 
     if (isImage) {
-      if (!sourceToken) {
-        return <View className="flex-1 items-center justify-center"><ActivityIndicator color={themeColors.primary} /></View>;
+      if (sourceLoading) {
+        return <View className="flex-1 items-center justify-center"><ActivityIndicator color={themeColors.primary} /><Text style={{ color: themeColors.text.muted }} className="text-xs mt-3">Loading image…</Text></View>;
+      }
+      if (sourceError || !imageUri) {
+        return (
+          <View className="flex-1 items-center justify-center px-8">
+            <Ionicons name="image-outline" size={42} color={themeColors.text.muted} />
+            <Text style={{ color: themeColors.text.primary }} className="text-base font-bold text-center mt-4">Image unavailable</Text>
+            <Text style={{ color: themeColors.text.secondary }} className="text-sm text-center mt-2">{sourceError || "The image could not be loaded."}</Text>
+            <Pressable
+              onPress={() => {
+                setSourceError("");
+                setImageUri(null);
+                setSourceToken(null);
+                setShowSourceViewer(false);
+                setTimeout(() => setShowSourceViewer(true), 150);
+              }}
+              style={{ backgroundColor: themeColors.primary }}
+              className="mt-5 px-5 py-3 rounded-xl"
+            >
+              <Text className="text-white font-bold text-sm">Try again</Text>
+            </Pressable>
+          </View>
+        );
       }
       return (
         <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }} maximumZoomScale={4} minimumZoomScale={1} showsVerticalScrollIndicator={false}>
           <Image
-            source={{ uri: sourceUrl, headers: { Authorization: `Bearer ${sourceToken}` } }}
+            source={{ uri: imageUri }}
             style={{ width: "100%", height: 520, resizeMode: "contain", backgroundColor: themeColors.surfaceHover, borderRadius: 16 }}
-            onError={() => setSourceError("The original image could not be loaded.")}
+            onError={() => setSourceError("The downloaded image could not be displayed.")}
           />
         </ScrollView>
       );
