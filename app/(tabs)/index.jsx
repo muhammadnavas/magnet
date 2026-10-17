@@ -13,9 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import api from "../../lib/api";
 import Logo from "../../components/ui/Logo";
 import { useAppTheme } from "../../store/themeStore";
-import { notifyNewAssignment, syncClassroomDeadlineNotifications } from "../../lib/notifications";
-
-const SEEN_KEY = "orio_classroom_seen_ids";
+import { syncClassroomDeadlineNotifications } from "../../lib/notifications";
 
 
 const QUICK_ACTIONS = [
