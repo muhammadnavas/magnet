@@ -744,7 +744,7 @@ export default function ClassroomScreen() {
                       key={a.id}
                       a={a}
                       tc={tc}
-                      localDone={localDoneIds.has(a.id)}
+                      localDone={isLocallyDone(a)}
                       onToggleDone={toggleDone}
                     />
                   ))
