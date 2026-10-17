@@ -38,7 +38,7 @@ export const ChatMessage = ({ message, onEdit }) => {
   return (
     <View className={`flex-row mb-4 w-full ${isUser ? "justify-end" : "justify-start"}`}>
       {!isUser && (
-        <View style={{ backgroundColor: `${themeColors.primary}20`, borderColor: `${themeColors.primary}30`, borderWidth: 1 }} className="w-8 h-8 rounded-full items-center justify-center mr-2.5 mt-1 self-start">
+        <View style={{ backgroundColor: `${themeColors.primary}20`, borderColor: `${themeColors.primary}30`, borderWidth: 1 }} className="w-7 h-7 rounded-full items-center justify-center mr-2 mt-1 self-start">
           <Ionicons name="sparkles" size={14} color={themeColors.primary} />
         </View>
       )}
@@ -48,11 +48,11 @@ export const ChatMessage = ({ message, onEdit }) => {
           ? { backgroundColor: themeColors.primary }
           : { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1 }
         }
-        className={`max-w-[80%] rounded-2xl px-4 py-3 ${isUser ? "rounded-tr-none" : "rounded-tl-none"}`}
+        className={`max-w-[84%] rounded-2xl px-3.5 py-2.5 ${isUser ? "rounded-tr-none" : "rounded-tl-none"}`}
       >
         <Markdown style={markdownStyles}>{content}</Markdown>
         {!isUser && Boolean(content) && (
-          <View className="flex-row items-center justify-end mt-2" style={{ gap: 14 }}>
+          <View className="flex-row items-center justify-end mt-1.5" style={{ gap: 14 }}>
             <TouchableOpacity
               accessibilityRole="button"
               accessibilityLabel="Copy AI response"
@@ -108,7 +108,7 @@ export const ChatMessage = ({ message, onEdit }) => {
         )}
 
         {!isUser && sources?.length > 0 && (
-          <View style={{ borderTopColor: themeColors.border }} className="border-t mt-3 pt-2">
+          <View style={{ borderTopColor: themeColors.border }} className="border-t mt-2.5 pt-2">
             <Text style={{ color: themeColors.text.muted }} className="text-[10px] font-bold uppercase tracking-wider mb-1.5">Sources</Text>
             <View className="flex-row flex-wrap gap-1.5">
               {sources.map((source, index) => <SourceCitation key={source.id || index} source={source} />)}
@@ -118,7 +118,7 @@ export const ChatMessage = ({ message, onEdit }) => {
       </View>
 
       {isUser && (
-        <View style={{ backgroundColor: themeColors.surfaceHover, borderColor: themeColors.border, borderWidth: 1 }} className="w-8 h-8 rounded-full items-center justify-center ml-2.5 mt-1 self-start">
+        <View style={{ backgroundColor: themeColors.surfaceHover, borderColor: themeColors.border, borderWidth: 1 }} className="w-7 h-7 rounded-full items-center justify-center ml-2 mt-1 self-start">
           <Ionicons name="person" size={14} color={themeColors.text.secondary} />
         </View>
       )}
