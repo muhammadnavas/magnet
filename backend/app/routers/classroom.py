@@ -410,7 +410,13 @@ async def list_assignments(
                     "submission_state": sub_by_work_id.get(work["id"], "NEW"),
                 })
 
-        return all_assignments
+        # Defensive server-side deduplication by course + coursework ID.
+        unique_assignments = {}
+        for assignment in all_assignments:
+            key = f"{assignment.get('course_id', '')}:{assignment.get('id', '')}"
+            unique_assignments[key] = assignment
+
+        return list(unique_assignments.values())
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Could not fetch assignments: {exc}")
 
