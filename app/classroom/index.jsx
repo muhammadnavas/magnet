@@ -16,7 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import Button from "../../components/ui/Button";
 import { useAppTheme } from "../../store/themeStore";
-import { notifyNewAssignment } from "../../lib/notifications";
+import { notifyNewAssignment, syncClassroomDeadlineNotifications } from "../../lib/notifications";
 import api from "../../lib/api";
 
 // ─── Status config (resolved at runtime with theme colors) ─────────────────
@@ -392,12 +392,15 @@ export default function ClassroomScreen() {
         const newAssignments = Array.isArray(assignmentsRes.data) ? assignmentsRes.data : [];
         setCourses(Array.isArray(coursesRes.data) ? coursesRes.data : []);
         setAssignments(newAssignments);
+        const doneRaw = await AsyncStorage.getItem(DONE_KEY);
+        await syncClassroomDeadlineNotifications(newAssignments, doneRaw ? JSON.parse(doneRaw) : []);
 
         // ── New assignment detection & notifications ──────────────────
         try {
           const raw     = await AsyncStorage.getItem(SEEN_KEY);
           const seenIds = new Set(raw ? JSON.parse(raw) : []);
-          const newOnes = newAssignments.filter((a) => !seenIds.has(a.id));
+          const assignmentKey = (a) => String(a.course_id || "") + ":" + String(a.id);
+          const newOnes = newAssignments.filter((a) => !seenIds.has(assignmentKey(a)) && !seenIds.has(a.id));
           // Only notify if we had previous data (not first load)
           if (seenIds.size > 0 && newOnes.length > 0) {
             for (const a of newOnes) {
@@ -407,7 +410,7 @@ export default function ClassroomScreen() {
           // Save current IDs as seen
           await AsyncStorage.setItem(
             SEEN_KEY,
-            JSON.stringify(newAssignments.map((a) => a.id))
+            JSON.stringify(newAssignments.map(assignmentKey))
           );
         } catch (_) {}
       } else {
