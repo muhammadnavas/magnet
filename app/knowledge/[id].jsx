@@ -13,6 +13,7 @@ import useKnowledge from "../../hooks/useKnowledge";
 import { formatDate } from "../../utils/formatting";
 import { useAppTheme } from "../../store/themeStore";
 import tokenStorage from "../../lib/storage";
+import * as FileSystem from "expo-file-system/legacy";
 
 export default function KnowledgeDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -25,6 +26,7 @@ export default function KnowledgeDetailScreen() {
   const [sourceToken, setSourceToken] = useState(null);
   const [sourceLoading, setSourceLoading] = useState(false);
   const [sourceError, setSourceError] = useState("");
+  const [pdfBase64, setPdfBase64] = useState("");
 
   const sourceUrl = `${config.API_URL}/knowledge/${id}/source`;
   const contentType = (item?.contentType || "note").toLowerCase();
@@ -51,6 +53,42 @@ export default function KnowledgeDetailScreen() {
     });
     return () => { mounted = false; };
   }, [showSourceViewer]);
+
+  // Android WebView does not render PDF files natively. Download the protected
+  // source with the user's bearer token and render its bytes with PDF.js.
+  useEffect(() => {
+    if (!showSourceViewer || !isPdf || !sourceToken) return;
+    let cancelled = false;
+    const loadPdf = async () => {
+      setSourceLoading(true);
+      setSourceError("");
+      setPdfBase64("");
+      let localUri;
+      try {
+        const result = await FileSystem.downloadAsync(sourceUrl, `${FileSystem.cacheDirectory}orio-source-${id}.pdf`, {
+          headers: { Authorization: `Bearer ${sourceToken}` },
+        });
+        if (result.status < 200 || result.status >= 300) {
+          throw new Error(result.status === 404
+            ? "The original PDF is missing from storage. Upload the document again."
+            : `The server could not load this PDF (HTTP ${result.status}).`);
+        }
+        localUri = result.uri;
+        const base64 = await FileSystem.readAsStringAsync(localUri, { encoding: FileSystem.EncodingType.Base64 });
+        if (!base64 || !base64.startsWith("JVBER")) {
+          throw new Error("The server response is not a valid PDF. Check the backend source endpoint.");
+        }
+        if (!cancelled) setPdfBase64(base64);
+      } catch (error) {
+        console.error("PDF download/render preparation failed:", error);
+        if (!cancelled) setSourceError(error?.message || "Could not download the original PDF.");
+      } finally {
+        if (!cancelled) setSourceLoading(false);
+      }
+    };
+    loadPdf();
+    return () => { cancelled = true; };
+  }, [showSourceViewer, isPdf, sourceToken, sourceUrl, id]);
 
   if (isLoading) {
     return <LoadingState message="Fetching item details..." fullScreen />;
@@ -138,29 +176,36 @@ export default function KnowledgeDetailScreen() {
     }
 
     if (isPdf) {
-      if (sourceLoading || !sourceToken) {
-        return <View className="flex-1 items-center justify-center"><ActivityIndicator color={themeColors.primary} /></View>;
+      if (sourceLoading || !sourceToken || !pdfBase64) {
+        return <View className="flex-1 items-center justify-center"><ActivityIndicator color={themeColors.primary} /><Text style={{ color: themeColors.text.muted }} className="text-xs mt-3">Loading PDF…</Text></View>;
       }
+      const viewerHtml = `<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=3"><style>
+        *{box-sizing:border-box}body{margin:0;padding:12px;background:${themeColors.background};color:${themeColors.text.primary};font-family:Arial,sans-serif}
+        #status{text-align:center;padding:16px;font-size:13px;color:${themeColors.text.secondary}}canvas{display:block;width:100%;height:auto;margin:0 auto 12px;background:white;box-shadow:0 2px 8px #0003}
+      </style></head><body><div id="status">Preparing PDF…</div><div id="pages"></div>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script><script>
+      (async()=>{const status=document.getElementById('status');try{
+        if(!window.pdfjsLib)throw new Error('PDF viewer library could not load. Check your internet connection.');
+        pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        const binary=atob('${pdfBase64}');const bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+        const pdf=await pdfjsLib.getDocument({data:bytes}).promise;status.textContent=pdf.numPages+' page'+(pdf.numPages===1?'':'s');
+        const root=document.getElementById('pages');
+        for(let pageNum=1;pageNum<=pdf.numPages;pageNum++){const page=await pdf.getPage(pageNum);const base=page.getViewport({scale:1});const scale=Math.min((window.innerWidth-24)/base.width,2);const viewport=page.getViewport({scale});const canvas=document.createElement('canvas');canvas.width=viewport.width*window.devicePixelRatio;canvas.height=viewport.height*window.devicePixelRatio;canvas.style.width=viewport.width+'px';canvas.style.height=viewport.height+'px';root.appendChild(canvas);await page.render({canvasContext:canvas.getContext('2d'),viewport:page.getViewport({scale:scale*window.devicePixelRatio})}).promise;}
+      }catch(e){status.textContent='Could not display PDF: '+(e.message||'Unknown error');}})();
+      </script></body></html>`;
       return (
         <WebView
           style={{ flex: 1, backgroundColor: themeColors.background }}
-          source={{ uri: sourceUrl, headers: { Authorization: `Bearer ${sourceToken}` } }}
+          source={{ html: viewerHtml, baseUrl: "https://cdnjs.cloudflare.com" }}
           originWhitelist={["*"]}
+          javaScriptEnabled
+          domStorageEnabled
           startInLoadingState
           renderLoading={() => <View className="flex-1 items-center justify-center"><ActivityIndicator color={themeColors.primary} /></View>}
           onError={(event) => {
             const description = event?.nativeEvent?.description;
             console.error("PDF WebView load failed:", description || "unknown error");
-            setSourceError(description ? `The PDF viewer failed: ${description}` : "The PDF could not be displayed. Check the file and backend response.");
-          }}
-          onHttpError={(event) => {
-            const status = event?.nativeEvent?.statusCode;
-            console.error("PDF source request failed:", status, event?.nativeEvent?.description);
-            if (status >= 400) {
-              setSourceError(status === 404
-                ? "The original PDF is missing from storage. Upload the document again."
-                : `The server could not load this PDF (HTTP ${status}). Please try again after the backend is updated.`);
-            }
+            setSourceError(description ? `The PDF viewer failed: ${description}` : "The PDF viewer could not be loaded.");
           }}
         />
       );
