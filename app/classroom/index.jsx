@@ -335,18 +335,21 @@ export default function ClassroomScreen() {
 
   const toggleDone = useCallback(async (assignment) => {
     const key = assignmentDoneKey(assignment);
-    setLocalDoneIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(key) || next.has(assignment.id)) {
-        next.delete(key);
-        next.delete(assignment.id);
-      } else {
-        next.add(key);
-      }
-      AsyncStorage.setItem(DONE_KEY, JSON.stringify([...next])).catch(() => {});
-      return next;
-    });
-  }, []);
+    const next = new Set(localDoneIds);
+    if (next.has(key) || next.has(assignment.id)) {
+      next.delete(key);
+      next.delete(assignment.id);
+    } else {
+      next.add(key);
+    }
+    setLocalDoneIds(next);
+    try {
+      await AsyncStorage.setItem(DONE_KEY, JSON.stringify([...next]));
+      await syncClassroomDeadlineNotifications(assignments, [...next]);
+    } catch (error) {
+      console.warn("Could not update Classroom reminders:", error);
+    }
+  }, [assignments, localDoneIds]);
   const upcomingCount = assignments.filter((a) => a.due_status === "upcoming" && !isLocallyDone(a)).length;
   const dueSoonCount  = assignments.filter((a) => a.due_status === "due_soon" && !isLocallyDone(a)).length;
   const overdueCount  = assignments.filter((a) => a.due_status === "overdue" && !isLocallyDone(a)).length;
