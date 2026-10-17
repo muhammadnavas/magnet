@@ -311,9 +311,19 @@ async def list_assignments(
     try:
         service = build("classroom", "v1", credentials=creds, cache_discovery=False)
 
-        # Get active courses first
-        courses_result = service.courses().list(courseStates=["ACTIVE"], pageSize=20).execute()
-        courses = courses_result.get("courses", [])
+        # Read every page so newly created courses are not silently missed.
+        courses = []
+        courses_page_token = None
+        while True:
+            courses_result = service.courses().list(
+                courseStates=["ACTIVE"],
+                pageSize=100,
+                pageToken=courses_page_token,
+            ).execute()
+            courses.extend(courses_result.get("courses", []))
+            courses_page_token = courses_result.get("nextPageToken")
+            if not courses_page_token:
+                break
 
         all_assignments: List[Dict[str, Any]] = []
         now_utc = datetime.now(timezone.utc)
@@ -322,26 +332,39 @@ async def list_assignments(
             course_id = course["id"]
             course_name = course.get("name", "Unknown Course")
             try:
-                cw_result = service.courses().courseWork().list(
-                    courseId=course_id,
-                    orderBy="dueDate asc",
-                    pageSize=20,
-                ).execute()
-                coursework = cw_result.get("courseWork", [])
+                coursework = []
+                coursework_page_token = None
+                while True:
+                    cw_result = service.courses().courseWork().list(
+                        courseId=course_id,
+                        orderBy="dueDate asc",
+                        pageSize=100,
+                        pageToken=coursework_page_token,
+                    ).execute()
+                    coursework.extend(cw_result.get("courseWork", []))
+                    coursework_page_token = cw_result.get("nextPageToken")
+                    if not coursework_page_token:
+                        break
             except Exception:
                 continue
 
             # Fetch submission states for this course (readonly scope already granted)
             sub_by_work_id: dict = {}
             try:
-                subs_result = service.courses().courseWork().studentSubmissions().list(
-                    courseId=course_id,
-                    courseWorkId="-",
-                    userId="me",
-                    pageSize=100,
-                ).execute()
-                for sub in subs_result.get("studentSubmissions", []):
-                    sub_by_work_id[sub["courseWorkId"]] = sub.get("state", "NEW")
+                submissions_page_token = None
+                while True:
+                    subs_result = service.courses().courseWork().studentSubmissions().list(
+                        courseId=course_id,
+                        courseWorkId="-",
+                        userId="me",
+                        pageSize=100,
+                        pageToken=submissions_page_token,
+                    ).execute()
+                    for sub in subs_result.get("studentSubmissions", []):
+                        sub_by_work_id[sub["courseWorkId"]] = sub.get("state", "NEW")
+                    submissions_page_token = subs_result.get("nextPageToken")
+                    if not submissions_page_token:
+                        break
             except Exception:
                 pass
 
