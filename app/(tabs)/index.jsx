@@ -72,6 +72,7 @@ export default function HomeScreen() {
       const isConnected = Boolean(statusRes.data?.connected);
       setClassroomConnected(isConnected);
       if (!isConnected) {
+        await syncClassroomDeadlineNotifications([], []);
         setClassroomOverdue(0);
         setClassroomDueSoon(0);
         return;
