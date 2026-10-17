@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, TouchableOpacity, Text } from "react-native";
+import { Alert, TouchableOpacity, Text, Linking, Platform } from "react-native";
+import { Audio } from "expo-av";
 import { Ionicons } from "@expo/vector-icons";
 import {
   ExpoSpeechRecognitionModule,
@@ -89,14 +90,36 @@ export default function VoiceInput({ onTranscript, mode = "quick", disabled = fa
     }
 
     try {
-      const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert("Microphone permission", "Allow microphone and speech-recognition access to use voice input.");
+      // Request Android/iOS microphone access explicitly before checking the
+      // speech-recognition module permission. Some Android builds report the
+      // module permission as denied without showing the native microphone prompt.
+      const microphonePermission = await Audio.requestPermissionsAsync();
+      if (!microphonePermission.granted) {
+        const canAskAgain = microphonePermission.canAskAgain !== false;
+        Alert.alert(
+          "Microphone permission required",
+          canAskAgain
+            ? "Allow microphone access when your device asks so voice input can work."
+            : "Microphone access is blocked for Magnet. Enable it in Android Settings > Apps > Magnet > Permissions.",
+          [
+            { text: "Cancel", style: "cancel" },
+            ...(canAskAgain ? [] : [{ text: "Open Settings", onPress: () => Linking.openSettings() }]),
+          ]
+        );
         return;
       }
+
+      const speechPermission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (speechPermission?.granted === false) {
+        Alert.alert(
+          "Speech recognition unavailable",
+          "Enable a speech recognition service on your device (for example, Google Speech Services), then try again."
+        );
+        return;
+      }
+
       transcriptRef.current = "";
       errorRef.current = null;
-      setTranscript("");
       setStarting(true);
       activeRecognitionId = instanceId.current;
       ExpoSpeechRecognitionModule.start({
