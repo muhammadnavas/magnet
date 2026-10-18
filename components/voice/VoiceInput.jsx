@@ -90,30 +90,41 @@ export default function VoiceInput({ onTranscript, mode = "quick", disabled = fa
     }
 
     try {
-      // Request Android/iOS microphone access explicitly before checking the
-      // speech-recognition module permission. Some Android builds report the
-      // module permission as denied without showing the native microphone prompt.
+      // Ask the speech-recognition native module first so Android can request
+      // the permissions declared by its config plugin. Check RECORD_AUDIO via
+      // Expo AV as a fallback because some Android service versions report
+      // speech permission separately from microphone permission.
+      let speechPermission = null;
+      try {
+        speechPermission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      } catch (permissionError) {
+        console.warn("Speech permission request failed; checking microphone permission:", permissionError);
+      }
+
       const microphonePermission = await Audio.requestPermissionsAsync();
       if (!microphonePermission.granted) {
         const canAskAgain = microphonePermission.canAskAgain !== false;
         Alert.alert(
           "Microphone permission required",
           canAskAgain
-            ? "Allow microphone access when your device asks so voice input can work."
-            : "Microphone access is blocked for Magnet. Enable it in Android Settings > Apps > Magnet > Permissions.",
+            ? "Allow microphone access when Android asks so voice input can work."
+            : "Microphone access is blocked. Open Android Settings > Apps > Magnet > Permissions and enable Microphone.",
           [
             { text: "Cancel", style: "cancel" },
-            ...(canAskAgain ? [] : [{ text: "Open Settings", onPress: () => Linking.openSettings() }]),
+            { text: "Open Settings", onPress: () => Linking.openSettings() },
           ]
         );
         return;
       }
 
-      const speechPermission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
       if (speechPermission?.granted === false) {
         Alert.alert(
           "Speech recognition unavailable",
-          "Enable a speech recognition service on your device (for example, Google Speech Services), then try again."
+          "Microphone access is allowed, but speech recognition is blocked. Check Android's speech service and app permissions, then try again.",
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Open Settings", onPress: () => Linking.openSettings() },
+          ]
         );
         return;
       }
