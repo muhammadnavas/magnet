@@ -416,6 +416,10 @@ async def list_assignments(
                     "title": work.get("title", "Untitled"),
                     "description": work.get("description"),
                     "alternate_link": work.get("alternateLink"),
+                    # Google Classroom timestamps let the app advance its sync
+                    # checkpoint and process only posts newer than the last check.
+                    "creation_time": work.get("creationTime"),
+                    "update_time": work.get("updateTime"),
                     "due_date": due_dt.isoformat() if due_dt else None,
                     "due_status": due_status,
                     "max_points": work.get("maxPoints"),
