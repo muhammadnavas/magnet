@@ -12,7 +12,6 @@ import LoadingState from "../../components/ui/LoadingState";
 import useKnowledge from "../../hooks/useKnowledge";
 import { formatDate } from "../../utils/formatting";
 import { useAppTheme } from "../../store/themeStore";
-import tokenStorage from "../../lib/storage";
 import * as FileSystem from "expo-file-system/legacy";
 
 export default function KnowledgeDetailScreen() {
@@ -36,30 +35,15 @@ export default function KnowledgeDetailScreen() {
   const isTextSource = ["note", "code", "error"].includes(contentType);
   const isUrl = contentType === "url";
 
+  // Magnet uses personal mode without bearer-token authentication. Source files
+  // are fetched from the same API session as the rest of the knowledge library.
   useEffect(() => {
-    if (!showSourceViewer) return;
-    let mounted = true;
-    setSourceLoading(true);
+    if (!showSourceViewer) {
+      setSourceToken(null);
+      return;
+    }
     setSourceError("");
-    tokenStorage.getToken("accessToken").then((token) => {
-      if (!mounted) return;
-      if (!token) {
-        setSourceToken(null);
-        setSourceLoading(false);
-        setSourceError("Your session has expired. Close this viewer, sign in again, and reopen the PDF.");
-        return;
-      }
-      setSourceToken(token);
-      setSourceLoading(false);
-    }).catch((error) => {
-      console.error("Could not retrieve access token for source viewer:", error);
-      if (mounted) {
-        setSourceToken(null);
-        setSourceLoading(false);
-        setSourceError("Could not authenticate the document viewer. Please sign in again.");
-      }
-    });
-    return () => { mounted = false; };
+    setSourceToken("personal-mode");
   }, [showSourceViewer]);
 
   // Download protected images with the same authenticated flow used for PDFs.
@@ -76,7 +60,7 @@ export default function KnowledgeDetailScreen() {
       const destination = `${FileSystem.cacheDirectory}orio-source-${id}.${extension}`;
       try {
         const downloadPromise = FileSystem.downloadAsync(sourceUrl, destination, {
-          headers: { Authorization: `Bearer ${sourceToken}` },
+          
         });
         const result = await Promise.race([
           downloadPromise,
@@ -113,7 +97,7 @@ export default function KnowledgeDetailScreen() {
       let localUri;
       try {
         const downloadPromise = FileSystem.downloadAsync(sourceUrl, `${FileSystem.cacheDirectory}orio-source-${id}.pdf`, {
-          headers: { Authorization: `Bearer ${sourceToken}` },
+          
         });
         // Avoid leaving the preview spinner running forever when the API or
         // storage provider does not complete the protected file request.
