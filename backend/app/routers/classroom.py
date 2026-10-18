@@ -277,20 +277,34 @@ async def list_courses(
     creds = await _refresh_if_needed(connection, db)
     try:
         service = build("classroom", "v1", credentials=creds, cache_discovery=False)
-        result = service.courses().list(courseStates=["ACTIVE"], pageSize=20).execute()
-        courses = result.get("courses", [])
-        return [
-            {
-                "id": c["id"],
-                "name": c.get("name", "Unnamed Course"),
-                "section": c.get("section"),
-                "description_heading": c.get("descriptionHeading"),
-                "room": c.get("room"),
-                "enrollment_code": c.get("enrollmentCode"),
-                "alternate_link": c.get("alternateLink"),
-            }
-            for c in courses
-        ]
+        courses = []
+        page_token = None
+        while True:
+            result = service.courses().list(
+                courseStates=["ACTIVE"],
+                pageSize=100,
+                pageToken=page_token,
+            ).execute()
+            courses.extend(result.get("courses", []))
+            page_token = result.get("nextPageToken")
+            if not page_token:
+                break
+
+        # Return every active course; the assignments screen relies on this
+        # endpoint for its course count and navigation as well as the feed.
+        unique_courses = {}
+        for course in courses:
+            if course.get("id"):
+                unique_courses[course["id"]] = {
+                    "id": course["id"],
+                    "name": course.get("name", "Unnamed Course"),
+                    "section": course.get("section"),
+                    "description_heading": course.get("descriptionHeading"),
+                    "room": course.get("room"),
+                    "enrollment_code": course.get("enrollmentCode"),
+                    "alternate_link": course.get("alternateLink"),
+                }
+        return list(unique_courses.values())
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Could not fetch courses: {exc}")
 
