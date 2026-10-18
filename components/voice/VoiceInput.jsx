@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, TouchableOpacity, Text, Linking } from "react-native";
+import { Alert, TouchableOpacity, Text, Linking, Platform } from "react-native";
 import { Audio } from "expo-av";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -64,8 +64,8 @@ export default function VoiceInput({ onTranscript, mode = "quick", disabled = fa
         Alert.alert(
           "Voice input unavailable",
           code === "not-allowed"
-            ? "Allow microphone and speech-recognition permissions in your device settings."
-            : "Your device's speech service could not transcribe that. Please try again."
+            ? "Android denied microphone access. If Magnet does not appear under Microphone permissions, install a fresh Magnet build with the microphone permission included. Otherwise enable it in Settings > Apps > Magnet > Permissions."
+            : "Your device's speech service could not transcribe that. Check that Google Speech Services is installed and enabled, then try again."
         );
       }
     }
@@ -79,6 +79,15 @@ export default function VoiceInput({ onTranscript, mode = "quick", disabled = fa
     }
   }, []);
 
+  const openAppSettings = async () => {
+    try {
+      await Linking.openSettings();
+    } catch (error) {
+      console.warn("Could not open app settings:", error);
+      Alert.alert("Open settings manually", "Go to Android Settings > Apps > Magnet > Permissions.");
+    }
+  };
+
   const toggleRecognition = async () => {
     if (recording || starting) {
       try {
@@ -90,40 +99,52 @@ export default function VoiceInput({ onTranscript, mode = "quick", disabled = fa
     }
 
     try {
-      // Ask the speech-recognition native module first so Android can request
-      // the permissions declared by its config plugin. Check RECORD_AUDIO via
-      // Expo AV as a fallback because some Android service versions report
-      // speech permission separately from microphone permission.
+      // Request Android's native speech-recognition permission first. This
+      // module is responsible for declaring RECORD_AUDIO in the built app.
       let speechPermission = null;
       try {
         speechPermission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
       } catch (permissionError) {
-        console.warn("Speech permission request failed; checking microphone permission:", permissionError);
+        console.warn("Speech permission request failed:", permissionError);
       }
 
-      const microphonePermission = await Audio.requestPermissionsAsync();
-      if (!microphonePermission.granted) {
-        const canAskAgain = microphonePermission.canAskAgain !== false;
+      // Also request through Expo AV as a compatibility fallback.
+      let microphonePermission = null;
+      try {
+        microphonePermission = await Audio.requestPermissionsAsync();
+      } catch (permissionError) {
+        console.warn("Expo AV microphone permission request failed:", permissionError);
+      }
+
+      const microphoneGranted = microphonePermission?.granted === true;
+      const speechGranted = speechPermission?.granted === true;
+      const permanentlyBlocked =
+        microphonePermission?.canAskAgain === false ||
+        speechPermission?.canAskAgain === false;
+
+      if (!microphoneGranted && !speechGranted) {
         Alert.alert(
           "Microphone permission required",
-          canAskAgain
-            ? "Allow microphone access when Android asks so voice input can work."
-            : "Microphone access is blocked. Open Android Settings > Apps > Magnet > Permissions and enable Microphone.",
+          permanentlyBlocked
+            ? "Android is not showing a permission prompt. If Microphone is missing from Magnet's app permissions, the installed app was built without the required native permission. Install a new build after the app configuration is updated."
+            : "Allow microphone access to use voice input.",
           [
             { text: "Cancel", style: "cancel" },
-            { text: "Open Settings", onPress: () => Linking.openSettings() },
+            { text: "Open Settings", onPress: openAppSettings },
           ]
         );
         return;
       }
 
+      // Speech recognition itself still needs to be permitted when the module
+      // reports that permission separately from RECORD_AUDIO.
       if (speechPermission?.granted === false) {
         Alert.alert(
-          "Speech recognition unavailable",
-          "Microphone access is allowed, but speech recognition is blocked. Check Android's speech service and app permissions, then try again.",
+          "Speech recognition permission required",
+          "Microphone access is available, but Android denied speech recognition. Enable it in app settings and check that a speech service is installed.",
           [
             { text: "Cancel", style: "cancel" },
-            { text: "Open Settings", onPress: () => Linking.openSettings() },
+            { text: "Open Settings", onPress: openAppSettings },
           ]
         );
         return;
@@ -145,7 +166,12 @@ export default function VoiceInput({ onTranscript, mode = "quick", disabled = fa
       setStarting(false);
       setRecording(false);
       console.error("Could not start speech recognition:", error);
-      Alert.alert("Voice input unavailable", "Check that a speech-recognition service is enabled on your device.");
+      Alert.alert(
+        "Voice input unavailable",
+        Platform.OS === "android"
+          ? "Check that Magnet has microphone permission and that Google Speech Services is installed and enabled."
+          : "Please allow microphone and speech-recognition access in your device settings."
+      );
     }
   };
 
