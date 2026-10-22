@@ -349,9 +349,12 @@ async def list_assignments(
                 coursework = []
                 coursework_page_token = None
                 while True:
+                    # Fetch coursework without ordering by due date. Classroom's
+                    # stream can contain posts without due dates (including older
+                    # assignment posts); date ordering is not needed because the
+                    # app performs its own date/checkpoint logic.
                     cw_result = service.courses().courseWork().list(
                         courseId=course_id,
-                        orderBy="dueDate asc",
                         pageSize=100,
                         pageToken=coursework_page_token,
                     ).execute()
@@ -359,7 +362,15 @@ async def list_assignments(
                     coursework_page_token = cw_result.get("nextPageToken")
                     if not coursework_page_token:
                         break
-            except Exception:
+            except Exception as coursework_error:
+                # Do not silently hide the reason a course contributes no items.
+                # Continue syncing other courses, but leave a useful backend log.
+                import logging
+                logging.getLogger(__name__).warning(
+                    "Google Classroom coursework fetch failed for course %s: %s",
+                    course_id,
+                    coursework_error,
+                )
                 continue
 
             # Fetch submission states for this course (readonly scope already granted)
