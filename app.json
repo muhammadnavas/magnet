@@ -18,6 +18,7 @@
     },
     "android": {
       "package": "com.muhammadnavas.orio",
+      "versionCode": 2,
       "permissions": [
         "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.RECORD_AUDIO"
