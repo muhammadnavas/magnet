@@ -1,4 +1,5 @@
 import logging
+import uuid
 from typing import List, Dict, Any
 from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -120,7 +121,26 @@ async def process_sync_queue(
                 )
                 item = result.scalars().first()
                 if item:
+                    # Offline deletes must use the same exact Drive file mapping
+                    # as online deletes. Drive cleanup is best-effort so it
+                    # cannot block deletion of the app's own knowledge record.
+                    gdrive_file_id = (item.meta or {}).get("gdrive_file_id")
                     await db.delete(item)
+                    if gdrive_file_id:
+                        try:
+                            from app.services.gdrive import delete_file_from_gdrive
+                            if not delete_file_from_gdrive(gdrive_file_id):
+                                logger.warning(
+                                    "Offline delete removed knowledge item %s but could not delete Drive file %s",
+                                    item_uuid,
+                                    gdrive_file_id,
+                                )
+                        except Exception:
+                            logger.exception(
+                                "Offline delete removed knowledge item %s but Drive cleanup failed for %s",
+                                item_uuid,
+                                gdrive_file_id,
+                            )
                     processed_count += 1
                     
         except Exception as e:
