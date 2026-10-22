@@ -291,10 +291,20 @@ async def parse_task_intent(text: str, current_time: str) -> dict:
         data = json.loads(cleaned)
         parsed_title = str(data.get("title", "")).strip()
         parsed_deadline = data.get("deadline", None)
+        # Relative deadlines must be deterministic. AI-generated timestamps can
+        # drift by timezone or current-time interpretation, which can make a
+        # newly-created reminder appear overdue immediately.
+        has_relative_deadline = bool(re.search(
+            r"\b(?:in|after|for|within|next)\s+\d+(?:\.\d+)?\s*"
+            r"(?:seconds?|secs?|minutes?|mins?|hours?|hrs?|days?|weeks?)\b",
+            text,
+            re.IGNORECASE,
+        ))
+        resolved_deadline = fallback["deadline"] if has_relative_deadline else (parsed_deadline or fallback["deadline"])
         return {
             "title": parsed_title if parsed_title and parsed_title.lower() not in ("untitled task", text.lower()) else fallback["title"],
             "priority": data.get("priority", fallback["priority"]),
-            "deadline": parsed_deadline if parsed_deadline else fallback["deadline"],
+            "deadline": resolved_deadline,
             "reminder_interval_hours": data.get("reminder_interval_hours", fallback["reminder_interval_hours"]),
         }
     except Exception as e:
