@@ -233,20 +233,34 @@ async def delete_knowledge_item(id: uuid.UUID, current_user: User = Depends(get_
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
 
+    # Resolve the exact Drive file linked to this knowledge item. Never search
+    # by filename: different uploads can share a name and must not delete each
+    # other's source files.
     gdrive_file_id = (item.meta or {}).get("gdrive_file_id")
-    if gdrive_file_id:
-        try:
-            from app.services.gdrive import delete_file_from_gdrive
-            if not delete_file_from_gdrive(gdrive_file_id):
-                raise HTTPException(status_code=502, detail="Could not delete the knowledge source from Google Drive")
-        except HTTPException:
-            raise
-        except Exception as ge:
-            logger.error(f"Failed to delete Google Drive source {gdrive_file_id}: {ge}")
-            raise HTTPException(status_code=502, detail="Could not delete the knowledge source from Google Drive")
 
+    # Remove app-owned data first so a Drive permission/API outage cannot leave
+    # a knowledge card stuck forever after the user requested deletion.
     await remove_knowledge_source(db, id)
     await db.execute(delete(KnowledgeChunk).where(KnowledgeChunk.knowledge_id == id))
     await db.execute(delete(ProcessingJob).where(ProcessingJob.knowledge_id == id))
     await db.delete(item)
     await db.commit()
+
+    # Drive cleanup is best-effort and uses only the stored file ID. With the
+    # drive.file OAuth scope, files not owned/created by this app may be
+    # inaccessible; that must not make the in-app delete appear to fail.
+    if gdrive_file_id:
+        try:
+            from app.services.gdrive import delete_file_from_gdrive
+            if not delete_file_from_gdrive(gdrive_file_id):
+                logger.warning(
+                    "Knowledge item %s deleted locally, but linked Drive file %s could not be deleted; check Drive OAuth access.",
+                    id,
+                    gdrive_file_id,
+                )
+        except Exception:
+            logger.exception(
+                "Knowledge item %s deleted locally, but linked Drive cleanup failed for file %s",
+                id,
+                gdrive_file_id,
+            )
