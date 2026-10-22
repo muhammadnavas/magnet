@@ -51,7 +51,7 @@
         {
           "photosPermission": "Allow Magnet to access photos you choose to save to your knowledge library.",
           "cameraPermission": "Allow Magnet to use your camera to capture knowledge.",
-          "microphonePermission": false
+          "microphonePermission": "Allow Magnet to use the microphone for voice input and camera video capture."
         }
       ],
       [
