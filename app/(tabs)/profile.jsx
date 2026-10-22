@@ -2,8 +2,6 @@ import React, { useCallback, useState } from "react";
 import { Alert, Linking, Pressable, Text, View, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { Audio } from "expo-av";
-import { ExpoSpeechRecognitionModule } from "expo-speech-recognition";
 import { router, useFocusEffect } from "expo-router";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
@@ -28,7 +26,6 @@ export default function SettingsScreen() {
   const [classroomConnected, setClassroomConnected] = useState(false);
   const [classroomEmail, setClassroomEmail] = useState("");
   const [selectedProvider, setSelectedProvider] = useState("gemini");
-  const [micPermission, setMicPermission] = useState("checking");
 
   const username = "Navas";
   const useremail = user?.email || "personal-app@orio.com";
@@ -77,44 +74,6 @@ export default function SettingsScreen() {
     finally { setGithubLoading(false); }
   };
 
-  const refreshMicPermission = async () => {
-    try {
-      const permission = await Audio.getPermissionsAsync();
-      setMicPermission(permission.granted ? "granted" : permission.canAskAgain === false ? "blocked" : "not-granted");
-    } catch (error) {
-      console.warn("Could not read microphone permission:", error);
-      setMicPermission("unknown");
-    }
-  };
-
-  const requestMicPermission = async () => {
-    try {
-      const permission = await Audio.requestPermissionsAsync();
-      if (permission.granted) {
-        // The speech-recognition package can request its companion permission
-        // after Android microphone permission has been granted.
-        try { await ExpoSpeechRecognitionModule.requestPermissionsAsync(); } catch (_) {}
-        setMicPermission("granted");
-      } else {
-        setMicPermission(permission.canAskAgain === false ? "blocked" : "not-granted");
-        if (permission.canAskAgain === false) {
-          Alert.alert(
-            "Microphone permission blocked",
-            "Android is no longer showing the permission prompt. Open Magnet's app permissions and enable Microphone.",
-            [{ text: "Cancel", style: "cancel" }, { text: "Open Settings", onPress: () => Linking.openSettings() }]
-          );
-        }
-      }
-    } catch (error) {
-      console.warn("Could not request microphone permission:", error);
-      Alert.alert("Voice input unavailable", "Please check microphone access in Android Settings > Apps > Magnet > Permissions.");
-    }
-  };
-
-  useFocusEffect(useCallback(() => {
-    refreshMicPermission();
-  }, []));
-
   const connectClassroom = () => router.push("/classroom");
 
   const disconnectGithub = () => Alert.alert("Disconnect GitHub?", "Magnet will stop accessing your GitHub repositories.", [
@@ -135,27 +94,6 @@ export default function SettingsScreen() {
 
         <Text style={{ color: themeColors.text.muted }} className="text-xs font-bold uppercase tracking-wider mb-2">Appearance</Text>
         <Card className="p-3 mb-6"><View className="flex-row gap-2">{[{ mode: "dark", icon: "moon", label: "Dark Mode" }, { mode: "light", icon: "sunny", label: "Light Mode" }].map(({ mode, icon, label }) => { const active = theme === mode; return <Pressable key={mode} onPress={() => setTheme(mode)} style={{ flex: 1, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: active ? `${themeColors.primary}20` : themeColors.surfaceHover, borderWidth: 1.5, borderColor: active ? themeColors.primary : themeColors.border }}><Ionicons name={icon} size={16} color={active ? themeColors.primary : themeColors.text.muted} style={{ marginRight: 8 }} /><Text style={{ color: active ? themeColors.text.primary : themeColors.text.secondary, fontWeight: "700", fontSize: 13 }}>{label}</Text></Pressable>; })}</View></Card>
-
-        <Text style={{ color: themeColors.text.muted }} className="text-xs font-bold uppercase tracking-wider mb-2">Permissions</Text>
-        <Card className="p-4 mb-6">
-          <View className="flex-row items-center">
-            <View style={{ backgroundColor: themeColors.surfaceHover }} className="w-10 h-10 rounded-xl items-center justify-center mr-3">
-              <Ionicons name="mic-outline" size={21} color={themeColors.primary} />
-            </View>
-            <View className="flex-1 mr-3">
-              <Text style={{ color: themeColors.text.primary }} className="text-sm font-bold">Microphone</Text>
-              <Text style={{ color: themeColors.text.secondary }} className="text-xs mt-1">
-                {micPermission === "granted" ? "Allowed · Voice input is ready" : micPermission === "checking" ? "Checking permission…" : micPermission === "blocked" ? "Blocked in Android settings" : micPermission === "unknown" ? "Permission status unavailable" : "Required for voice capture and Ask AI"}
-              </Text>
-            </View>
-            <Button variant="outline" size="sm" onPress={micPermission === "blocked" ? () => Linking.openSettings() : requestMicPermission}>
-              {micPermission === "granted" ? "Check" : micPermission === "blocked" ? "Settings" : "Allow"}
-            </Button>
-          </View>
-          <Text style={{ color: themeColors.text.muted, fontSize: 10, marginTop: 10 }}>
-            If Android does not list Microphone under Magnet permissions, install a build that includes the microphone permission in its native manifest.
-          </Text>
-        </Card>
 
         <Text style={{ color: themeColors.text.muted }} className="text-xs font-bold uppercase tracking-wider mb-2">AI Provider</Text>
         <Card className="p-3 mb-6">{providers.map((provider, index) => { const active = selectedProvider === provider.value; const meta = PROVIDER_META[provider.value]; return <Pressable key={provider.value} onPress={() => setSelectedProvider(provider.value)} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 13, paddingHorizontal: 12, borderRadius: 12, backgroundColor: active ? `${themeColors.primary}12` : "transparent", borderWidth: 1.5, borderColor: active ? themeColors.primary : "transparent", marginBottom: index === providers.length - 1 ? 0 : 8 }}><View style={{ width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", marginRight: 12, backgroundColor: active ? `${themeColors.primary}20` : themeColors.surfaceHover }}><Ionicons name={meta.icon} size={19} color={active ? themeColors.primary : themeColors.text.secondary} /></View><View style={{ flex: 1 }}><Text style={{ color: themeColors.text.primary, fontWeight: "800", fontSize: 14 }}>{provider.label}</Text><Text style={{ color: themeColors.text.muted, fontSize: 11, marginTop: 3 }}>{meta.description}</Text></View><View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: active ? themeColors.primary : themeColors.border, alignItems: "center", justifyContent: "center" }}>{active && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: themeColors.primary }} />}</View></Pressable>; })}<Text style={{ color: themeColors.text.muted, fontSize: 10, marginTop: 10, marginHorizontal: 4 }}>Your selection is used for AI responses. Embeddings continue to use the configured knowledge-search model.</Text></Card>
