@@ -18,9 +18,29 @@ const FILTERS = [
   { key: "completed", label: "Done" },
 ];
 
+function cleanTaskTitle(text, parsedTitle) {
+  const raw = String(text || "").trim();
+  const candidate = String(parsedTitle || "").trim();
+  // Prefer the user's action text over an AI title that repeats the reminder
+  // instruction or mistakes the time expression for the task itself.
+  let cleaned = raw
+    .replace(/^\s*(?:please\s+)?(?:set\s+(?:a\s+)?reminder(?:\s+for)?|remind\s+me(?:\s+to)?|reminder\s+to)\s*/i, "")
+    .replace(/\s+(?:in|after|within|for)\s+\d+(?:\.\d+)?\s*(?:seconds?|secs?|minutes?|mins?|hours?|hrs?|days?|weeks?)\b.*$/i, "")
+    .replace(/\s+(?:today|tomorrow|tonight|this\s+(?:morning|afternoon|evening)|next\s+(?:week|month|year|monday|tuesday|wednesday|thursday|friday|saturday|sunday)|(?:at|around|by)\s+\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)?)\b.*$/i, "")
+    .replace(/[,.!?\s]+$/, "")
+    .trim();
+  if (!cleaned || /^(?:at\s*)?\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)?$/i.test(cleaned)) {
+    cleaned = candidate && candidate.toLowerCase() !== raw.toLowerCase() ? candidate : "Reminder";
+  }
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+}
+
 function applyDueTime(task, text) {
   const parsedDeadline = parseTaskDateTime(text);
-  return parsedDeadline ? { ...task, deadline: parsedDeadline } : task;
+  const title = cleanTaskTitle(text, task?.title);
+  // The device's local parser is authoritative for explicit dates/times. In
+  // particular, a time without a date means its next occurrence in local time.
+  return parsedDeadline ? { ...task, title, deadline: parsedDeadline } : { ...task, title };
 }
 
 function isReminderWithoutTime(text, task) {
@@ -72,9 +92,9 @@ export default function TasksScreen() {
       // user-provided date/time expressions.
       const correctedTask = applyDueTime(parsedData, trimmed);
       if (isReminderWithoutTime(trimmed, correctedTask)) {
-        // A reminder without a date/time should still be actionable. Use a
-        // predictable near-term default instead of blocking the user with a
-        // modal; explicit times/dates always take precedence above.
+        // No date/time at all: schedule the next actionable reminder in 30 min.
+        // If a clock time was supplied, applyDueTime above already resolves its
+        // next occurrence today or tomorrow in the device's local timezone.
         createParsedTask({
           ...correctedTask,
           deadline: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
