@@ -72,7 +72,7 @@ export const useChat = () => {
           return { ...response.data, __submittedText: text };
         } catch (error) {
           lastError = error;
-          const transientNetworkFailure = !error?.response && ["ECONNABORTED", "ETIMEDOUT"].includes(error?.code);
+          const transientNetworkFailure = !error?.response && ["ECONNABORTED", "ETIMEDOUT", "ERR_NETWORK"].includes(error?.code) || (!error?.response && error?.code == null);
           if (attempt === 0 && transientNetworkFailure) {
             await new Promise((resolve) => setTimeout(resolve, 700));
             continue;
