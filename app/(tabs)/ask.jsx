@@ -21,14 +21,14 @@ const SUGGESTED_QUESTIONS = [
 export default function AskScreen() {
   const [inputText, setInputText] = useState("");
   const { theme, themeColors } = useAppTheme();
-  const { messages, sendMessage, isSending, isTyping, clearChat } = useChat();
+  const { messages, sendMessage, retryMessage, isSending, isTyping, clearChat } = useChat();
   const scrollViewRef = useRef(null);
   const inputRef = useRef(null);
 
   const handleSend = (textToSend) => {
     const text = textToSend || inputText;
-    if (!text.trim()) return;
-    sendMessage(text);
+    if (!text.trim() || isSending) return;
+    sendMessage(text.trim());
     setInputText("");
     setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
   };
@@ -86,7 +86,7 @@ export default function AskScreen() {
               ))}
             </View>
           ) : (
-            messages.map((msg) => <ChatMessage key={msg.id} message={msg} onEdit={(text) => { setInputText(text); inputRef.current?.focus(); }} />)
+            messages.map((msg) => <ChatMessage key={msg.id} message={msg} onRetry={retryMessage} onEdit={(text) => { setInputText(text); inputRef.current?.focus(); }} />)
           )}
 
           {isTyping && <TypingIndicator />}
