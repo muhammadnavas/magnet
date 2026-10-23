@@ -410,16 +410,26 @@ export default function ClassroomScreen() {
       const statusRes = await api.get("/classroom/status");
       const isConnected = Boolean(statusRes.data?.connected);
       statusConfirmedConnected = isConnected;
-      await AsyncStorage.setItem(CLASSROOM_STATUS_CACHE_KEY, isConnected ? "connected" : "disconnected");
+      if (isConnected) {
+        await AsyncStorage.setItem(CLASSROOM_STATUS_CACHE_KEY, "connected");
+      }
 
       if (!isConnected) {
-        // Only a successful, authoritative status response may clear connection
-        // state. A failed assignments request must not masquerade as disconnect.
+        // Do not erase a previously connected account's last good data just
+        // because status temporarily disagrees with the home-screen snapshot.
+        // Keep it visible and make the stale/reconnect state explicit.
+        const cachedStatus = await AsyncStorage.getItem(CLASSROOM_STATUS_CACHE_KEY);
+        const restored = await restoreClassroomCache();
+        if (cachedStatus === "connected" || restored) {
+          setConnected(true);
+          setSyncError("Google Classroom couldn't confirm your connection. Showing your last synced data; retry to refresh.");
+          return;
+        }
+        await AsyncStorage.setItem(CLASSROOM_STATUS_CACHE_KEY, "disconnected");
         setConnected(false);
         setEmail("");
         setCourses([]);
         setAssignments([]);
-        await AsyncStorage.removeItem(CLASSROOM_CACHE_KEY);
         await syncClassroomDeadlineNotifications([], []);
         return;
       }
