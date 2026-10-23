@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, TouchableOpacity, Text, Linking, Platform } from "react-native";
+import { Alert, TouchableOpacity, Text, Linking, Platform, Modal, View, Pressable } from "react-native";
 import { Audio } from "expo-av";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -17,6 +17,7 @@ export default function VoiceInput({ onTranscript, mode = "quick", disabled = fa
   const { themeColors } = useAppTheme();
   const [recording, setRecording] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [voiceError, setVoiceError] = useState(null);
   const instanceId = useRef(null);
   const transcriptRef = useRef("");
   const onTranscriptRef = useRef(onTranscript);
@@ -61,12 +62,33 @@ export default function VoiceInput({ onTranscript, mode = "quick", disabled = fa
       const code = errorRef.current;
       errorRef.current = null;
       if (code !== "aborted") {
-        Alert.alert(
-          "Voice input unavailable",
-          code === "not-allowed"
-            ? "Android denied microphone access. If Magnet does not appear under Microphone permissions, install a fresh Magnet build with the microphone permission included. Otherwise enable it in Settings > Apps > Magnet > Permissions."
-            : "Your device's speech service could not transcribe that. Check that Google Speech Services is installed and enabled, then try again."
-        );
+        const messages = {
+          "not-allowed": {
+            title: "Microphone access needed",
+            body: "Allow microphone access for Magnet in Android Settings, then try again.",
+            action: "Open app settings",
+          },
+          "language-not-supported": {
+            title: "Language not supported",
+            body: "Your device's speech service doesn't support English (India). Install or update Google Speech Services, or change your device's speech language.",
+            action: "Speech settings",
+          },
+          "network": {
+            title: "Speech service offline",
+            body: "Android couldn't reach its speech recognition service. Check your connection and make sure Google Speech Services is installed and enabled.",
+            action: "Speech settings",
+          },
+          "service-not-allowed": {
+            title: "Speech service unavailable",
+            body: "Android has no available speech recognition service. Install or enable Google Speech Services, then try again.",
+            action: "Speech settings",
+          },
+        };
+        setVoiceError(messages[code] || {
+          title: "Couldn't hear that",
+          body: "The speech service couldn't transcribe your voice. Check your connection and speech service, then try again.",
+          action: "Speech settings",
+        });
       }
     }
     transcriptRef.current = "";
@@ -166,12 +188,13 @@ export default function VoiceInput({ onTranscript, mode = "quick", disabled = fa
       setStarting(false);
       setRecording(false);
       console.error("Could not start speech recognition:", error);
-      Alert.alert(
-        "Voice input unavailable",
-        Platform.OS === "android"
-          ? "Check that Magnet has microphone permission and that Google Speech Services is installed and enabled."
-          : "Please allow microphone and speech-recognition access in your device settings."
-      );
+      setVoiceError({
+        title: "Voice input unavailable",
+        body: Platform.OS === "android"
+          ? "Check that Magnet has microphone permission and that a speech recognition service is installed and enabled."
+          : "Allow microphone and speech-recognition access in your device settings.",
+        action: Platform.OS === "android" ? "Open settings" : "Open app settings",
+      });
     }
   };
 
@@ -204,5 +227,26 @@ export default function VoiceInput({ onTranscript, mode = "quick", disabled = fa
         </Text>
       )}
     </TouchableOpacity>
+    <Modal visible={Boolean(voiceError)} transparent animationType="fade" onRequestClose={() => setVoiceError(null)}>
+      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.62)", justifyContent: "center", padding: 24 }}>
+        <Pressable onPress={() => setVoiceError(null)} style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0 }} />
+        <View style={{ backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1, borderRadius: 24, padding: 22, maxWidth: 460, width: "100%", alignSelf: "center" }}>
+          <View style={{ width: 48, height: 48, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: themeColors.surfaceHover, marginBottom: 16 }}>
+            <Ionicons name="mic-off-outline" size={24} color={themeColors.primary} />
+          </View>
+          <Text style={{ color: themeColors.text.primary, fontSize: 20, fontWeight: "800", marginBottom: 8 }}>{voiceError?.title || "Voice input unavailable"}</Text>
+          <Text style={{ color: themeColors.text.secondary, fontSize: 14, lineHeight: 21 }}>{voiceError?.body}</Text>
+          <TouchableOpacity onPress={() => { setVoiceError(null); toggleRecognition(); }} style={{ backgroundColor: themeColors.primary, borderRadius: 14, paddingVertical: 13, alignItems: "center", marginTop: 20 }}>
+            <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "800" }}>Try again</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={async () => { const action = voiceError?.action; setVoiceError(null); if (action === "Speech settings" && Platform.OS === "android") { try { await Linking.sendIntent("android.settings.VOICE_INPUT_SETTINGS"); } catch (_) { await openAppSettings(); } } else { await openAppSettings(); } }} style={{ borderColor: themeColors.border, borderWidth: 1, borderRadius: 14, paddingVertical: 12, alignItems: "center", marginTop: 9 }}>
+            <Text style={{ color: themeColors.text.primary, fontSize: 14, fontWeight: "700" }}>{voiceError?.action || "Open settings"}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setVoiceError(null)} style={{ paddingVertical: 12, alignItems: "center", marginTop: 2 }}>
+            <Text style={{ color: themeColors.text.muted, fontSize: 13, fontWeight: "700" }}>Not now</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
   );
 }
