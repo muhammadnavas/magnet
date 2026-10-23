@@ -6,11 +6,11 @@ const getChatErrorMessage = (error) => {
   const status = error?.response?.status;
   const detail = error?.response?.data?.detail;
   if (status === 401) return "Your session could not be authenticated. Please sign in again.";
-  if (status === 404) return "The chat endpoint was not found. Please check the backend deployment.";
+  if (status === 404) return "The chat endpoint was not found. The backend deployment may be out of date.";
   if (status === 429) return "The AI service is receiving too many requests. Please try again shortly.";
-  if (status >= 500) return "The backend encountered an error while processing your message. Please try again.";
-  if (error?.code === "ECONNABORTED") return "The AI response took too long. Please try again.";
-  if (!error?.response) return "Unable to reach Magnet's chat service. Check your connection and try again.";
+  if (status >= 500) return "Magnet's backend returned an error while generating the answer. Tap Retry to try again.";
+  if (error?.code === "ECONNABORTED" || error?.code === "ETIMEDOUT") return "The AI response timed out. The server may be busy; tap Retry.";
+  if (!error?.response) return "Couldn't get a response from Magnet's backend. Check the connection, then tap Retry. If it keeps failing, the deployed backend or chat provider may be unavailable.";
   if (typeof detail === "string" && detail.length < 180) return `Chat request failed: ${detail}`;
   return "Your message could not be sent. Please try again.";
 };
@@ -60,11 +60,27 @@ export const useChat = () => {
     mutationFn: async (text) => {
       // Keep the submitted text in the mutation so failures can be retried.
       setIsTyping(true);
-      const response = await api.post("/chat", {
-        content: text,
-        conversation_id: currentConversationId
-      });
-      return { ...response.data, __submittedText: text };
+      let lastError;
+      // One guarded retry for transient mobile-network drops. Do not retry
+      // authentication, validation, rate-limit, or server errors blindly.
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          const response = await api.post("/chat", {
+            content: text,
+            conversation_id: currentConversationId
+          });
+          return { ...response.data, __submittedText: text };
+        } catch (error) {
+          lastError = error;
+          const transientNetworkFailure = !error?.response && ["ECONNABORTED", "ETIMEDOUT"].includes(error?.code);
+          if (attempt === 0 && transientNetworkFailure) {
+            await new Promise((resolve) => setTimeout(resolve, 700));
+            continue;
+          }
+          throw error;
+        }
+      }
+      throw lastError;
     },
     onSuccess: (data) => {
       setIsTyping(false);
