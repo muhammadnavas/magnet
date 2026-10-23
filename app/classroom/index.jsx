@@ -322,6 +322,28 @@ export default function ClassroomScreen() {
   const [filter,         setFilter]         = useState("all");
   const [search,         setSearch]         = useState("");
   const [localDoneIds,   setLocalDoneIds]   = useState(new Set());
+  const [syncError, setSyncError] = useState("");
+
+  const CLASSROOM_CACHE_KEY = "orio_classroom_last_good_data";
+  const CLASSROOM_STATUS_CACHE_KEY = "orio_classroom_last_connected_status";
+
+  // Keep the last successful snapshot so a temporary Google/API failure
+  // never makes an already-connected account look disconnected or erases data.
+  const restoreClassroomCache = useCallback(async () => {
+    try {
+      const raw = await AsyncStorage.getItem(CLASSROOM_CACHE_KEY);
+      if (!raw) return false;
+      const cached = JSON.parse(raw);
+      if (!cached || !Array.isArray(cached.courses) || !Array.isArray(cached.assignments)) return false;
+      setCourses(cached.courses);
+      setAssignments(cached.assignments);
+      if (cached.email) setEmail(cached.email);
+      setConnected(true);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }, []);
 
   // ── AsyncStorage helpers ──────────────────────────────────────────────
   const loadLocalDone = useCallback(async () => {
@@ -381,41 +403,70 @@ export default function ClassroomScreen() {
 
   // ── Data loading ──────────────────────────────────────────────────────
   const loadData = useCallback(async () => {
+    let statusConfirmedConnected = false;
     try {
       setLoading(true);
-      const statusRes   = await api.get("/classroom/status");
+      setSyncError("");
+      const statusRes = await api.get("/classroom/status");
       const isConnected = Boolean(statusRes.data?.connected);
-      setConnected(isConnected);
-      setEmail(statusRes.data?.email || "");
+      statusConfirmedConnected = isConnected;
+      await AsyncStorage.setItem(CLASSROOM_STATUS_CACHE_KEY, isConnected ? "connected" : "disconnected");
 
-      if (isConnected) {
-        const [coursesRes, assignmentsRes] = await Promise.all([
-          api.get("/classroom/courses"),
-          api.get("/classroom/assignments"),
-        ]);
-        const newAssignments = deduplicateClassroomAssignments(assignmentsRes.data);
-        setCourses(Array.isArray(coursesRes.data) ? coursesRes.data : []);
-        setAssignments(newAssignments);
-        const doneRaw = await AsyncStorage.getItem(DONE_KEY);
-        await syncClassroomDeadlineNotifications(newAssignments, doneRaw ? JSON.parse(doneRaw) : []);
-
-        await syncClassroomAssignmentNotifications(newAssignments);
-      } else {
-        await syncClassroomDeadlineNotifications([], []);
+      if (!isConnected) {
+        // Only a successful, authoritative status response may clear connection
+        // state. A failed assignments request must not masquerade as disconnect.
+        setConnected(false);
+        setEmail("");
         setCourses([]);
         setAssignments([]);
+        await AsyncStorage.removeItem(CLASSROOM_CACHE_KEY);
+        await syncClassroomDeadlineNotifications([], []);
+        return;
       }
+
+      setConnected(true);
+      setEmail(statusRes.data?.email || "");
+      const [coursesRes, assignmentsRes] = await Promise.all([
+        api.get("/classroom/courses"),
+        api.get("/classroom/assignments"),
+      ]);
+      const newCourses = Array.isArray(coursesRes.data) ? coursesRes.data : [];
+      const newAssignments = deduplicateClassroomAssignments(assignmentsRes.data);
+      setCourses(newCourses);
+      setAssignments(newAssignments);
+      await AsyncStorage.setItem(CLASSROOM_CACHE_KEY, JSON.stringify({
+        courses: newCourses,
+        assignments: newAssignments,
+        email: statusRes.data?.email || "",
+        savedAt: new Date().toISOString(),
+      }));
+      const doneRaw = await AsyncStorage.getItem(DONE_KEY);
+      await syncClassroomDeadlineNotifications(newAssignments, doneRaw ? JSON.parse(doneRaw) : []);
+      await syncClassroomAssignmentNotifications(newAssignments);
     } catch (e) {
       console.log("[CLASSROOM]", e?.response?.data || e?.message);
-      setConnected(false);
-      setEmail("");
-      setCourses([]);
-      setAssignments([]);
+      // If status already confirmed the account, preserve connected state and
+      // show last good data instead of the misleading Connect screen.
+      if (statusConfirmedConnected) {
+        setConnected(true);
+        setSyncError("Couldn't refresh Google Classroom right now. Showing your last synced data.");
+        await restoreClassroomCache();
+      } else {
+        const cachedStatus = await AsyncStorage.getItem(CLASSROOM_STATUS_CACHE_KEY);
+        const restored = await restoreClassroomCache();
+        if (cachedStatus === "connected" || restored) {
+          setConnected(true);
+          setSyncError("Connection check failed. Showing your last synced data.");
+        } else {
+          setConnected(false);
+          setSyncError("Couldn't check Google Classroom. Pull to refresh and try again.");
+        }
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [restoreClassroomCache]);
 
 
   useFocusEffect(useCallback(() => {
@@ -595,6 +646,16 @@ export default function ClassroomScreen() {
             </View>
           </View>
         )}
+
+        {connected && syncError ? (
+          <View style={{ backgroundColor: tc.surfaceHover, borderRadius: 12, padding: 12, marginBottom: 14, flexDirection: "row", alignItems: "center" }}>
+            <Ionicons name="cloud-offline-outline" size={17} color={tc.warning} style={{ marginRight: 8 }} />
+            <Text style={{ color: tc.text.muted, fontSize: 12, flex: 1 }}>{syncError}</Text>
+            <Pressable onPress={loadData} accessibilityRole="button" accessibilityLabel="Retry Google Classroom sync">
+              <Text style={{ color: tc.primary, fontSize: 12, fontWeight: "800" }}>Retry</Text>
+            </Pressable>
+          </View>
+        ) : null}
 
         {/* ── Loading ──────────────────────────────────────────────── */}
         {connected && loading && (
