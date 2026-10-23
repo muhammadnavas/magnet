@@ -72,7 +72,13 @@ export default function TasksScreen() {
       // user-provided date/time expressions.
       const correctedTask = applyDueTime(parsedData, trimmed);
       if (isReminderWithoutTime(trimmed, correctedTask)) {
-        askForReminderTime(correctedTask);
+        // A reminder without a date/time should still be actionable. Use a
+        // predictable near-term default instead of blocking the user with a
+        // modal; explicit times/dates always take precedence above.
+        createParsedTask({
+          ...correctedTask,
+          deadline: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+        });
         return;
       }
       createParsedTask(correctedTask);
@@ -80,7 +86,10 @@ export default function TasksScreen() {
       console.error("Failed to parse task via AI:", error);
       const fallbackTask = applyDueTime({ title: trimmed, priority: "medium", deadline: null, reminder_interval_hours: 0 }, trimmed);
       if (isReminderWithoutTime(trimmed, fallbackTask)) {
-        askForReminderTime(fallbackTask);
+        createParsedTask({
+          ...fallbackTask,
+          deadline: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+        });
         return;
       }
       createParsedTask(fallbackTask);
