@@ -7,7 +7,7 @@ import Markdown from "react-native-markdown-display";
 import SourceCitation from "./SourceCitation";
 import { useAppTheme } from "../../store/themeStore";
 
-export const ChatMessage = ({ message, onEdit }) => {
+export const ChatMessage = ({ message, onEdit, onRetry }) => {
   const { role, content, sources } = message;
   const isUser = role === "user";
   const { themeColors } = useAppTheme();
@@ -51,6 +51,17 @@ export const ChatMessage = ({ message, onEdit }) => {
         className={`max-w-[84%] rounded-2xl px-3 py-2 ${isUser ? "rounded-tr-none" : "rounded-tl-none"}`}
       >
         <Markdown style={markdownStyles}>{content}</Markdown>
+        {message.isError && message.retryText ? (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Retry sending message"
+            onPress={() => onRetry?.(message.retryText)}
+            style={{ alignSelf: "flex-start", flexDirection: "row", alignItems: "center", marginTop: 10, paddingHorizontal: 11, paddingVertical: 7, borderRadius: 12, backgroundColor: themeColors.surfaceHover }}
+          >
+            <Ionicons name="refresh" size={14} color={themeColors.primary} style={{ marginRight: 6 }} />
+            <Text style={{ color: themeColors.primary, fontSize: 12, fontWeight: "800" }}>Retry message</Text>
+          </TouchableOpacity>
+        ) : null}
         {!isUser && Boolean(content) && (
           <View className="flex-row items-center justify-end mt-1.5" style={{ gap: 14 }}>
             <TouchableOpacity
