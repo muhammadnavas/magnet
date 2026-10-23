@@ -58,46 +58,39 @@ export const useChat = () => {
 
   const sendMessageMutation = useMutation({
     mutationFn: async (text) => {
-      // 1. Immediately append user's local message to state
-      const tempUserId = Math.random().toString();
-      const userMessage = {
-        id: tempUserId,
-        role: "user",
-        content: text,
-        created_at: new Date().toISOString()
-      };
-      addMessage(userMessage);
+      // Keep the submitted text in the mutation so failures can be retried.
       setIsTyping(true);
-
-      // 2. Call backend chat API
-      const payload = {
+      const response = await api.post("/chat", {
         content: text,
         conversation_id: currentConversationId
-      };
-
-      const response = await api.post("/chat", payload);
-      return response.data;
+      });
+      return { ...response.data, __submittedText: text };
     },
     onSuccess: (data) => {
       setIsTyping(false);
-      // Append real assistant response from server
-      addMessage(data);
-      // Save current conversation ID
-      if (data.conversation_id) {
-        setCurrentConversationId(data.conversation_id);
-      }
-      // Refresh list of conversations
+      // Only show the user bubble after the server confirms the request.
+      // This avoids duplicate-looking bubbles when a failed message is retried.
+      addMessage({
+        id: "user-" + (data.id || Date.now()),
+        role: "user",
+        content: data.__submittedText,
+        created_at: new Date().toISOString()
+      });
+      const { __submittedText, ...assistantMessage } = data;
+      addMessage(assistantMessage);
+      if (data.conversation_id) setCurrentConversationId(data.conversation_id);
       queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });
     },
-    onError: (err) => {
+    onError: (err, text) => {
       setIsTyping(false);
       console.error("Send message error:", err);
-      // Append mock/error message so UI doesn't hang
       addMessage({
-        id: Math.random().toString(),
+        id: "error-" + Date.now(),
         role: "assistant",
         content: getChatErrorMessage(err),
-        sources: []
+        sources: [],
+        retryText: text,
+        isError: true
       });
     }
   });
@@ -105,6 +98,7 @@ export const useChat = () => {
   return {
     messages,
     sendMessage: sendMessageMutation.mutate,
+    retryMessage: (text) => sendMessageMutation.mutate(text),
     isSending: sendMessageMutation.isPending,
     isTyping,
     conversations: fetchConversations.data || [],
