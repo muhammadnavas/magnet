@@ -442,6 +442,28 @@ export default function ClassroomScreen() {
       ]);
       const newCourses = Array.isArray(coursesRes.data) ? coursesRes.data : [];
       const newAssignments = deduplicateClassroomAssignments(assignmentsRes.data);
+
+      // A transient Google/API/scope issue can incorrectly produce an empty
+      // feed. Never replace a previously populated snapshot with an all-empty
+      // response in a single sync; preserve the last useful data and expose
+      // that the fresh response needs investigation.
+      if (newCourses.length === 0 && newAssignments.length === 0) {
+        const rawCache = await AsyncStorage.getItem(CLASSROOM_CACHE_KEY);
+        let cached = null;
+        try { cached = rawCache ? JSON.parse(rawCache) : null; } catch (_) {}
+        if (cached && (
+          (Array.isArray(cached.courses) && cached.courses.length > 0) ||
+          (Array.isArray(cached.assignments) && cached.assignments.length > 0)
+        )) {
+          setCourses(cached.courses);
+          setAssignments(cached.assignments);
+          setEmail(statusRes.data?.email || cached.email || "");
+          setConnected(true);
+          setSyncError("Google Classroom returned no courses or assignments. Keeping your previous data until a successful sync confirms the change.");
+          return;
+        }
+      }
+
       setCourses(newCourses);
       setAssignments(newAssignments);
       await AsyncStorage.setItem(CLASSROOM_CACHE_KEY, JSON.stringify({
