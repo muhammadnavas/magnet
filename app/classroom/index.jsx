@@ -323,6 +323,7 @@ export default function ClassroomScreen() {
   const [search,         setSearch]         = useState("");
   const [localDoneIds,   setLocalDoneIds]   = useState(new Set());
   const [syncError, setSyncError] = useState("");
+  const [syncNeedsReconnect, setSyncNeedsReconnect] = useState(false);
 
   const CLASSROOM_CACHE_KEY = "orio_classroom_last_good_data";
   const CLASSROOM_STATUS_CACHE_KEY = "orio_classroom_last_connected_status";
@@ -407,6 +408,7 @@ export default function ClassroomScreen() {
     try {
       setLoading(true);
       setSyncError("");
+      setSyncNeedsReconnect(false);
       const statusRes = await api.get("/classroom/status");
       const isConnected = Boolean(statusRes.data?.connected);
       statusConfirmedConnected = isConnected;
@@ -477,21 +479,42 @@ export default function ClassroomScreen() {
       await syncClassroomAssignmentNotifications(newAssignments);
     } catch (e) {
       console.log("[CLASSROOM]", e?.response?.data || e?.message);
-      // If status already confirmed the account, preserve connected state and
-      // show last good data instead of the misleading Connect screen.
+      const status = e?.response?.status;
+      const detail = e?.response?.data?.detail;
+      const detailText = typeof detail === "string" ? detail : "";
+      const needsReconnect = status === 401 || /token refresh failed|please reconnect|invalid_grant|insufficient authentication scopes/i.test(detailText);
+      const rawCache = await AsyncStorage.getItem(CLASSROOM_CACHE_KEY);
+      let cacheHasData = false;
+      try {
+        const cached = rawCache ? JSON.parse(rawCache) : null;
+        cacheHasData = Boolean(cached && (
+          (Array.isArray(cached.courses) && cached.courses.length > 0) ||
+          (Array.isArray(cached.assignments) && cached.assignments.length > 0)
+        ));
+      } catch (_) {}
+      const restored = await restoreClassroomCache();
+      setSyncNeedsReconnect(needsReconnect);
       if (statusConfirmedConnected) {
         setConnected(true);
-        setSyncError("Couldn't refresh Google Classroom right now. Showing your last synced data.");
-        await restoreClassroomCache();
+        if (cacheHasData && restored) {
+          setSyncError("Google Classroom refresh failed. Showing your last saved courses and assignments.");
+        } else if (needsReconnect) {
+          setSyncError("Your Google Classroom session needs to be reconnected to load courses and assignments.");
+        } else {
+          setSyncError(detailText
+            ? `Google Classroom sync failed: ${detailText.slice(0, 180)}`
+            : "Google Classroom is connected, but its data could not be loaded. Check your connection and retry.");
+        }
       } else {
         const cachedStatus = await AsyncStorage.getItem(CLASSROOM_STATUS_CACHE_KEY);
-        const restored = await restoreClassroomCache();
         if (cachedStatus === "connected" || restored) {
           setConnected(true);
-          setSyncError("Connection check failed. Showing your last synced data.");
+          setSyncError(cacheHasData
+            ? "Connection check failed. Showing your last saved courses and assignments."
+            : "Google Classroom's connection could not be verified. Retry to load your data.");
         } else {
           setConnected(false);
-          setSyncError("Couldn't check Google Classroom. Pull to refresh and try again.");
+          setSyncError(detailText ? detailText.slice(0, 180) : "Couldn't check Google Classroom. Pull to refresh and try again.");
         }
       }
     } finally {
@@ -683,9 +706,16 @@ export default function ClassroomScreen() {
           <View style={{ backgroundColor: tc.surfaceHover, borderRadius: 12, padding: 12, marginBottom: 14, flexDirection: "row", alignItems: "center" }}>
             <Ionicons name="cloud-offline-outline" size={17} color={tc.warning} style={{ marginRight: 8 }} />
             <Text style={{ color: tc.text.muted, fontSize: 12, flex: 1 }}>{syncError}</Text>
-            <Pressable onPress={loadData} accessibilityRole="button" accessibilityLabel="Retry Google Classroom sync">
-              <Text style={{ color: tc.primary, fontSize: 12, fontWeight: "800" }}>Retry</Text>
-            </Pressable>
+            <View style={{ alignItems: "flex-end", marginLeft: 8 }}>
+              <Pressable onPress={loadData} accessibilityRole="button" accessibilityLabel="Retry Google Classroom sync">
+                <Text style={{ color: tc.primary, fontSize: 12, fontWeight: "800" }}>Retry</Text>
+              </Pressable>
+              {syncNeedsReconnect ? (
+                <Pressable onPress={connectClassroom} disabled={connectLoading} accessibilityRole="button" accessibilityLabel="Reconnect Google Classroom" style={{ marginTop: 7 }}>
+                  <Text style={{ color: tc.primary, fontSize: 11, fontWeight: "800" }}>{connectLoading ? "Opening…" : "Reconnect"}</Text>
+                </Pressable>
+              ) : null}
+            </View>
           </View>
         ) : null}
 
