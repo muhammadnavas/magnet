@@ -200,6 +200,7 @@ export default function VoiceInput({ onTranscript, mode = "quick", disabled = fa
 
   const isActive = recording || starting;
   return (
+    <>
     <TouchableOpacity
       accessibilityRole="button"
       accessibilityLabel={isActive ? "Stop voice input" : mode === "conversation" ? "Ask AI using voice" : "Dictate text"}
@@ -248,5 +249,6 @@ export default function VoiceInput({ onTranscript, mode = "quick", disabled = fa
         </View>
       </View>
     </Modal>
+    </>
   );
 }
