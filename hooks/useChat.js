@@ -57,22 +57,22 @@ export const useChat = () => {
   };
 
   const sendMessageMutation = useMutation({
-    mutationFn: async (text) => {
-      // Keep the submitted text in the mutation so failures can be retried.
+    mutationFn: async ({ text, pendingId }) => {
       setIsTyping(true);
       let lastError;
-      // One guarded retry for transient mobile-network drops. Do not retry
-      // authentication, validation, rate-limit, or server errors blindly.
+      // One guarded retry for transient mobile-network drops.
       for (let attempt = 0; attempt < 2; attempt += 1) {
         try {
           const response = await api.post("/chat", {
             content: text,
             conversation_id: currentConversationId
           });
-          return { ...response.data, __submittedText: text };
+          return { ...response.data, __submittedText: text, __pendingId: pendingId };
         } catch (error) {
           lastError = error;
-          const transientNetworkFailure = !error?.response && ["ECONNABORTED", "ETIMEDOUT", "ERR_NETWORK"].includes(error?.code) || (!error?.response && error?.code == null);
+          const transientNetworkFailure =
+            !error?.response &&
+            (["ECONNABORTED", "ETIMEDOUT", "ERR_NETWORK"].includes(error?.code) || error?.code == null);
           if (attempt === 0 && transientNetworkFailure) {
             await new Promise((resolve) => setTimeout(resolve, 700));
             continue;
@@ -82,30 +82,48 @@ export const useChat = () => {
       }
       throw lastError;
     },
+    onMutate: ({ text, pendingId }) => {
+      // Show the user's message immediately instead of leaving an empty screen
+      // with an indefinite typing indicator while the server responds.
+      addMessage({
+        id: pendingId,
+        role: "user",
+        content: text,
+        created_at: new Date().toISOString(),
+        pending: true
+      });
+      setIsTyping(true);
+      return { pendingId, text };
+    },
     onSuccess: (data) => {
       setIsTyping(false);
-      // Only show the user bubble after the server confirms the request.
-      // This avoids duplicate-looking bubbles when a failed message is retried.
-      addMessage({
-        id: "user-" + (data.id || Date.now()),
-        role: "user",
-        content: data.__submittedText,
-        created_at: new Date().toISOString()
-      });
-      const { __submittedText, ...assistantMessage } = data;
-      addMessage(assistantMessage);
+      setMessages((current) => [
+        ...current.filter((message) => message.id !== data.__pendingId),
+        {
+          id: "user-" + (data.id || Date.now()),
+          role: "user",
+          content: data.__submittedText,
+          created_at: new Date().toISOString()
+        },
+        ...[(({ __submittedText, __pendingId, ...assistantMessage }) => assistantMessage)(data)]
+      ]);
       if (data.conversation_id) setCurrentConversationId(data.conversation_id);
       queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });
     },
-    onError: (err, text) => {
+    onError: (err, variables, context) => {
       setIsTyping(false);
       console.error("Send message error:", err);
+      setMessages((current) => current.map((message) =>
+        message.id === (context?.pendingId || variables?.pendingId)
+          ? { ...message, pending: false, failed: true }
+          : message
+      ));
       addMessage({
         id: "error-" + Date.now(),
         role: "assistant",
         content: getChatErrorMessage(err),
         sources: [],
-        retryText: text,
+        retryText: variables?.text,
         isError: true
       });
     }
@@ -113,8 +131,8 @@ export const useChat = () => {
 
   return {
     messages,
-    sendMessage: sendMessageMutation.mutate,
-    retryMessage: (text) => sendMessageMutation.mutate(text),
+    sendMessage: (text) => sendMessageMutation.mutate({ text, pendingId: "pending-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8) }),
+    retryMessage: (text) => sendMessageMutation.mutate({ text, pendingId: "pending-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8) }),
     isSending: sendMessageMutation.isPending,
     isTyping,
     conversations: fetchConversations.data || [],
