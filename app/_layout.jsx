@@ -60,10 +60,19 @@ export default function RootLayout() {
       }
       if (parsed.protocol !== "orio:" || parsed.hostname !== "share") return;
       const sharedText = (parsed.searchParams.get("text") || "").trim();
-      if (!sharedText) return;
+      const sharedStreams = parsed.searchParams.getAll("stream");
+      const sharedNames = parsed.searchParams.getAll("name");
+      const sharedMime = parsed.searchParams.get("mime") || "text/plain";
+      if (!sharedText && sharedStreams.length === 0) return;
 
       handledShareUrls.current.add(url);
-      router.push({ pathname: "/capture", params: { sharedText } });
+      router.push({
+        pathname: "/capture",
+        params: {
+          ...(sharedText ? { sharedText } : {}),
+          ...(sharedStreams.length ? { stream: sharedStreams, name: sharedNames, mime: sharedMime } : {}),
+        },
+      });
     };
 
     Linking.getInitialURL()
