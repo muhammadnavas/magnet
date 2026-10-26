@@ -43,16 +43,18 @@ export default function CaptureScreen() {
 
     const sharedUris = Array.isArray(params.stream) ? params.stream : (params.stream ? [params.stream] : []);
     const sharedNames = Array.isArray(params.name) ? params.name : (params.name ? [params.name] : []);
+    const sharedFileMimes = Array.isArray(params.fileMime) ? params.fileMime : (params.fileMime ? [params.fileMime] : []);
     const sharedMime = String(firstParam(params.mime) || "application/octet-stream").toLowerCase();
     if (sharedUris.length) {
       const files = sharedUris.filter((uri) => typeof uri === "string" && uri.length > 0).map((uri, index) => {
-        const name = String(sharedNames[index] || sharedNames[0] || "").trim() || `Shared file ${index + 1}`;
-        const contentType = sharedMime === "application/pdf" ? "pdf" : sharedMime.startsWith("image/") ? "image" : sharedMime.startsWith("text/") ? "note" : "file";
-        return { uri, name, mimeType: sharedMime, contentType };
+        const mimeType = String(sharedFileMimes[index] || sharedMime || "application/octet-stream").toLowerCase();
+        const name = String(sharedNames[index] || "").trim() || `Shared file ${index + 1}`;
+        const contentType = mimeType === "application/pdf" ? "pdf" : mimeType.startsWith("image/") ? "image" : mimeType.startsWith("text/") ? "note" : "file";
+        return { uri, name, mimeType, contentType };
       });
       setPendingSharedFiles(files);
     }
-    if (sharedText || sharedUris.length) router.setParams({ sharedText: undefined, stream: undefined, name: undefined, mime: undefined });
+    if (sharedText || sharedUris.length) router.setParams({ sharedText: undefined, stream: undefined, name: undefined, fileMime: undefined, mime: undefined });
   }, [params.sharedText, params.stream, params.name, params.mime]);
   useEffect(() => {
     if (!successToast) return undefined;
@@ -149,12 +151,22 @@ export default function CaptureScreen() {
     setPendingSharedFiles([]);
     for (const file of files) {
       try {
-        await store.addKnowledgeItem({ title: file.name, contentType: file.contentType, rawContent: "", file: { uri: file.uri, name: file.name, type: file.mimeType, mimeType: file.mimeType } });
+        if (store.syncStatus === "offline") {
+          Alert.alert("You are offline", "Connect to the internet before saving shared files. Your file is still available in this preview.");
+          setPendingSharedFiles((current) => [file, ...current, ...files.slice(files.indexOf(file) + 1)]);
+          break;
+        }
+        const saved = await store.addKnowledgeItem({ title: file.name, contentType: file.contentType, rawContent: "", file: { uri: file.uri, name: file.name, type: file.mimeType, mimeType: file.mimeType } });
+        if (saved === false) {
+          Alert.alert("Could not save file", `Magnet could not upload ${file.name}. Check your connection and try again.`);
+          setPendingSharedFiles((current) => [file, ...current, ...files.slice(files.indexOf(file) + 1)]);
+          break;
+        }
         showSuccessToast(file.name);
       } catch (error) {
         console.error("Failed to save shared file:", error);
         Alert.alert("Could not save file", `Magnet could not import ${file.name}. Please try sharing it again.`);
-        setPendingSharedFiles((current) => [file, ...current]);
+        setPendingSharedFiles((current) => [file, ...current, ...files.slice(files.indexOf(file) + 1)]);
         break;
       }
     }
