@@ -21,31 +21,44 @@ const FILTERS = [
 function cleanTaskTitle(text, parsedTitle) {
   const raw = String(text || "").trim();
   const candidate = String(parsedTitle || "").trim();
-  // Prefer the user's action text over an AI title that repeats the reminder
-  // instruction or mistakes the time expression for the task itself.
-  let cleaned = raw
-    .replace(/^\s*(?:please\s+)?(?:set\s+(?:a\s+)?reminder(?:\s+for)?|remind\s+me(?:\s+to)?|reminder\s+to)\s*/i, "")
+  const stripInstructionAndTime = (value) => String(value || "")
+    .replace(/^\s*(?:please\s+)?(?:could\s+you\s+)?(?:set\s+(?:a\s+)?reminder(?:\s+for)?|remind\s+me(?:\s+to)?|reminder\s+to|create\s+(?:a\s+)?task(?:\s+to)?|add\s+(?:a\s+)?task(?:\s+to)?)\s*/i, "")
     .replace(/\s+(?:in|after|within|for)\s+\d+(?:\.\d+)?\s*(?:seconds?|secs?|minutes?|mins?|hours?|hrs?|days?|weeks?)\b.*$/i, "")
-    .replace(/\s+(?:today|tomorrow|tonight|this\s+(?:morning|afternoon|evening)|next\s+(?:week|month|year|monday|tuesday|wednesday|thursday|friday|saturday|sunday)|(?:at|around|by)\s+\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)?)\b.*$/i, "")
+    .replace(/\s+(?:today|tomorrow|tonight|this\s+(?:morning|afternoon|evening)|next\s+(?:week|month|year|monday|tuesday|wednesday|thursday|friday|saturday|sunday)|(?:at|around|by|before|on)\s+\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)?)\b.*$/i, "")
     .replace(/[,.!?\s]+$/, "")
     .trim();
-  if (!cleaned || /^(?:at\s*)?\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)?$/i.test(cleaned)) {
-    cleaned = candidate && candidate.toLowerCase() !== raw.toLowerCase() ? candidate : "Reminder";
+  const rawTitle = stripInstructionAndTime(raw);
+  const aiTitle = stripInstructionAndTime(candidate);
+  const generic = /^(?:reminder|reminders|give me a reminder|set a reminder|task|untitled task|please remind me)$/i;
+  let title = aiTitle && !generic.test(aiTitle) ? aiTitle : rawTitle;
+  if (!title || generic.test(title) || /^(?:at\s*)?\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)?$/i.test(title)) {
+    title = rawTitle && !generic.test(rawTitle) ? rawTitle : "Reminder";
   }
-  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+  return title.charAt(0).toUpperCase() + title.slice(1);
 }
 
+function hasExplicitTiming(text) {
+  const value = String(text || "");
+  return /\b(?:today|tomorrow|tonight|morning|afternoon|evening|midnight|noon|next\s+(?:week|month|monday|tuesday|wednesday|thursday|friday|saturday|sunday)|\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)|\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?|\b(?:in|after|within|for)\s+\d+(?:\.\d+)?\s*(?:seconds?|secs?|minutes?|mins?|hours?|hrs?|days?|weeks?)\b)\b/i.test(value);
+}
 function applyDueTime(task, text) {
-  const parsedDeadline = parseTaskDateTime(text);
+  const hasTiming = hasExplicitTiming(text);
+  const parsedDeadline = hasTiming ? parseTaskDateTime(text) : null;
   const title = cleanTaskTitle(text, task?.title);
-  // The device's local parser is authoritative for explicit dates/times. In
-  // particular, a time without a date means its next occurrence in local time.
-  return parsedDeadline ? { ...task, title, deadline: parsedDeadline } : { ...task, title };
+  // Never trust an AI-invented deadline when the user gave no timing.
+  // Explicit times/dates are resolved locally so a clock time means its next
+  // occurrence, not an arbitrary timestamp guessed by the model.
+  return {
+    ...task,
+    title,
+    deadline: hasTiming ? (parsedDeadline || task?.deadline || null) : null,
+  };
 }
 
 function isReminderWithoutTime(text, task) {
   const value = String(text || "");
-  return /\bremind me\b|\bset (a )?reminder\b/i.test(value) && !task?.deadline;
+  const reminderIntent = /\bremind(?:er)?\b|\bnotify me\b|\balert me\b/i.test(value);
+  return reminderIntent && !hasExplicitTiming(value) && !task?.deadline;
 }
 
 export default function TasksScreen() {
