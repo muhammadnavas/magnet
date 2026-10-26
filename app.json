@@ -13,7 +13,9 @@
       "bundleIdentifier": "com.muhammadnavas.orio",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Orio uses the microphone when you choose voice input for notes, AI questions, and tasks.",
-        "UIBackgroundModes": ["fetch"]
+        "UIBackgroundModes": [
+          "fetch"
+        ]
       }
     },
     "android": {
@@ -60,9 +62,12 @@
         {
           "microphonePermission": "Allow Orio to use the microphone for voice input.",
           "speechRecognitionPermission": "Allow Orio to convert your speech into text.",
-          "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox"]
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox"
+          ]
         }
-      ]
+      ],
+      "./plugins/withMagnetShareIntent"
     ],
     "extra": {
       "router": {},
