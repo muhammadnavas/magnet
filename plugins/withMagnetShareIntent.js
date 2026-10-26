@@ -14,13 +14,18 @@ function withMagnetShareIntent(config) {
 
     mainActivity["intent-filter"] = mainActivity["intent-filter"] || [];
     const hasShareFilter = mainActivity["intent-filter"].some((filter) =>
-      (filter.action || []).some((action) => action.$?.["android:name"] === "android.intent.action.SEND")
+      (filter.action || []).some((action) =>
+        ["android.intent.action.SEND", "android.intent.action.SEND_MULTIPLE"].includes(action.$?.["android:name"])
+      )
     );
     if (!hasShareFilter) {
       mainActivity["intent-filter"].push({
-        action: [{ $: { "android:name": "android.intent.action.SEND" } }],
+        action: [
+          { $: { "android:name": "android.intent.action.SEND" } },
+          { $: { "android:name": "android.intent.action.SEND_MULTIPLE" } },
+        ],
         category: [{ $: { "android:name": "android.intent.category.DEFAULT" } }],
-        data: [{ $: { "android:mimeType": "text/plain" } }],
+        data: [{ $: { "android:mimeType": "*/*" } }],
       });
     }
     return mod;
@@ -34,10 +39,16 @@ function withMagnetShareIntent(config) {
       throw new Error("Magnet Share Intent: MainActivity onCreate signature was not recognized.");
     }
 
-    if (!source.includes("import android.content.Intent")) {
-      source = source.replace(/^(package .*\n)/m, "$1\nimport android.content.Intent\nimport android.net.Uri\n");
-    } else if (!source.includes("import android.net.Uri")) {
-      source = source.replace("import android.content.Intent", "import android.content.Intent\nimport android.net.Uri");
+    const imports = [
+      "import android.content.Intent",
+      "import android.net.Uri",
+      "import android.provider.OpenableColumns",
+    ];
+    for (const line of imports) {
+      if (!source.includes(line)) {
+        const packageMatch = source.match(/^package .*\n/m);
+        if (packageMatch) source = source.replace(packageMatch[0], packageMatch[0] + "\n" + line + "\n");
+      }
     }
 
     source = source.replace(
@@ -58,12 +69,53 @@ function withMagnetShareIntent(config) {
 
     const method = `
   private fun normalizeMagnetShareIntent(incoming: Intent?) {
-    if (incoming?.action != Intent.ACTION_SEND) return
-    val sharedText = incoming.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()?.trim()
-    if (sharedText.isNullOrEmpty()) return
+    if (incoming == null) return
+    if (incoming.action != Intent.ACTION_SEND && incoming.action != Intent.ACTION_SEND_MULTIPLE) return
+
+    val sharedText = incoming.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()?.trim().orEmpty()
+    val sharedUris = mutableListOf<Uri>()
+    val singleStream = if (android.os.Build.VERSION.SDK_INT >= 33) {
+      incoming.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+    } else {
+      @Suppress("DEPRECATION")
+      incoming.getParcelableExtra(Intent.EXTRA_STREAM) as? Uri
+    }
+    if (singleStream != null) sharedUris.add(singleStream)
+
+    if (incoming.action == Intent.ACTION_SEND_MULTIPLE) {
+      val multipleStreams = if (android.os.Build.VERSION.SDK_INT >= 33) {
+        incoming.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)
+      } else {
+        @Suppress("DEPRECATION")
+        incoming.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)
+      }
+      multipleStreams?.forEach { if (!sharedUris.contains(it)) sharedUris.add(it) }
+    }
+
+    if (sharedText.isEmpty() && sharedUris.isEmpty()) return
+
+    val mimeType = incoming.type ?: "text/plain"
+    val builder = Uri.Builder().scheme("orio").authority("share")
+    if (sharedText.isNotEmpty()) builder.appendQueryParameter("text", sharedText)
+    builder.appendQueryParameter("mime", mimeType)
+
+    sharedUris.forEach { uri ->
+      builder.appendQueryParameter("stream", uri.toString())
+      val displayName = try {
+        contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+          val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+          if (nameIndex >= 0 && cursor.moveToFirst()) cursor.getString(nameIndex) else null
+        }
+      } catch (_: Exception) { null }
+      if (!displayName.isNullOrBlank()) builder.appendQueryParameter("name", displayName)
+    }
+
+    // Keep ClipData and URI grant flags so shared content:// files remain readable.
     incoming.action = Intent.ACTION_VIEW
-    incoming.data = Uri.parse("${SHARE_SCHEME}://share?text=" + Uri.encode(sharedText))
+    incoming.data = builder.build()
+    incoming.type = null
     incoming.removeExtra(Intent.EXTRA_TEXT)
+    incoming.removeExtra(Intent.EXTRA_STREAM)
   }
 
 `;
