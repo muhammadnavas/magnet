@@ -11,9 +11,12 @@ import Card from "../../components/ui/Card";
 import Logo from "../../components/ui/Logo";
 import VoiceInput from "../../components/voice/VoiceInput";
 import { useAppTheme } from "../../store/themeStore";
+import { useCreateTask, useParseTask } from "../../hooks/useTasks";
 
 export default function CaptureScreen() {
   const store = useKnowledgeStore();
+  const createTask = useCreateTask();
+  const parseTask = useParseTask();
   const { themeColors } = useAppTheme();
   const params = useLocalSearchParams();
   const [inputText, setInputText] = useState("");
@@ -172,6 +175,31 @@ export default function CaptureScreen() {
     }
     await store.fetchItems();
   };
+  const suggestTaskFromCapturedText = async (raw) => {
+    const actionCue = /\b(remind me|deadline|due (?:on|by|tomorrow|today)|submit|finish|complete|pay|call|meet|attend|buy|pick up|send|apply|renew|book|schedule|appointment|assignment)\b/i;
+    if (!actionCue.test(raw) || raw.length > 12000) return;
+    try {
+      const parsed = await parseTask.mutateAsync(raw);
+      if (!parsed?.title || !String(parsed.title).trim()) return;
+      const deadline = parsed.deadline || null;
+      Alert.alert(
+        "Possible task found",
+        `Create a task from this saved content?\n\n${parsed.title}${deadline ? `\nDue: ${new Date(deadline).toLocaleString()}` : ""}`,
+        [
+          { text: "Not now", style: "cancel" },
+          { text: "Create task", onPress: () => createTask.mutate({
+            title: parsed.title,
+            priority: parsed.priority || "medium",
+            deadline,
+            reminder_interval_hours: 0,
+          }) },
+        ]
+      );
+    } catch (error) {
+      console.warn("Could not extract a task from captured text:", error);
+    }
+  };
+
   const handleCapture = async () => {
     if (!inputText.trim()) return;
     const raw = inputText.trim();
@@ -195,10 +223,15 @@ export default function CaptureScreen() {
     const firstLine = raw.split("\n")[0].replace(/^[#*-\s]+/, "");
     const title = firstLine.slice(0, 50) + (firstLine.length > 50 ? "..." : "");
     const item = { title, contentType: type, summary: raw.slice(0, 120) + (raw.length > 120 ? "..." : ""), rawContent: raw };
-    await store.addKnowledgeItem(item);
+    const saved = await store.addKnowledgeItem(item);
+    if (saved === false) {
+      Alert.alert("Could not save", "Magnet could not save this content. Please check your connection and try again.");
+      return;
+    }
     setRecentSaved(prev => [item, ...prev]);
     setInputText("");
     showSuccessToast(title);
+    await suggestTaskFromCapturedText(raw);
   };
 
   if (processingState) {
