@@ -125,6 +125,9 @@ export const useKnowledgeStore = create((set, get) => ({
 
 
     if (!isOnline) {
+      // Files cannot be safely queued as text-only payloads; do not silently lose them.
+      if (item.file) return false;
+
       // Save offline and serialize content properties
       const serializedItem = {
         title: item.title,
@@ -171,8 +174,14 @@ export const useKnowledgeStore = create((set, get) => ({
       
       // Refresh to ensure tags and lists are aligned
       await get().fetchItems();
+      return true;
     } catch (e) {
       console.error("Failed to upload knowledge item, queueing offline", e);
+      // A file cannot be reconstructed from the text-only offline queue.
+      if (item.file) {
+        set({ syncStatus: "offline" });
+        return false;
+      }
       // Fallback: Queue offline sync
       const fallbackPayload = {
         title: item.title,
