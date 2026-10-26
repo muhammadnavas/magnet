@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { Slot, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Linking } from "react-native";
@@ -39,6 +39,7 @@ export default function RootLayout() {
   const initializeAuth = useAuthStore((state) => state.initializeAuth);
   const initTheme = useThemeStore((state) => state.initTheme);
   const router = useRouter();
+  const handledShareUrls = useRef(new Set());
 
   useEffect(() => {
     initializeAuth();
@@ -46,6 +47,29 @@ export default function RootLayout() {
     // Importing the module defines the task at startup; registration lets the OS
     // poll for new Classroom assignments when the app is backgrounded or closed.
     registerClassroomBackgroundSync();
+
+    // Android share intents are normalized by the native config plugin to
+    // orio://share?text=... and arrive here as a Linking URL.
+    const handleIncomingUrl = (url) => {
+      if (!url || handledShareUrls.current.has(url)) return;
+      let parsed;
+      try {
+        parsed = new URL(url);
+      } catch {
+        return;
+      }
+      if (parsed.protocol !== "orio:" || parsed.hostname !== "share") return;
+      const sharedText = (parsed.searchParams.get("text") || "").trim();
+      if (!sharedText) return;
+
+      handledShareUrls.current.add(url);
+      router.push({ pathname: "/capture", params: { sharedText } });
+    };
+
+    Linking.getInitialURL()
+      .then(handleIncomingUrl)
+      .catch((error) => console.warn("Could not read shared content:", error));
+    const shareSubscription = Linking.addEventListener("url", ({ url }) => handleIncomingUrl(url));
     const notificationSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data || {};
       if (typeof data.url === "string" && /^https?:\/\//i.test(data.url)) {
@@ -54,7 +78,7 @@ export default function RootLayout() {
         router.push("/classroom");
       }
     });
-    return () => notificationSubscription.remove();
+    return () => {\n      notificationSubscription.remove();\n      shareSubscription.remove();\n    };
   }, [router]);
 
   return (
