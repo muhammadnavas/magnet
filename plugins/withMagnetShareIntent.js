@@ -107,13 +107,14 @@ function withMagnetShareIntent(config) {
           if (nameIndex >= 0 && cursor.moveToFirst()) cursor.getString(nameIndex) else null
         }
       } catch (_: Exception) { null }
-      if (!displayName.isNullOrBlank()) builder.appendQueryParameter("name", displayName)
+      builder.appendQueryParameter("name", displayName?.takeIf { it.isNotBlank() } ?: uri.lastPathSegment ?: "Shared file")
+      builder.appendQueryParameter("fileMime", contentResolver.getType(uri) ?: mimeType)
     }
 
     // Keep ClipData and URI grant flags so shared content:// files remain readable.
     incoming.action = Intent.ACTION_VIEW
+    // Setting type after data would clear the deep-link URI.
     incoming.data = builder.build()
-    incoming.type = null
     incoming.removeExtra(Intent.EXTRA_TEXT)
     incoming.removeExtra(Intent.EXTRA_STREAM)
   }
