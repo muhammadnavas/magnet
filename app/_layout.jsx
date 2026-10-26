@@ -62,6 +62,7 @@ export default function RootLayout() {
       const sharedText = (parsed.searchParams.get("text") || "").trim();
       const sharedStreams = parsed.searchParams.getAll("stream");
       const sharedNames = parsed.searchParams.getAll("name");
+      const sharedFileMimes = parsed.searchParams.getAll("fileMime");
       const sharedMime = parsed.searchParams.get("mime") || "text/plain";
       if (!sharedText && sharedStreams.length === 0) return;
 
@@ -70,7 +71,7 @@ export default function RootLayout() {
         pathname: "/capture",
         params: {
           ...(sharedText ? { sharedText } : {}),
-          ...(sharedStreams.length ? { stream: sharedStreams, name: sharedNames, mime: sharedMime } : {}),
+          ...(sharedStreams.length ? { stream: sharedStreams, name: sharedNames, fileMime: sharedFileMimes, mime: sharedMime } : {}),
         },
       });
     };
