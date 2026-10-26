@@ -36,6 +36,13 @@ export default function CaptureScreen() {
   }, [params.selectType]);
 
   useEffect(() => {
+    const sharedText = Array.isArray(params.sharedText) ? params.sharedText[0] : params.sharedText;
+    if (typeof sharedText !== "string" || !sharedText.trim()) return;
+
+    setInputText(sharedText.trim());
+    router.setParams({ sharedText: undefined });
+  }, [params.sharedText]);
+  useEffect(() => {
     if (!successToast) return undefined;
     const timer = setTimeout(() => setSuccessToast(null), 2800);
     return () => clearTimeout(timer);
@@ -127,6 +134,22 @@ export default function CaptureScreen() {
   const handleCapture = async () => {
     if (!inputText.trim()) return;
     const raw = inputText.trim();
+    const normalizedRaw = raw.replace(/\s+/g, " ").trim().toLowerCase();
+    const existingMatch = (store.items || []).find((existing) => {
+      const existingContent = String(existing.rawContent || existing.extractedText || "").replace(/\s+/g, " ").trim().toLowerCase();
+      const existingUrl = String(existing.sourceUrl || "").trim().toLowerCase();
+      return existingContent === normalizedRaw || (/^https?:\/\//i.test(raw) && existingUrl === raw.toLowerCase());
+    });
+
+    if (existingMatch) {
+      Alert.alert(
+        "Already in your Knowledge",
+        ` "${existingMatch.title || "This item"}" appears to be saved already. You can find it in your Knowledge Library.`,
+        [{ text: "Keep editing" }, { text: "Open Knowledge", onPress: () => router.push("/knowledge") }]
+      );
+      return;
+    }
+
     const type = detectContentType(raw);
     const firstLine = raw.split("\n")[0].replace(/^[#*-\s]+/, "");
     const title = firstLine.slice(0, 50) + (firstLine.length > 50 ? "..." : "");
