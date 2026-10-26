@@ -21,6 +21,7 @@ export default function CaptureScreen() {
   const [recentSaved, setRecentSaved] = useState([]);
   const [successToast, setSuccessToast] = useState(null);
   const [showUploadSheet, setShowUploadSheet] = useState(false);
+  const [pendingSharedFiles, setPendingSharedFiles] = useState([]);
 
   useEffect(() => {
     if (params.selectType === "pdf") {
@@ -36,12 +37,23 @@ export default function CaptureScreen() {
   }, [params.selectType]);
 
   useEffect(() => {
-    const sharedText = Array.isArray(params.sharedText) ? params.sharedText[0] : params.sharedText;
-    if (typeof sharedText !== "string" || !sharedText.trim()) return;
+    const firstParam = (value) => Array.isArray(value) ? value[0] : value;
+    const sharedText = firstParam(params.sharedText);
+    if (typeof sharedText === "string" && sharedText.trim()) setInputText(sharedText.trim());
 
-    setInputText(sharedText.trim());
-    router.setParams({ sharedText: undefined });
-  }, [params.sharedText]);
+    const sharedUris = Array.isArray(params.stream) ? params.stream : (params.stream ? [params.stream] : []);
+    const sharedNames = Array.isArray(params.name) ? params.name : (params.name ? [params.name] : []);
+    const sharedMime = String(firstParam(params.mime) || "application/octet-stream").toLowerCase();
+    if (sharedUris.length) {
+      const files = sharedUris.filter((uri) => typeof uri === "string" && uri.length > 0).map((uri, index) => {
+        const name = String(sharedNames[index] || sharedNames[0] || "").trim() || `Shared file ${index + 1}`;
+        const contentType = sharedMime === "application/pdf" ? "pdf" : sharedMime.startsWith("image/") ? "image" : sharedMime.startsWith("text/") ? "note" : "file";
+        return { uri, name, mimeType: sharedMime, contentType };
+      });
+      setPendingSharedFiles(files);
+    }
+    if (sharedText || sharedUris.length) router.setParams({ sharedText: undefined, stream: undefined, name: undefined, mime: undefined });
+  }, [params.sharedText, params.stream, params.name, params.mime]);
   useEffect(() => {
     if (!successToast) return undefined;
     const timer = setTimeout(() => setSuccessToast(null), 2800);
@@ -131,6 +143,23 @@ export default function CaptureScreen() {
     }
   };
 
+  const handleSaveSharedFiles = async () => {
+    if (!pendingSharedFiles.length) return;
+    const files = [...pendingSharedFiles];
+    setPendingSharedFiles([]);
+    for (const file of files) {
+      try {
+        await store.addKnowledgeItem({ title: file.name, contentType: file.contentType, rawContent: "", file: { uri: file.uri, name: file.name, type: file.mimeType, mimeType: file.mimeType } });
+        showSuccessToast(file.name);
+      } catch (error) {
+        console.error("Failed to save shared file:", error);
+        Alert.alert("Could not save file", `Magnet could not import ${file.name}. Please try sharing it again.`);
+        setPendingSharedFiles((current) => [file, ...current]);
+        break;
+      }
+    }
+    await store.fetchItems();
+  };
   const handleCapture = async () => {
     if (!inputText.trim()) return;
     const raw = inputText.trim();
@@ -195,6 +224,25 @@ export default function CaptureScreen() {
             <TouchableOpacity onPress={handlePhotoUpload} style={{ backgroundColor: themeColors.card, borderColor: themeColors.border, width: "48%" }} className="flex-row items-center justify-center border px-4 py-2.5 rounded-full"><Ionicons name="image-outline" size={16} color={themeColors.primary} style={{ marginRight: 6 }} /><Text style={{ color: themeColors.text.primary }} className="text-sm font-semibold">Upload Photo</Text></TouchableOpacity>
             <TouchableOpacity onPress={handleCapturePhoto} style={{ backgroundColor: themeColors.card, borderColor: themeColors.border, width: "48%" }} className="flex-row items-center justify-center border px-4 py-2.5 rounded-full"><Ionicons name="camera-outline" size={16} color={themeColors.primary} style={{ marginRight: 6 }} /><Text style={{ color: themeColors.text.primary }} className="text-sm font-semibold">Capture Photo</Text></TouchableOpacity>
           </View>
+
+          {pendingSharedFiles.length > 0 && (
+            <View style={{ backgroundColor: themeColors.card, borderColor: themeColors.primary }} className="border rounded-2xl p-4 mb-6">
+              <View className="flex-row items-center mb-3">
+                <View style={{ backgroundColor: `${themeColors.primary}18` }} className="w-10 h-10 rounded-xl items-center justify-center mr-3"><Ionicons name="attach-outline" size={21} color={themeColors.primary} /></View>
+                <View className="flex-1"><Text style={{ color: themeColors.text.primary }} className="text-sm font-extrabold">Shared with Magnet</Text><Text style={{ color: themeColors.text.secondary }} className="text-xs mt-1">Review the incoming file(s), then save to your Knowledge Library.</Text></View>
+              </View>
+              {pendingSharedFiles.map((file, index) => (
+                <View key={file.uri + index} style={{ borderTopColor: themeColors.border }} className="flex-row items-center py-3 border-t">
+                  <Ionicons name={file.contentType === "pdf" ? "document-text-outline" : file.contentType === "image" ? "image-outline" : file.mimeType.startsWith("audio/") ? "musical-notes-outline" : file.mimeType.startsWith("video/") ? "videocam-outline" : "document-outline"} size={19} color={themeColors.text.secondary} />
+                  <View className="flex-1 ml-3"><Text style={{ color: themeColors.text.primary }} className="text-sm font-semibold" numberOfLines={2}>{file.name}</Text><Text style={{ color: themeColors.text.muted }} className="text-[11px] mt-1">{file.mimeType}</Text></View>
+                </View>
+              ))}
+              <View className="flex-row gap-2 mt-2">
+                <TouchableOpacity onPress={() => setPendingSharedFiles([])} style={{ borderColor: themeColors.border }} className="flex-1 border rounded-xl py-3 items-center"><Text style={{ color: themeColors.text.secondary }} className="text-sm font-bold">Dismiss</Text></TouchableOpacity>
+                <TouchableOpacity onPress={handleSaveSharedFiles} style={{ backgroundColor: themeColors.primary }} className="flex-1 rounded-xl py-3 items-center"><Text className="text-sm font-bold text-white">Save to Knowledge</Text></TouchableOpacity>
+              </View>
+            </View>
+          )}
 
           {recentSaved.length > 0 && <View className="mb-8"><Text style={{ color: themeColors.text.muted }} className="text-xs font-bold uppercase tracking-wider mb-3">Just Captured</Text>{recentSaved.slice(0, 3).map((item, idx) => <Card key={idx} className="p-3.5 flex-row items-center justify-between mb-2"><View className="flex-1 mr-3"><Text style={{ color: themeColors.text.primary }} className="text-xs font-bold" numberOfLines={1}>{item.title}</Text><Text style={{ color: themeColors.text.muted }} className="text-[11px] mt-0.5" numberOfLines={1}>{item.summary}</Text></View><View style={{ backgroundColor: themeColors.surfaceHover }} className="px-2.5 py-1 rounded-full border border-neutral-700/30"><Text style={{ color: themeColors.text.muted }} className="text-[10px] font-bold uppercase">{item.contentType}</Text></View></Card>)}</View>}
         </ScrollView>
