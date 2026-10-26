@@ -87,7 +87,10 @@ export default function RootLayout() {
         router.push("/classroom");
       }
     });
-    return () => {\n      notificationSubscription.remove();\n      shareSubscription.remove();\n    };
+    return () => {
+      notificationSubscription.remove();
+      shareSubscription.remove();
+    };
   }, [router]);
 
   return (
