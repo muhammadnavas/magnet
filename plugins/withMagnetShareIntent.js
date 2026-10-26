@@ -13,12 +13,13 @@ function withMagnetShareIntent(config) {
     if (!mainActivity) throw new Error("Magnet Share Intent: Could not find MainActivity in AndroidManifest.");
 
     mainActivity["intent-filter"] = mainActivity["intent-filter"] || [];
-    const hasShareFilter = mainActivity["intent-filter"].some((filter) =>
-      (filter.action || []).some((action) =>
-        ["android.intent.action.SEND", "android.intent.action.SEND_MULTIPLE"].includes(action.$?.["android:name"])
-      )
-    );
-    if (!hasShareFilter) {
+    const hasGeneralShareFilter = mainActivity["intent-filter"].some((filter) => {
+      const actions = (filter.action || []).map((action) => action.$?.["android:name"]);
+      const mimeTypes = (filter.data || []).map((data) => data.$?.["android:mimeType"]);
+      return actions.includes("android.intent.action.SEND") &&
+        actions.includes("android.intent.action.SEND_MULTIPLE") && mimeTypes.includes("*/*");
+    });
+    if (!hasGeneralShareFilter) {
       mainActivity["intent-filter"].push({
         action: [
           { $: { "android:name": "android.intent.action.SEND" } },
