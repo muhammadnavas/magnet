@@ -355,6 +355,7 @@ async def list_assignments(
                     # app performs its own date/checkpoint logic.
                     cw_result = service.courses().courseWork().list(
                         courseId=course_id,
+                        courseWorkStates=["PUBLISHED"],
                         pageSize=100,
                         pageToken=coursework_page_token,
                     ).execute()
