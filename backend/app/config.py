@@ -3,14 +3,14 @@ from pydantic import ConfigDict
 
 class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
-    SECRET_KEY: str = "f1c24e69b5e58fa2f33c3dc52e9cd1b5ce8aa58fd916e788c2b5357904e9c1b5"
+    SECRET_KEY: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgrespassword@db:5432/orio"
     SUPABASE_URL: str = "https://kvxfxnztcwyygkfsciim.supabase.co"
     SUPABASE_ANON_KEY: str = ""
-    MONGODB_URL: str = "mongodb+srv://navasns0409:rx4Fvt8un1dCovaz@cluster0.lz452k4.mongodb.net/"
+    MONGODB_URL: str = ""
     REDIS_URL: str = "redis://redis:6379/0"
     
     GEMINI_API_KEY: str = ""
