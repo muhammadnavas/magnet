@@ -359,21 +359,29 @@ export default function ClassroomScreen() {
 
   const toggleDone = useCallback(async (assignment) => {
     const key = assignmentDoneKey(assignment);
-    const next = new Set(localDoneIds);
-    if (next.has(key) || next.has(assignment.id)) {
-      next.delete(key);
-      next.delete(assignment.id);
-    } else {
-      next.add(key);
-    }
-    setLocalDoneIds(next);
+    // Read the latest persisted state before toggling so rapid taps and stale
+    // closures cannot overwrite a newer completion state.
     try {
-      await AsyncStorage.setItem(DONE_KEY, JSON.stringify([...next]));
+      const raw = await AsyncStorage.getItem(DONE_KEY);
+      const next = new Set(raw ? JSON.parse(raw).map(String) : []);
+      const alreadyDone = next.has(key) || next.has(String(assignment.id));
+      if (alreadyDone) {
+        next.delete(key);
+        // Only remove the legacy unscoped ID when it exists; course-scoped IDs
+        // prevent assignments with the same ID in different courses colliding.
+        next.delete(String(assignment.id));
+      } else {
+        next.add(key);
+      }
+      const serialized = JSON.stringify([...next]);
+      await AsyncStorage.setItem(DONE_KEY, serialized);
+      setLocalDoneIds(next);
       await syncClassroomDeadlineNotifications(assignments, [...next]);
     } catch (error) {
-      console.warn("Could not update Classroom reminders:", error);
+      console.warn("Could not persist Classroom completion state:", error);
+      Alert.alert("Couldn't update status", "Magnet couldn't save this status on this device. Please try again.");
     }
-  }, [assignments, localDoneIds]);
+  }, [assignments]);
   const upcomingCount = assignments.filter((a) => a.due_status === "upcoming" && !isLocallyDone(a)).length;
   const dueSoonCount  = assignments.filter((a) => a.due_status === "due_soon" && !isLocallyDone(a)).length;
   const overdueCount  = assignments.filter((a) => a.due_status === "overdue" && !isLocallyDone(a)).length;
@@ -525,12 +533,13 @@ export default function ClassroomScreen() {
 
 
   useFocusEffect(useCallback(() => {
+    loadLocalDone();
     loadData();
     // Refresh the feed while this screen remains open, so newly posted work
     // appears without requiring a manual pull-to-refresh.
     const refreshInterval = setInterval(() => loadData(), 5 * 60 * 1000);
     return () => clearInterval(refreshInterval);
-  }, [loadData]));
+  }, [loadData, loadLocalDone]));
 
   // ── Deep-link listener ────────────────────────────────────────────────
   useEffect(() => {
