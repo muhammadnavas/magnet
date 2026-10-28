@@ -30,11 +30,7 @@ def upgrade() -> None:
     """)).scalars().all()
 
     for table in tables:
-        # Identifiers come from pg_tables; quote them safely via PostgreSQL
-        # format(%I) in a DO block to avoid identifier-injection issues.
-        bind.execute(sa.text("""
-            SELECT format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', :table_name)
-        """), {"table_name": table})
+        # Quote identifiers obtained from the database catalog.
         quoted = '"' + table.replace('"', '""') + '"'
         op.execute(f"ALTER TABLE public.{quoted} ENABLE ROW LEVEL SECURITY")
         op.execute(f"REVOKE ALL PRIVILEGES ON TABLE public.{quoted} FROM anon, authenticated")
