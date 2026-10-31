@@ -115,24 +115,53 @@ async def ingest_notification(payload: NotificationIngest, db: AsyncSession = De
         return {"stored": False, "duplicate": True}
     return {"stored": True, "transaction_id": str(transaction_id)}
 
+def get_month_bounds(month: str, tz_offset_minutes: int):
+    # JavaScript getTimezoneOffset is UTC minus local time; negate it to
+    # construct the user's local timezone and convert local month edges to UTC.
+    local_timezone = timezone(timedelta(minutes=-tz_offset_minutes))
+    local_start = datetime.strptime(month, "%Y-%m").replace(tzinfo=local_timezone)
+    local_end = (local_start.replace(day=28) + timedelta(days=4)).replace(day=1)
+    return local_start.astimezone(timezone.utc), local_end.astimezone(timezone.utc)
+
+
 @router.get("/transactions", response_model=list[FinanceTransactionOut])
-async def list_transactions(month: Optional[str] = Query(default=None, pattern=r"^\d{4}-\d{2}$"), limit: int = Query(default=100, ge=1, le=500), db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def list_transactions(
+    month: Optional[str] = Query(default=None, pattern=r"^\d{4}-\d{2}$"),
+    tz_offset_minutes: int = Query(default=0, ge=-840, le=840),
+    limit: int = Query(default=100, ge=1, le=500),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     query = select(FinanceTransaction).order_by(FinanceTransaction.occurred_at.desc()).limit(limit)
     if month:
         try:
-            start = datetime.strptime(month, "%Y-%m").replace(tzinfo=timezone.utc)
-            end = (start.replace(day=28) + timedelta(days=4)).replace(day=1)
-            query = select(FinanceTransaction).where(FinanceTransaction.occurred_at >= start, FinanceTransaction.occurred_at < end).order_by(FinanceTransaction.occurred_at.desc()).limit(limit)
+            start, end = get_month_bounds(month, tz_offset_minutes)
+            query = select(FinanceTransaction).where(
+                FinanceTransaction.occurred_at >= start,
+                FinanceTransaction.occurred_at < end,
+            ).order_by(FinanceTransaction.occurred_at.desc()).limit(limit)
         except ValueError:
             raise HTTPException(400, "Invalid month")
     result = await db.execute(query)
     return result.scalars().all()
 
+
 @router.get("/summary")
-async def finance_summary(month: Optional[str] = Query(default=None, pattern=r"^\d{4}-\d{2}$"), db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    now = datetime.now(timezone.utc)
-    start = datetime.strptime(month, "%Y-%m").replace(tzinfo=timezone.utc) if month else now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    end = (start.replace(day=28) + timedelta(days=4)).replace(day=1)
+async def finance_summary(
+    month: Optional[str] = Query(default=None, pattern=r"^\d{4}-\d{2}$"),
+    tz_offset_minutes: int = Query(default=0, ge=-840, le=840),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if month:
+        try:
+            start, end = get_month_bounds(month, tz_offset_minutes)
+        except ValueError:
+            raise HTTPException(400, "Invalid month")
+    else:
+        now = datetime.now(timezone.utc)
+        start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        end = (start.replace(day=28) + timedelta(days=4)).replace(day=1)
     rows = (await db.execute(select(FinanceTransaction).where(FinanceTransaction.occurred_at >= start, FinanceTransaction.occurred_at < end))).scalars().all()
     expenses = [row for row in rows if row.transaction_type == "expense"]
     income = [row for row in rows if row.transaction_type == "income"]
@@ -142,7 +171,7 @@ async def finance_summary(month: Optional[str] = Query(default=None, pattern=r"^
     total_expense = sum((row.amount for row in expenses), Decimal("0"))
     total_income = sum((row.amount for row in income), Decimal("0"))
     return {
-        "month": start.strftime("%Y-%m"), "expense": float(total_expense), "income": float(total_income),
+        "month": month or start.strftime("%Y-%m"), "expense": float(total_expense), "income": float(total_income),
         "net": float(total_income-total_expense), "transaction_count": len(rows),
         "category_breakdown": [{"category": key, "amount": float(value)} for key, value in sorted(categories.items(), key=lambda item: item[1], reverse=True)],
         "largest_expense": max((float(row.amount) for row in expenses), default=0),
