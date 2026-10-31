@@ -87,6 +87,7 @@ class MagnetNotificationListener : NotificationListenerService() {
       val metadata = packageManager.getApplicationInfo(packageName, PackageManager.GET_META_DATA).metaData
       val apiRoot = metadata?.getString("com.muhammadnavas.orio.FINANCE_API_URL").orEmpty().trimEnd('/')
       if (apiRoot.isBlank()) { Log.w("MagnetFinance", "EXPO_PUBLIC_API_URL was empty at native build time"); return }
+      if (!apiRoot.startsWith("https://") && !apiRoot.startsWith("http://10.0.2.2") && !apiRoot.startsWith("http://127.0.0.1") && !apiRoot.startsWith("http://localhost")) { Log.e("MagnetFinance", "Refusing insecure finance API URL"); return }
       val endpoint = if (apiRoot.endsWith("/api/v1")) "$apiRoot/finance/ingest-notification" else "$apiRoot/api/v1/finance/ingest-notification"
       val body = JSONObject().put("package_name", pkg).put("app_name", appName).put("title", title).put("text", text).put("posted_at", postedAt).toString()
       val connection = URL(endpoint).openConnection() as HttpURLConnection
@@ -95,10 +96,14 @@ class MagnetNotificationListener : NotificationListenerService() {
       connection.readTimeout = 8000
       connection.doOutput = true
       connection.setRequestProperty("Content-Type", "application/json")
-      connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
-      val code = connection.responseCode
-      if (code !in 200..299) Log.w("MagnetFinance", "Finance API returned HTTP $code")
-      connection.disconnect()
+      try {
+        connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+        val code = connection.responseCode
+        if (code !in 200..299) Log.w("MagnetFinance", "Finance API returned HTTP $code")
+        (if (code in 200..299) connection.inputStream else connection.errorStream)?.close()
+      } finally {
+        connection.disconnect()
+      }
     } catch (error: Exception) { Log.w("MagnetFinance", "Could not submit payment alert", error) }
   }
 
