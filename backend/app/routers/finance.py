@@ -7,7 +7,8 @@ from decimal import Decimal, InvalidOperation
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import select, func
+from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.routers.auth import get_current_user
@@ -17,6 +18,14 @@ from app.schemas.finance import FinanceTransactionOut, FinanceTransactionUpdate,
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/finance", tags=["Finance Intelligence"])
+
+# Keep this allowlist aligned with the Android listener plugin.
+ALLOWED_PAYMENT_PACKAGES = {
+    "com.google.android.apps.nbu.paisa.user", "com.phonepe.app",
+    "net.one97.paytm", "in.org.npci.upiapp", "com.sbi.SBIFreedomPlus",
+    "com.axis.mobile", "com.icicibank.imobile", "com.hdfcbank.android",
+    "com.kotak811.app", "com.dreamplug.androidapp", "com.mobikwik_new",
+}
 
 PAYMENT_TERMS = re.compile(r"\b(paid|payment|debited|debit|sent|transferred|received|credited|credit|spent|purchase|transaction)\b", re.I)
 AMOUNT_RE = re.compile(r"(?:₹|INR|Rs\.?\s*)\s?([\d,]+(?:\.\d{1,2})?)|\b(?:amount|for)\s*(?:₹|INR|Rs\.?\s*)?([\d,]+(?:\.\d{1,2})?)", re.I)
@@ -36,7 +45,7 @@ class NotificationIngest(BaseModel):
     app_name: str = Field(default="Payment app", max_length=120)
     title: str = Field(default="", max_length=300)
     text: str = Field(default="", max_length=2000)
-    posted_at: int
+    posted_at: int = Field(gt=0)
 
 def categorize(merchant: str) -> str:
     value = merchant.lower()
@@ -75,21 +84,36 @@ def parse_payment(payload: NotificationIngest):
 
 @router.post("/ingest-notification")
 async def ingest_notification(payload: NotificationIngest, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if payload.package_name not in ALLOWED_PAYMENT_PACKAGES:
+        raise HTTPException(status_code=403, detail="Unsupported payment notification source")
+
+    now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+    if payload.posted_at > now_ms + 5 * 60 * 1000 or payload.posted_at < now_ms - 45 * 24 * 60 * 60 * 1000:
+        raise HTTPException(status_code=422, detail="Notification timestamp is outside the accepted window")
+
     parsed = parse_payment(payload)
     if not parsed:
         return {"stored": False, "reason": "not_a_supported_payment_notification"}
-    existing = await db.execute(select(FinanceTransaction.id).where(FinanceTransaction.fingerprint == parsed["fingerprint"]))
-    if existing.scalar_one_or_none():
-        return {"stored": False, "duplicate": True}
-    transaction = FinanceTransaction(**parsed, currency="INR", source_app=payload.app_name[:120], source_package=payload.package_name[:255])
-    db.add(transaction)
+
+    # Atomic insert prevents duplicate callbacks racing between SELECT and INSERT.
+    statement = (
+        pg_insert(FinanceTransaction)
+        .values(**parsed, currency="INR", source_app=payload.app_name[:120], source_package=payload.package_name)
+        .on_conflict_do_nothing(index_elements=["fingerprint"])
+        .returning(FinanceTransaction.id)
+    )
     try:
+        result = await db.execute(statement)
+        transaction_id = result.scalar_one_or_none()
         await db.commit()
     except Exception:
         await db.rollback()
         logger.exception("Could not store finance notification")
-        return {"stored": False, "reason": "storage_error"}
-    return {"stored": True, "transaction_id": str(transaction.id)}
+        raise HTTPException(status_code=503, detail="Finance storage is temporarily unavailable")
+
+    if transaction_id is None:
+        return {"stored": False, "duplicate": True}
+    return {"stored": True, "transaction_id": str(transaction_id)}
 
 @router.get("/transactions", response_model=list[FinanceTransactionOut])
 async def list_transactions(month: Optional[str] = Query(default=None, pattern=r"^\d{4}-\d{2}$"), limit: int = Query(default=100, ge=1, le=500), db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
