@@ -1,4 +1,5 @@
 import hashlib
+import uuid
 import logging
 import re
 from datetime import datetime, timezone, timedelta
@@ -125,7 +126,11 @@ async def finance_summary(month: Optional[str] = Query(default=None, pattern=r"^
 
 @router.patch("/transactions/{transaction_id}", response_model=FinanceTransactionOut)
 async def update_transaction(transaction_id: str, payload: FinanceTransactionUpdate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    row = await db.get(FinanceTransaction, transaction_id)
+    try:
+        parsed_id = uuid.UUID(transaction_id)
+    except ValueError:
+        raise HTTPException(400, "Invalid transaction ID")
+    row = await db.get(FinanceTransaction, parsed_id)
     if not row:
         raise HTTPException(404, "Transaction not found")
     if payload.category is not None: row.category = payload.category.strip() or "Other"
@@ -144,7 +149,6 @@ async def delete_transaction(transaction_id: str, db: AsyncSession = Depends(get
 
 @router.post("/ask")
 async def ask_finance(payload: FinanceInsightRequest, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    summary = await finance_summary(db=db, current_user=current_user)
     rows = (await db.execute(select(FinanceTransaction).order_by(FinanceTransaction.occurred_at.desc()).limit(500))).scalars().all()
     q = payload.question.lower()
     if "food" in q: rows = [r for r in rows if r.category == "Food"]
@@ -160,4 +164,4 @@ async def ask_finance(payload: FinanceInsightRequest, db: AsyncSession = Depends
         answer = f"I found {len(rows)} matching transactions."
     else:
         answer = f"Based on the {len(rows)} stored matching transactions, the total is ₹{total:,.2f}. This is based only on notifications Magnet has successfully captured."
-    return {"answer": answer, "transactions_considered": len(rows), "summary": summary}
+    return {"answer": answer, "transactions_considered": len(rows)}
