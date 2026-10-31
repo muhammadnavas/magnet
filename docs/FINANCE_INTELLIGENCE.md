@@ -16,7 +16,7 @@ The native listener allowlists Google Pay, PhonePe, Paytm, BHIM, selected Indian
 
 ## What is captured
 
-Only notifications from allowlisted packages that contain a payment cue and an amount are forwarded. The backend parses amount, merchant, category, transaction direction, source app, and timestamp. Raw notification text is not stored in the transaction table. A fingerprint prevents common duplicate notifications.
+Only notifications from the server- and client-side allowlisted packages that contain a payment cue and an amount are forwarded. The backend rejects timestamps older than 45 days or more than five minutes in the future. Inserts use an atomic unique-fingerprint conflict check, so concurrent duplicate callbacks do not create duplicate rows. The backend parses amount, merchant, category, transaction direction, source app, and timestamp. Raw notification text is not stored in the transaction table. Monthly queries use the device's timezone offset.
 
 ## Limitations
 
@@ -26,7 +26,7 @@ Only notifications from allowlisted packages that contain a payment cue and an a
 - Initial category mapping is keyword-based, not an LLM decision.
 - The Android native listener sends to the configured API URL. If the environment variable was not present at native build time, notifications will not sync; rebuild after setting it.
 - Do not add OTP capture, notification-content logging, or broad notification forwarding.
-- The app is currently in personal single-user mode. Do not expose this backend publicly without adding authentication and per-user data isolation.
+- The app is currently in personal single-user mode and its existing get_current_user dependency is a fixed local profile, not real authentication. The allowlist is input validation, not caller authentication: a public endpoint can still be spoofed by a caller that forges an allowed package name. Keep the backend private or behind an authenticated gateway until proper device/user authentication and per-user data isolation are implemented.
 
 ## API
 
