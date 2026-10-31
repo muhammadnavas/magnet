@@ -20,11 +20,12 @@ export default function FinanceScreen() {
   const [answer, setAnswer] = useState("");
   const [asking, setAsking] = useState(false);
   const [selectedMonth] = useState(currentLocalMonth);
+  const timezoneOffset = new Date().getTimezoneOffset();
 
   const load = useCallback(async (refresh = false) => {
     refresh ? setRefreshing(true) : setLoading(true);
     try {
-      const [s, t] = await Promise.all([api.get("/finance/summary?month=" + selectedMonth), api.get("/finance/transactions?month=" + selectedMonth + "&limit=100")]);
+      const [s, t] = await Promise.all([api.get("/finance/summary?month=" + selectedMonth + "&tz_offset_minutes=" + timezoneOffset), api.get("/finance/transactions?month=" + selectedMonth + "&tz_offset_minutes=" + timezoneOffset + "&limit=100")]);
       setSummary(s.data); setTransactions(t.data || []);
     } catch (error) {
       Alert.alert("Finance unavailable", error?.response?.data?.detail || "Could not load finance data. Check the backend and database migration.");
