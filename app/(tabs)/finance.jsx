@@ -7,6 +7,7 @@ import api from "../../lib/api";
 import { useAppTheme } from "../../store/themeStore";
 
 const money = (value) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(Number(value || 0));
+const currentLocalMonth = () => { const now = new Date(); return now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0"); };
 
 export default function FinanceScreen() {
   const { themeColors } = useAppTheme();
@@ -18,16 +19,17 @@ export default function FinanceScreen() {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [asking, setAsking] = useState(false);
+  const [selectedMonth] = useState(currentLocalMonth);
 
   const load = useCallback(async (refresh = false) => {
     refresh ? setRefreshing(true) : setLoading(true);
     try {
-      const [s, t] = await Promise.all([api.get("/finance/summary"), api.get("/finance/transactions?limit=100")]);
+      const [s, t] = await Promise.all([api.get("/finance/summary?month=" + selectedMonth), api.get("/finance/transactions?month=" + selectedMonth + "&limit=100")]);
       setSummary(s.data); setTransactions(t.data || []);
     } catch (error) {
       Alert.alert("Finance unavailable", error?.response?.data?.detail || "Could not load finance data. Check the backend and database migration.");
     } finally { setLoading(false); setRefreshing(false); }
-  }, []);
+  }, [selectedMonth]);
 
   const checkPermission = useCallback(async () => {
     if (Platform.OS !== "android" || !NativeModules.MagnetFinance) { setPermissionEnabled(false); return; }
@@ -76,7 +78,7 @@ export default function FinanceScreen() {
         </Pressable>
         {loading ? <View style={{ padding: 40, alignItems: "center" }}><ActivityIndicator color={themeColors.primary} /></View> : <>
           <View style={{ ...card, marginBottom: 12 }}>
-            <Text style={{ color: muted, fontSize: 12, fontWeight: "700" }}>TOTAL SPENT · {summary?.month || new Date().toISOString().slice(0, 7)}</Text>
+            <Text style={{ color: muted, fontSize: 12, fontWeight: "700" }}>TOTAL SPENT · {summary?.month || selectedMonth}</Text>
             <Text style={{ color: primary, fontSize: 32, fontWeight: "900", marginTop: 7 }}>{money(summary?.expense)}</Text>
             <View style={{ flexDirection: "row", gap: 20, marginTop: 16 }}>
               <View style={{ flex: 1 }}><Text style={{ color: muted, fontSize: 11 }}>Money received</Text><Text style={{ color: "#10B981", fontSize: 17, fontWeight: "800", marginTop: 4 }}>{money(summary?.income)}</Text></View>
