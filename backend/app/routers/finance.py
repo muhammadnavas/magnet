@@ -168,7 +168,7 @@ async def get_finance_limits(db: AsyncSession = Depends(get_db), current_user: U
 
 @router.put("/limits")
 async def save_finance_limit(payload: FinanceLimitInput, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    category = payload.category.strip() if payload.category else None
+    category = payload.category.strip().title() if payload.category else None
     if category and category.lower() in {"all", "monthly", "overall"}:
         category = None
     scope_key = f"category:{category.lower()}" if category else "monthly"
