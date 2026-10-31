@@ -5,7 +5,7 @@ Finance Intelligence captures likely payment notifications from a user-enabled A
 ## Setup
 
 1. Set `EXPO_PUBLIC_API_URL` to the deployed FastAPI base URL, including `/api/v1` (for example, `https://your-api.example.com/api/v1`) in the environment used for the native Android build.
-2. Run `backend/supabase/migrations/202610310001_finance_transactions.sql` in the Supabase SQL editor as the database owner. The migration creates the transaction table, enables RLS, and denies direct anon/authenticated API-role access. FastAPI accesses the database using its server-side `DATABASE_URL`.
+2. Run `backend/supabase/migrations/202610310001_finance_transactions.sql` and then `backend/supabase/migrations/202610310002_finance_spending_alerts.sql` in the Supabase SQL editor as the database owner. These create the transaction, spending-limit, push-device and alert-event tables, enable RLS, and deny direct anon/authenticated API-role access. FastAPI accesses the database using its server-side `DATABASE_URL`.
 3. Generate a fresh Android native build and install it. This feature cannot be delivered by an Expo Go session or an OTA JavaScript update because it adds a native NotificationListenerService and React Native module.
 4. Open Magnet → Finance → Enable automatic payment tracking. Android opens Notification access settings. The user must explicitly enable Magnet.
 5. Make a small test payment or use a supported payment notification. Pull down to refresh Finance.
