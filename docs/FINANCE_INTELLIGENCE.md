@@ -28,6 +28,16 @@ Only notifications from the server- and client-side allowlisted packages that co
 - Do not add OTP capture, notification-content logging, or broad notification forwarding.
 - The app is currently in personal single-user mode and its existing get_current_user dependency is a fixed local profile, not real authentication. The allowlist is input validation, not caller authentication: a public endpoint can still be spoofed by a caller that forges an allowed package name. Keep the backend private or behind an authenticated gateway until proper device/user authentication and per-user data isolation are implemented.
 
+## Backend spending-threshold alerts
+
+1. Apply `backend/supabase/migrations/202610310002_finance_spending_alerts.sql` after the transaction migration.
+2. In Finance, enable push notifications. The app requests OS notification permission, creates the Android `finance-alerts` channel, obtains an Expo push token, and registers it with the backend.
+3. Create a monthly overall limit or a category-specific monthly limit. Leave category blank for the overall limit.
+4. After a newly ingested expense is stored, the backend sums current-month expenses in the limit's timezone and checks 50%, 80%, and 100%.
+5. A unique database constraint on limit + month + threshold prevents duplicate threshold alerts. The backend sends notifications through Expo Push API; tokens rejected as `DeviceNotRegistered` are disabled.
+
+Limits are evaluated on successful new notification ingestion, not by a background scheduler. If a transaction arrives late, the threshold may be reached and notified at ingestion time. This uses the same notification-derived transaction ledger and is not a bank-authoritative balance. Android push delivery requires a valid Expo/EAS project configuration and a compatible installed native app. Push delivery and physical-device behavior still need testing.
+
 ## API
 
 - `POST /api/v1/finance/ingest-notification`
