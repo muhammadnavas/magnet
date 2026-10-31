@@ -7,14 +7,14 @@ from decimal import Decimal, InvalidOperation
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.routers.auth import get_current_user
 from app.schemas.auth import UserOut as User
-from app.models.finance import FinanceTransaction
-from app.schemas.finance import FinanceTransactionOut, FinanceTransactionUpdate, FinanceInsightRequest
+from app.models.finance import FinanceTransaction, FinanceLimit, FinancePushDevice, FinanceAlertEvent
+from app.schemas.finance import FinanceTransactionOut, FinanceTransactionUpdate, FinanceInsightRequest, FinanceLimitInput, FinancePushTokenInput
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/finance", tags=["Finance Intelligence"])
@@ -82,6 +82,155 @@ def parse_payment(payload: NotificationIngest):
         "occurred_at": occurred, "fingerprint": fingerprint,
     }
 
+
+async def send_finance_push(db: AsyncSession, title: str, body: str, data: dict):
+    devices = (await db.execute(select(FinancePushDevice).where(FinancePushDevice.enabled.is_(True)))).scalars().all()
+    if not devices:
+        return
+    import httpx
+    messages = [{
+        "to": device.expo_push_token,
+        "title": title,
+        "body": body,
+        "sound": "default",
+        "channelId": "finance-alerts",
+        "data": data,
+    } for device in devices]
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.post(
+                "https://exp.host/--/api/v2/push/send",
+                json=messages,
+                headers={"Accept": "application/json", "Content-Type": "application/json"},
+            )
+            response.raise_for_status()
+            payload = response.json()
+        for device, ticket in zip(devices, payload.get("data", [])):
+            if ticket.get("status") == "error" and ticket.get("details", {}).get("error") == "DeviceNotRegistered":
+                device.enabled = False
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        logger.exception("Finance push delivery failed")
+
+
+async def evaluate_spending_limits(db: AsyncSession):
+    limits = (await db.execute(select(FinanceLimit).where(FinanceLimit.enabled.is_(True)))).scalars().all()
+    for limit in limits:
+        tz = timezone(timedelta(minutes=-limit.timezone_offset_minutes))
+        now_local = datetime.now(tz)
+        period_key = now_local.strftime("%Y-%m")
+        start_local = now_local.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        end_local = (start_local.replace(day=28) + timedelta(days=4)).replace(day=1)
+        start_utc, end_utc = start_local.astimezone(timezone.utc), end_local.astimezone(timezone.utc)
+        statement = select(func.coalesce(func.sum(FinanceTransaction.amount), 0)).where(
+            FinanceTransaction.transaction_type == "expense",
+            FinanceTransaction.occurred_at >= start_utc,
+            FinanceTransaction.occurred_at < end_utc,
+        )
+        if limit.category:
+            statement = statement.where(FinanceTransaction.category == limit.category)
+        spent = Decimal(str((await db.execute(statement)).scalar_one()))
+        for threshold in (50, 80, 100):
+            if spent < limit.amount * Decimal(threshold) / Decimal(100):
+                continue
+            event_insert = pg_insert(FinanceAlertEvent).values(
+                limit_id=limit.id, period_key=period_key,
+                threshold_percent=threshold, spent_amount=spent,
+            ).on_conflict_do_nothing(
+                index_elements=["limit_id", "period_key", "threshold_percent"]
+            ).returning(FinanceAlertEvent.id)
+            try:
+                event_id = (await db.execute(event_insert)).scalar_one_or_none()
+                await db.commit()
+            except Exception:
+                await db.rollback()
+                logger.exception("Could not record finance threshold event")
+                continue
+            if event_id:
+                label = f"{limit.category} spending" if limit.category else "Monthly spending"
+                title = f"{threshold}% of budget used"
+                body = f"{label}: ₹{spent:,.0f} spent out of ₹{limit.amount:,.0f}."
+                await send_finance_push(db, title, body, {
+                    "type": "finance_threshold", "limit_id": str(limit.id),
+                    "threshold": threshold, "period": period_key,
+                })
+
+
+@router.get("/limits")
+async def get_finance_limits(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    limits = (await db.execute(select(FinanceLimit).order_by(FinanceLimit.category.asc().nullsfirst()))).scalars().all()
+    return [{
+        "id": str(item.id), "category": item.category, "amount": float(item.amount),
+        "enabled": item.enabled, "timezone_offset_minutes": item.timezone_offset_minutes,
+    } for item in limits]
+
+
+@router.put("/limits")
+async def save_finance_limit(payload: FinanceLimitInput, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    category = payload.category.strip() if payload.category else None
+    if category and category.lower() in {"all", "monthly", "overall"}:
+        category = None
+    scope_key = f"category:{category.lower()}" if category else "monthly"
+    limit = (await db.execute(select(FinanceLimit).where(FinanceLimit.scope_key == scope_key))).scalar_one_or_none()
+    if limit is None:
+        limit = FinanceLimit(scope_key=scope_key, category=category, amount=payload.amount,
+                             enabled=payload.enabled, timezone_offset_minutes=payload.timezone_offset_minutes)
+        db.add(limit)
+    else:
+        limit.amount = payload.amount
+        limit.enabled = payload.enabled
+        limit.timezone_offset_minutes = payload.timezone_offset_minutes
+        limit.category = category
+    await db.commit()
+    await db.refresh(limit)
+    return {"id": str(limit.id), "category": limit.category, "amount": float(limit.amount),
+            "enabled": limit.enabled, "timezone_offset_minutes": limit.timezone_offset_minutes}
+
+
+@router.delete("/limits/{limit_id}", status_code=204)
+async def delete_finance_limit(limit_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    try:
+        parsed_id = uuid.UUID(limit_id)
+    except ValueError:
+        raise HTTPException(400, "Invalid limit ID")
+    limit = await db.get(FinanceLimit, parsed_id)
+    if not limit:
+        raise HTTPException(404, "Spending limit not found")
+    await db.delete(limit)
+    await db.commit()
+
+
+@router.post("/push-token")
+async def register_finance_push_token(payload: FinancePushTokenInput, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if not payload.expo_push_token.startswith("ExponentPushToken["):
+        raise HTTPException(422, "Invalid Expo push token")
+    device = (await db.execute(select(FinancePushDevice).where(
+        FinancePushDevice.expo_push_token == payload.expo_push_token
+    ))).scalar_one_or_none()
+    if device:
+        device.enabled = True
+        device.platform = payload.platform
+    else:
+        db.add(FinancePushDevice(expo_push_token=payload.expo_push_token, platform=payload.platform))
+    await db.commit()
+    return {"registered": True}
+
+
+@router.get("/alerts")
+async def list_finance_alerts(limit: int = Query(default=30, ge=1, le=100), db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    rows = (await db.execute(
+        select(FinanceAlertEvent, FinanceLimit)
+        .join(FinanceLimit, FinanceAlertEvent.limit_id == FinanceLimit.id)
+        .order_by(FinanceAlertEvent.created_at.desc()).limit(limit)
+    )).all()
+    return [{
+        "id": str(event.id), "category": rule.category, "amount": float(rule.amount),
+        "spent_amount": float(event.spent_amount), "threshold_percent": event.threshold_percent,
+        "period": event.period_key, "created_at": event.created_at.isoformat(),
+    } for event, rule in rows]
+
+
 @router.post("/ingest-notification")
 async def ingest_notification(payload: NotificationIngest, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     if payload.package_name not in ALLOWED_PAYMENT_PACKAGES:
@@ -113,6 +262,10 @@ async def ingest_notification(payload: NotificationIngest, db: AsyncSession = De
 
     if transaction_id is None:
         return {"stored": False, "duplicate": True}
+    try:
+        await evaluate_spending_limits(db)
+    except Exception:
+        logger.exception("Spending limit evaluation failed after transaction ingest")
     return {"stored": True, "transaction_id": str(transaction_id)}
 
 def get_month_bounds(month: str, tz_offset_minutes: int):
