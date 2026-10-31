@@ -1,17 +1,14 @@
-const { withAndroidManifest, withDangerousMod } = require("@expo/config-plugins");
+const { withAndroidManifest, withDangerousMod, withMainApplication } = require("@expo/config-plugins");
 const fs = require("fs");
 const path = require("path");
-
 const SERVICE = "com.muhammadnavas.orio.finance.MagnetNotificationListener";
 
 function withMagnetFinanceNotifications(config) {
   config = withAndroidManifest(config, (mod) => {
     const manifest = mod.modResults.manifest;
     manifest["uses-permission"] = manifest["uses-permission"] || [];
-    for (const permission of ["android.permission.INTERNET", "android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"]) {
-      if (!manifest["uses-permission"].some((item) => item.$?.["android:name"] === permission)) {
-        manifest["uses-permission"].push({ $: { "android:name": permission } });
-      }
+    for (const permission of ["android.permission.INTERNET"]) {
+      if (!manifest["uses-permission"].some((item) => item.$?.["android:name"] === permission)) manifest["uses-permission"].push({ $: { "android:name": permission } });
     }
     const app = manifest.application?.[0];
     if (app) {
@@ -20,7 +17,6 @@ function withMagnetFinanceNotifications(config) {
         app.service.push({
           $: { "android:name": SERVICE, "android:label": "Magnet Finance Capture", "android:permission": "android.permission.BIND_NOTIFICATION_LISTENER_SERVICE", "android:exported": "true" },
           "intent-filter": [{ action: [{ $: { "android:name": "android.service.notification.NotificationListenerService" } }] }],
-          "meta-data": [{ $: { "android:name": "android.service.notification.NotificationListenerService", "android:resource": "@xml/magnet_notification_listener" } }],
         });
       }
       app["meta-data"] = app["meta-data"] || [];
@@ -32,47 +28,55 @@ function withMagnetFinanceNotifications(config) {
     return mod;
   });
 
+  config = withMainApplication(config, (mod) => {
+    if (mod.modResults.language !== "kt") throw new Error("Magnet Finance requires Kotlin MainApplication.");
+    let source = mod.modResults.contents;
+    if (!source.includes("MagnetFinancePackage()")) {
+      const importLine = "import com.muhammadnavas.orio.finance.MagnetFinancePackage";
+      if (!source.includes(importLine)) source = source.replace(/^(package .*\n)/m, "$1\n" + importLine + "\n");
+      const marker = "PackageList(this).packages.apply {";
+      if (!source.includes(marker)) throw new Error("Magnet Finance could not find PackageList(this).packages.apply in MainApplication.");
+      source = source.replace(marker, marker + "\n          add(MagnetFinancePackage())");
+    }
+    mod.modResults.contents = source;
+    return mod;
+  });
+
   config = withDangerousMod(config, ["android", async (mod) => {
     const root = mod.modRequest.platformProjectRoot;
-    const javaDir = path.join(root, "app/src/main/java/com/muhammadnavas/orio/finance");
-    const xmlDir = path.join(root, "app/src/main/res/xml");
-    fs.mkdirSync(javaDir, { recursive: true });
-    fs.mkdirSync(xmlDir, { recursive: true });
-    fs.writeFileSync(path.join(xmlDir, "magnet_notification_listener.xml"), `<notification-listener-service xmlns:android="http://schemas.android.com/apk/res/android" android:description="@string/app_name" android:notificationTimeout="500" />`);
-    fs.writeFileSync(path.join(javaDir, "MagnetNotificationListener.kt"), `package com.muhammadnavas.orio.finance
+    const dir = path.join(root, "app/src/main/java/com/muhammadnavas/orio/finance");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "MagnetNotificationListener.kt"), `package com.muhammadnavas.orio.finance
 
 import android.app.Notification
+import android.content.pm.PackageManager
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
-import android.content.pm.PackageManager
 import android.util.Log
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import java.util.concurrent.Executors
 
 class MagnetNotificationListener : NotificationListenerService() {
   private val executor = Executors.newSingleThreadExecutor()
   private val paymentPackages = setOf(
-    "com.google.android.apps.nbu.paisa.user", "com.phonepe.app",
-    "net.one97.paytm", "in.org.npci.upiapp", "com.amazon.mShop.android.shopping",
-    "com.sbi.SBIFreedomPlus", "com.sbi.lotusintouch", "com.axis.mobile",
-    "com.icicibank.imobile", "com.hdfcbank.android", "com.csam.icici.bank.imobile",
-    "com.kotak811.app", "com.dreamplug.androidapp", "com.mobikwik_new"
+    "com.google.android.apps.nbu.paisa.user", "com.phonepe.app", "net.one97.paytm",
+    "in.org.npci.upiapp", "com.sbi.SBIFreedomPlus", "com.axis.mobile",
+    "com.icicibank.imobile", "com.hdfcbank.android", "com.kotak811.app",
+    "com.dreamplug.androidapp", "com.mobikwik_new"
   )
-  private val cues = Regex("(?i)\\b(paid|payment|debited|debit|sent|transferred|received|credited|credit|spent|purchase|transaction)\\b")
-  private val amount = Regex("(?i)(₹|INR|Rs\\.?\\s*)\\s?[0-9][0-9,]*(\\.[0-9]{1,2})?|\\b(amount|for)\\s*(₹|INR|Rs\\.?\\s*)?[0-9][0-9,]*(\\.[0-9]{1,2})?")
+  private val cues = Regex("(?i)\\\\b(paid|payment|debited|debit|sent|transferred|received|credited|credit|spent|purchase|transaction)\\\\b")
+  private val amount = Regex("(?i)(₹|INR|Rs\\\\.?\\\\s*)\\\\s?[0-9][0-9,]*(\\\\.[0-9]{1,2})?|\\\\b(amount|for)\\\\s*(₹|INR|Rs\\\\.?\\\\s*)?[0-9][0-9,]*(\\\\.[0-9]{1,2})?")
 
   override fun onNotificationPosted(sbn: StatusBarNotification) {
     if (sbn.packageName == packageName || sbn.packageName !in paymentPackages) return
     val extras = sbn.notification.extras ?: return
     val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.take(300).orEmpty()
-    val text = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()
-      ?: extras.getCharSequence(Notification.EXTRA_TEXT)?.toString().orEmpty()
-    if (text.isBlank() || !cues.containsMatchIn("$title $text") || !amount.containsMatchIn("$title $text")) return
+    val text = (extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()
+      ?: extras.getCharSequence(Notification.EXTRA_TEXT)?.toString().orEmpty()).take(2000)
+    val message = "$title $text"
+    if (text.isBlank() || !cues.containsMatchIn(message) || !amount.containsMatchIn(message)) return
     executor.execute { sendNotification(sbn.packageName, title, text, sbn.postTime) }
   }
 
@@ -82,28 +86,67 @@ class MagnetNotificationListener : NotificationListenerService() {
       val appName = packageManager.getApplicationLabel(info).toString()
       val metadata = packageManager.getApplicationInfo(packageName, PackageManager.GET_META_DATA).metaData
       val apiRoot = metadata?.getString("com.muhammadnavas.orio.FINANCE_API_URL").orEmpty().trimEnd('/')
-      if (apiRoot.isBlank()) return
+      if (apiRoot.isBlank()) { Log.w("MagnetFinance", "EXPO_PUBLIC_API_URL was empty at native build time"); return }
       val endpoint = if (apiRoot.endsWith("/api/v1")) "$apiRoot/finance/ingest-notification" else "$apiRoot/api/v1/finance/ingest-notification"
-      val body = JSONObject().put("package_name", pkg).put("app_name", appName)
-        .put("title", title).put("text", text).put("posted_at", postedAt).toString()
-      val connection = (URL(endpoint).openConnection() as HttpURLConnection)
+      val body = JSONObject().put("package_name", pkg).put("app_name", appName).put("title", title).put("text", text).put("posted_at", postedAt).toString()
+      val connection = URL(endpoint).openConnection() as HttpURLConnection
       connection.requestMethod = "POST"
       connection.connectTimeout = 8000
       connection.readTimeout = 8000
       connection.doOutput = true
       connection.setRequestProperty("Content-Type", "application/json")
       connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
-      connection.inputStream.close()
+      val code = connection.responseCode
+      if (code !in 200..299) Log.w("MagnetFinance", "Finance API returned HTTP $code")
       connection.disconnect()
-    } catch (error: Exception) {
-      Log.w("MagnetFinance", "Could not submit a parsed payment notification", error)
-    }
+    } catch (error: Exception) { Log.w("MagnetFinance", "Could not submit payment alert", error) }
   }
 
-  override fun onDestroy() {
-    executor.shutdown()
-    super.onDestroy()
+  override fun onDestroy() { executor.shutdown(); super.onDestroy() }
+}
+`);
+    fs.writeFileSync(path.join(dir, "MagnetFinanceModule.kt"), `package com.muhammadnavas.orio.finance
+
+import android.content.Intent
+import android.provider.Settings
+import android.text.TextUtils
+import com.facebook.react.bridge.Promise
+import com.facebook.react.bridge.ReactApplicationContext
+import com.facebook.react.bridge.ReactContextBaseJavaModule
+import com.facebook.react.bridge.ReactMethod
+
+class MagnetFinanceModule(context: ReactApplicationContext) : ReactContextBaseJavaModule(context) {
+  override fun getName() = "MagnetFinance"
+
+  @ReactMethod
+  fun isNotificationAccessEnabled(promise: Promise) {
+    try {
+      val enabled = Settings.Secure.getString(reactApplicationContext.contentResolver, "enabled_notification_listeners")
+      val component = "${reactApplicationContext.packageName}/${MagnetNotificationListener::class.java.name}"
+      promise.resolve(!TextUtils.isEmpty(enabled) && enabled.contains(component))
+    } catch (error: Exception) { promise.reject("PERMISSION_CHECK_FAILED", error) }
   }
+
+  @ReactMethod
+  fun openNotificationAccessSettings(promise: Promise) {
+    try {
+      val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      reactApplicationContext.startActivity(intent)
+      promise.resolve(true)
+    } catch (error: Exception) { promise.reject("SETTINGS_OPEN_FAILED", error) }
+  }
+}
+`);
+    fs.writeFileSync(path.join(dir, "MagnetFinancePackage.kt"), `package com.muhammadnavas.orio.finance
+
+import com.facebook.react.ReactPackage
+import com.facebook.react.bridge.NativeModule
+import com.facebook.react.bridge.ReactApplicationContext
+import com.facebook.react.uimanager.ViewManager
+
+class MagnetFinancePackage : ReactPackage {
+  override fun createNativeModules(context: ReactApplicationContext): List<NativeModule> = listOf(MagnetFinanceModule(context))
+  override fun createViewManagers(context: ReactApplicationContext): List<ViewManager<*, *>> = emptyList()
 }
 `);
     return mod;
