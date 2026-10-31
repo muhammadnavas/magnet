@@ -127,7 +127,7 @@ class MagnetFinanceModule(context: ReactApplicationContext) : ReactContextBaseJa
   fun isNotificationAccessEnabled(promise: Promise) {
     try {
       val enabled = Settings.Secure.getString(reactApplicationContext.contentResolver, "enabled_notification_listeners")
-      val component = "${reactApplicationContext.packageName}/${MagnetNotificationListener::class.java.name}"
+      val component = "\${reactApplicationContext.packageName}/\${MagnetNotificationListener::class.java.name}"
       promise.resolve(!TextUtils.isEmpty(enabled) && enabled.contains(component))
     } catch (error: Exception) { promise.reject("PERMISSION_CHECK_FAILED", error) }
   }
