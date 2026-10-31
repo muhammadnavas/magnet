@@ -172,7 +172,7 @@ export default function FinanceScreen() {
                     <View style={{ flex: 1 }}><Text style={{ color: primary, fontSize: 13, fontWeight: "800" }}>{item.category || "Overall monthly spending"}</Text><Text style={{ color: muted, fontSize: 11, marginTop: 3 }}>{money(spent)} of {money(item.amount)} · {Math.round(percent)}%</Text></View>
                     <Pressable onPress={() => removeLimit(item.id)} hitSlop={10}><Ionicons name="trash-outline" size={17} color={muted} /></Pressable>
                   </View>
-                  <View style={{ height: 7, borderRadius: 8, backgroundColor: themeColors.surfaceHover, overflow: "hidden", marginTop: 9 }}><View style={{ height: 7, width={percent + "%"} style={{ height: 7, width: percent + "%", backgroundColor: tone, borderRadius: 8 }} /></View>
+                  <View style={{ height: 7, borderRadius: 8, backgroundColor: themeColors.surfaceHover, overflow: "hidden", marginTop: 9 }}><View style={{ height: 7, width: percent + "%", backgroundColor: tone, borderRadius: 8 }} /></View>
                 </View>;
               })}
             </View>}
