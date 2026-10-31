@@ -142,7 +142,11 @@ async def update_transaction(transaction_id: str, payload: FinanceTransactionUpd
 
 @router.delete("/transactions/{transaction_id}", status_code=204)
 async def delete_transaction(transaction_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    row = await db.get(FinanceTransaction, transaction_id)
+    try:
+        parsed_id = uuid.UUID(transaction_id)
+    except ValueError:
+        raise HTTPException(400, "Invalid transaction ID")
+    row = await db.get(FinanceTransaction, parsed_id)
     if not row: raise HTTPException(404, "Transaction not found")
     await db.delete(row)
     await db.commit()
