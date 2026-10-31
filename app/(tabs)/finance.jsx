@@ -5,6 +5,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import api from "../../lib/api";
 import { useAppTheme } from "../../store/themeStore";
+import * as Notifications from "expo-notifications";
+import Constants from "expo-constants";
 
 const money = (value) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(Number(value || 0));
 const currentLocalMonth = () => { const now = new Date(); return now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0"); };
@@ -19,14 +21,20 @@ export default function FinanceScreen() {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [asking, setAsking] = useState(false);
+  const [limits, setLimits] = useState([]);
+  const [limitAmount, setLimitAmount] = useState("");
+  const [limitCategory, setLimitCategory] = useState("");
+  const [savingLimit, setSavingLimit] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
   const [selectedMonth] = useState(currentLocalMonth);
   const timezoneOffset = new Date().getTimezoneOffset();
 
   const load = useCallback(async (refresh = false) => {
     refresh ? setRefreshing(true) : setLoading(true);
     try {
-      const [s, t] = await Promise.all([api.get("/finance/summary?month=" + selectedMonth + "&tz_offset_minutes=" + timezoneOffset), api.get("/finance/transactions?month=" + selectedMonth + "&tz_offset_minutes=" + timezoneOffset + "&limit=100")]);
-      setSummary(s.data); setTransactions(t.data || []);
+      const [s, t, l] = await Promise.all([api.get("/finance/summary?month=" + selectedMonth + "&tz_offset_minutes=" + timezoneOffset), api.get("/finance/transactions?month=" + selectedMonth + "&tz_offset_minutes=" + timezoneOffset + "&limit=100"), api.get("/finance/limits")]);
+      setSummary(s.data); setTransactions(t.data || []); setLimits(l.data || []);
     } catch (error) {
       Alert.alert("Finance unavailable", error?.response?.data?.detail || "Could not load finance data. Check the backend and database migration.");
     } finally { setLoading(false); setRefreshing(false); }
@@ -51,6 +59,57 @@ export default function FinanceScreen() {
       if (NativeModules.MagnetFinance) await NativeModules.MagnetFinance.openNotificationAccessSettings();
       else await Linking.sendIntent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS");
     } catch (_) { Alert.alert("Permission settings", "Open Android Settings → Notifications → Device & app notifications → Magnet, then enable notification access."); }
+  };
+
+
+  const enableSpendingAlerts = async () => {
+    if (Platform.OS === "web") { Alert.alert("Mobile only", "Push alerts are available in the Android app."); return; }
+    setPushBusy(true);
+    try {
+      const existing = await Notifications.getPermissionsAsync();
+      let status = existing.status;
+      if (status !== "granted") status = (await Notifications.requestPermissionsAsync()).status;
+      if (status !== "granted") { Alert.alert("Permission required", "Allow notifications for Magnet to receive spending alerts."); return; }
+      if (Platform.OS === "android") {
+        await Notifications.setNotificationChannelAsync("finance-alerts", {
+          name: "Spending alerts", importance: Notifications.AndroidImportance.HIGH,
+          vibrationPattern: [0, 250, 250, 250],
+        });
+      }
+      const projectId = Constants.easConfig?.projectId || Constants.expoConfig?.extra?.eas?.projectId;
+      if (!projectId) throw new Error("Expo project ID is missing from app configuration.");
+      const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+      await api.post("/finance/push-token", { expo_push_token: token, platform: Platform.OS });
+      setPushEnabled(true);
+      Alert.alert("Spending alerts enabled", "Magnet can now send backend spending-threshold notifications.");
+    } catch (error) {
+      Alert.alert("Could not enable alerts", error?.response?.data?.detail || error.message || "Please try again.");
+    } finally { setPushBusy(false); }
+  };
+
+  const saveLimit = async () => {
+    const amount = Number(limitAmount);
+    if (!Number.isFinite(amount) || amount <= 0) { Alert.alert("Invalid amount", "Enter a spending limit greater than zero."); return; }
+    setSavingLimit(true);
+    try {
+      await api.put("/finance/limits", {
+        amount, category: limitCategory.trim() || null, enabled: true,
+        timezone_offset_minutes: new Date().getTimezoneOffset(),
+      });
+      setLimitAmount(""); setLimitCategory("");
+      const response = await api.get("/finance/limits");
+      setLimits(response.data || []);
+      Alert.alert("Limit saved", "Magnet will check this limit whenever a new payment is captured.");
+    } catch (error) {
+      Alert.alert("Could not save limit", error?.response?.data?.detail || "Please try again.");
+    } finally { setSavingLimit(false); }
+  };
+
+  const removeLimit = async (id) => {
+    try {
+      await api.delete("/finance/limits/" + id);
+      setLimits((current) => current.filter((item) => item.id !== id));
+    } catch (error) { Alert.alert("Could not remove limit", error?.response?.data?.detail || "Please try again."); }
   };
 
   const ask = async () => {
