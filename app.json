@@ -67,7 +67,8 @@
           ]
         }
       ],
-      "./plugins/withMagnetShareIntent"
+      "./plugins/withMagnetShareIntent",
+      "./plugins/withMagnetFinanceNotifications"
     ],
     "extra": {
       "router": {},
