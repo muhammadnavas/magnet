@@ -147,6 +147,37 @@ export default function FinanceScreen() {
             <Text style={{ color: muted, fontSize: 10, marginTop: 14 }}>{summary?.transaction_count || 0} captured transactions · Based on notifications Magnet received</Text>
           </View>
           <View style={{ ...card, marginBottom: 12 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <View><Text style={{ color: primary, fontSize: 16, fontWeight: "800" }}>Spending limits</Text><Text style={{ color: muted, fontSize: 11, marginTop: 3 }}>Backend alerts at 50%, 80% and 100%</Text></View>
+              <Ionicons name="speedometer-outline" size={21} color={themeColors.primary} />
+            </View>
+            <Pressable onPress={enableSpendingAlerts} disabled={pushBusy} style={{ borderWidth: 1, borderColor: pushEnabled ? "#05966970" : themeColors.border, borderRadius: 12, padding: 12, flexDirection: "row", alignItems: "center", marginBottom: 14, opacity: pushBusy ? 0.6 : 1 }}>
+              <Ionicons name={pushEnabled ? "notifications" : "notifications-outline"} size={18} color={pushEnabled ? "#10B981" : themeColors.primary} />
+              <Text style={{ color: primary, fontSize: 12, fontWeight: "700", marginLeft: 9, flex: 1 }}>{pushBusy ? "Enabling notifications..." : pushEnabled ? "Push alerts registered on this device" : "Enable spending notifications"}</Text>
+              {!pushEnabled && <Ionicons name="chevron-forward" size={17} color={muted} />}
+            </Pressable>
+            <Text style={{ color: secondary, fontSize: 12, fontWeight: "700", marginBottom: 7 }}>Set a monthly limit</Text>
+            <TextInput value={limitAmount} onChangeText={setLimitAmount} keyboardType="decimal-pad" placeholder="Limit amount (₹)" placeholderTextColor={muted} style={{ color: primary, borderColor: themeColors.border, borderWidth: 1, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, fontSize: 13, marginBottom: 8 }} />
+            <TextInput value={limitCategory} onChangeText={setLimitCategory} placeholder="Category (optional; blank = overall)" placeholderTextColor={muted} style={{ color: primary, borderColor: themeColors.border, borderWidth: 1, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, fontSize: 13 }} />
+            <Pressable onPress={saveLimit} disabled={savingLimit} style={{ marginTop: 9, backgroundColor: themeColors.primary, borderRadius: 12, padding: 12, alignItems: "center", opacity: savingLimit ? 0.6 : 1 }}>
+              <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 13 }}>{savingLimit ? "Saving..." : "Save spending limit"}</Text>
+            </Pressable>
+            {limits.length > 0 && <View style={{ marginTop: 15 }}>
+              {limits.map((item) => {
+                const spent = item.category ? Number(categories.find((entry) => entry.category === item.category)?.amount || 0) : Number(summary?.expense || 0);
+                const percent = Math.min(100, spent / Number(item.amount) * 100);
+                const tone = percent >= 100 ? "#EF4444" : percent >= 80 ? "#F59E0B" : "#10B981";
+                return <View key={item.id} style={{ paddingTop: 12, marginTop: 10, borderTopWidth: 1, borderTopColor: themeColors.border }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                    <View style={{ flex: 1 }}><Text style={{ color: primary, fontSize: 13, fontWeight: "800" }}>{item.category || "Overall monthly spending"}</Text><Text style={{ color: muted, fontSize: 11, marginTop: 3 }}>{money(spent)} of {money(item.amount)} · {Math.round(percent)}%</Text></View>
+                    <Pressable onPress={() => removeLimit(item.id)} hitSlop={10}><Ionicons name="trash-outline" size={17} color={muted} /></Pressable>
+                  </View>
+                  <View style={{ height: 7, borderRadius: 8, backgroundColor: themeColors.surfaceHover, overflow: "hidden", marginTop: 9 }}><View style={{ height: 7, width={percent + "%"} style={{ height: 7, width: percent + "%", backgroundColor: tone, borderRadius: 8 }} /></View>
+                </View>;
+              })}
+            </View>}
+          </View>
+          <View style={{ ...card, marginBottom: 12 }}>
             <Text style={{ color: primary, fontSize: 16, fontWeight: "800", marginBottom: 14 }}>Spending by category</Text>
             {categories.length ? categories.map((item) => <View key={item.category} style={{ marginBottom: 13 }}>
               <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}><Text style={{ color: secondary, fontSize: 12 }}>{item.category}</Text><Text style={{ color: primary, fontSize: 12, fontWeight: "700" }}>{money(item.amount)}</Text></View>
