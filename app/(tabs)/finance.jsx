@@ -185,6 +185,15 @@ export default function FinanceScreen() {
           <View style={{ width: 42, height: 42, borderRadius: 13, backgroundColor: permissionEnabled ? "#05966920" : themeColors.primary + "18", alignItems: "center", justifyContent: "center" }}><Ionicons name={permissionEnabled ? "shield-checkmark-outline" : "notifications-outline"} size={21} color={permissionEnabled ? "#10B981" : themeColors.primary} /></View>
           <View style={{ flex: 1 }}><Text style={{ color: primary, fontSize: 14, fontWeight: "800" }}>{permissionEnabled ? "Payment capture is enabled" : "Enable automatic payment tracking"}</Text><Text style={{ color: muted, fontSize: 11, marginTop: 3 }}>{permissionEnabled ? "Tap to review Android notification access" : "Allow Magnet to detect supported payment alerts"}</Text></View><Ionicons name="chevron-forward" size={18} color={muted} />
         </Pressable>
+        <View style={{ borderWidth: 1, borderColor: themeColors.border, borderRadius: 14, padding: 12, marginBottom: 12, backgroundColor: themeColors.card }}>
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 5 }}>
+            <Ionicons name="shield-checkmark-outline" size={15} color={themeColors.primary} />
+            <Text style={{ color: primary, fontSize: 12, fontWeight: "800", marginLeft: 7 }}>Notification privacy</Text>
+          </View>
+          <Text style={{ color: muted, fontSize: 11, lineHeight: 16 }}>
+            Magnet checks notifications only from supported payment apps. It forwards likely payment alerts containing a payment keyword and amount to your configured Magnet backend. OTPs, verification codes and ongoing notifications are excluded. Notification access is optional and can be turned off anytime in Android Settings.
+          </Text>
+        </View>
         {loading ? <View style={{ padding: 40, alignItems: "center" }}><ActivityIndicator color={themeColors.primary} /></View> : <>
           <View style={{ ...card, marginBottom: 12 }}>
             <Text style={{ color: muted, fontSize: 12, fontWeight: "700" }}>TOTAL SPENT · {summary?.month || selectedMonth}</Text>
