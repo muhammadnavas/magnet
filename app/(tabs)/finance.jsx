@@ -54,11 +54,27 @@ export default function FinanceScreen() {
   }, [load, checkPermission]));
 
   const openPermission = async () => {
-    if (Platform.OS !== "android") { Alert.alert("Android only", "Automatic payment notification capture is currently available on Android."); return; }
+    if (Platform.OS !== "android") {
+      Alert.alert("Android only", "Automatic payment notification capture is currently available on Android.");
+      return;
+    }
+    if (!permissionEnabled) {
+      Alert.alert(
+        "Allow restricted settings first",
+        "Android has blocked Magnet's notification access because this app was installed from an APK.\n\n1. Open Magnet's App info.\n2. Tap the ⋮ menu in the top-right.\n3. Choose Allow restricted settings and confirm.\n4. Return to Magnet and enable notification access.\n\nThis is an Android security step; Magnet cannot enable it automatically.",
+        [
+          { text: "Not now", style: "cancel" },
+          { text: "Open app info", onPress: () => Linking.openSettings() },
+        ]
+      );
+      return;
+    }
     try {
       if (NativeModules.MagnetFinance) await NativeModules.MagnetFinance.openNotificationAccessSettings();
       else await Linking.sendIntent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS");
-    } catch (_) { Alert.alert("Permission settings", "Open Android Settings → Notifications → Device & app notifications → Magnet, then enable notification access."); }
+    } catch (_) {
+      Alert.alert("Permission settings", "Open Android Settings → Notifications → Device & app notifications → Magnet, then enable notification access.");
+    }
   };
 
 
