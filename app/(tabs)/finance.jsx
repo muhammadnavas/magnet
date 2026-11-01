@@ -99,7 +99,14 @@ export default function FinanceScreen() {
       setPushEnabled(true);
       Alert.alert("Spending alerts enabled", "Magnet can now send backend spending-threshold notifications.");
     } catch (error) {
-      Alert.alert("Could not enable alerts", error?.response?.data?.detail || error.message || "Please try again.");
+      const message = String(error?.message || "");
+      const firebaseMissing = /Default FirebaseApp is not initialized|FirebaseApp.*not initialized|FCM.*credentials|Firebase.*credentials/i.test(message);
+      Alert.alert(
+        firebaseMissing ? "Firebase push setup required" : "Could not enable alerts",
+        firebaseMissing
+          ? "Magnet's Android build is missing Firebase Cloud Messaging configuration. Register com.muhammadnavas.orio in Firebase, add its google-services.json to the project, configure FCM HTTP v1 credentials in EAS, then create a new APK. Notification access for payment capture is separate and can remain enabled."
+          : (error?.response?.data?.detail || message || "Please try again.")
+      );
     } finally { setPushBusy(false); }
   };
 
