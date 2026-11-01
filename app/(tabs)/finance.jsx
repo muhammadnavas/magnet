@@ -27,16 +27,42 @@ export default function FinanceScreen() {
   const [savingLimit, setSavingLimit] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
+  const [limitsError, setLimitsError] = useState("");
   const [selectedMonth] = useState(currentLocalMonth);
   const timezoneOffset = new Date().getTimezoneOffset();
 
   const load = useCallback(async (refresh = false) => {
     refresh ? setRefreshing(true) : setLoading(true);
     try {
-      const [s, t, l] = await Promise.all([api.get("/finance/summary?month=" + selectedMonth + "&tz_offset_minutes=" + timezoneOffset), api.get("/finance/transactions?month=" + selectedMonth + "&tz_offset_minutes=" + timezoneOffset + "&limit=100"), api.get("/finance/limits")]);
-      setSummary(s.data); setTransactions(t.data || []); setLimits(l.data || []);
-    } catch (error) {
-      Alert.alert("Finance unavailable", error?.response?.data?.detail || "Could not load finance data. Check the backend and database migration.");
+      const [summaryResult, transactionsResult, limitsResult] = await Promise.allSettled([
+        api.get("/finance/summary?month=" + selectedMonth + "&tz_offset_minutes=" + timezoneOffset),
+        api.get("/finance/transactions?month=" + selectedMonth + "&tz_offset_minutes=" + timezoneOffset + "&limit=100"),
+        api.get("/finance/limits"),
+      ]);
+      const coreFailure = summaryResult.status === "rejected" || transactionsResult.status === "rejected";
+      if (coreFailure) {
+        const error = summaryResult.status === "rejected" ? summaryResult.reason : transactionsResult.reason;
+        const detail = error?.response?.data?.detail || error?.message || "Unknown API error";
+        const status = error?.response?.status;
+        Alert.alert(
+          "Finance data unavailable",
+          status
+            ? "Finance API returned HTTP " + status + ". " + detail
+            : "Could not reach the Finance API. " + detail
+        );
+      } else {
+        setSummary(summaryResult.value.data);
+        setTransactions(transactionsResult.value.data || []);
+      }
+      if (limitsResult.status === "fulfilled") {
+        setLimits(limitsResult.value.data || []);
+        setLimitsError("");
+      } else {
+        setLimits([]);
+        const error = limitsResult.reason;
+        const detail = error?.response?.data?.detail || error?.message || "Spending limits could not be loaded.";
+        setLimitsError("Spending limits unavailable: " + detail + ". Apply migration 202610310002_finance_spending_alerts.sql.");
+      }
     } finally { setLoading(false); setRefreshing(false); }
   }, [selectedMonth]);
 
@@ -179,6 +205,7 @@ export default function FinanceScreen() {
               <Text style={{ color: primary, fontSize: 12, fontWeight: "700", marginLeft: 9, flex: 1 }}>{pushBusy ? "Enabling notifications..." : pushEnabled ? "Push alerts registered on this device" : "Enable spending notifications"}</Text>
               {!pushEnabled && <Ionicons name="chevron-forward" size={17} color={muted} />}
             </Pressable>
+            {limitsError ? <Text style={{ color: "#D97706", fontSize: 11, lineHeight: 16, marginBottom: 10 }}>{limitsError}</Text> : null}
             <Text style={{ color: secondary, fontSize: 12, fontWeight: "700", marginBottom: 7 }}>Set a monthly limit</Text>
             <TextInput value={limitAmount} onChangeText={setLimitAmount} keyboardType="decimal-pad" placeholder="Limit amount (₹)" placeholderTextColor={muted} style={{ color: primary, borderColor: themeColors.border, borderWidth: 1, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, fontSize: 13, marginBottom: 8 }} />
             <TextInput value={limitCategory} onChangeText={setLimitCategory} placeholder="Category (optional; blank = overall)" placeholderTextColor={muted} style={{ color: primary, borderColor: themeColors.border, borderWidth: 1, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, fontSize: 13 }} />
