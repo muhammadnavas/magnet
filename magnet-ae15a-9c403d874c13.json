@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "magnet-ae15a",
+  "private_key_id": "9c403d874c13092d8df8e316d6b4420f5baa3f99",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDX0D2TdcygoSxK\nxnSUDoLCWL3a29O7YoIc4RguYN/lA2uJ3oVTid5s1ucbZCtCAscQU+3plpPQfSd8\nN94QPstykmmA7pP3UB4YJL9JhUhrahtzI34m5lfU0oWjMPQw+IFoEpiDacTGCdiR\n3fJvh/bjZFprgVkA/3rQDFUcp4Zt8N9P0Mol0fpQ3WAWiKWbp43aCeYnI89WH0AB\nerJfGhxk/AqGn0z+Yd1d1zLTrnRH1ZKmdwqq/KZi7VLH3SdTSDJd4rusPmvu6aDO\nFeGpzOtpTVpFz57HZHOTuwZwrk9tyVBy5Sl9D6loS32b+tdydRoo7VkO0TUO1sRT\nHflEYgq/AgMBAAECggEAZrGjU3OHK1p2eqCD4d4jz7otoaLgVncSJg7glFUpxU7C\n0eiutelRi6YZc/nO8crjkbv2ZqRt8xRTATOOell/MyZDiQQ+Kb2YjHGUCrafFun3\nZOsbQQR0AAQrblPBpznhTjYnF8VxSrFtuj+MeREQZPUgZ661vRlVBgIQUCHRgKdx\n0J0GGbEDoSZcxeOKESRhHMwBvi4lmdsnAJz1mLCvK1djgvUiDUkGWieVv63BvjQn\nyzFytTOEN0c3oLfxqBf/7TRI2ehc2YVZKC+ySkftpv97lqJJli+Az43tOy5e8SdP\nJZTb1BvFXhf8K6wU7FpAe5CNemDKFxbfqp+BCrfcSQKBgQDsP6+SSSAjjlAgbljl\nj3sOsOqobbg4Ar79VnA8ruwSyKx3DYf8JNJY8g6sPrgdt3L1taiIJAfr6YAmhj60\na0vkG2JCTuOdRxRXnpf++wMOIQD2USFUna9Ak6P1Q2Y5mQssDbWOerK+A/VACz8i\nO4JmZ/llJVDsCXOhb+7JAZx7CQKBgQDp2zAAMgrIxlHZcPZfx6AfJ9UOevSJ4i5K\nJf2ZQ7iRl24eX6qy+NYH7USAh5xA+6b9TXWDb+hTTDydF8cBk8sZ458D1voGmseA\naTCDJKaXUoJcBEuVY9BnWB3j9xoKUVo5fCRoxEP+RP8QPhRUscXe0LOWCx1SlNOW\np3JKijkhhwKBgAN215s8iUUcNB6Vn6YWGYbYn0hC+52OpMBQQSsSoZGQ8b55K1JO\nM+tr+T0bWlXNN9lUhZkhdiBGd0OZWlgI7r70i9dPEtVeknTKdY4enifZ4gq6m9OC\n0GwQ/il9iIU1sk0+Ejh5oh9ZLYJ358AXwUzBH44VIv+jD9gBLS4zYNkJAoGBAMF3\nbgybWcSkHU6wX4L5mYRs5ZwnKGtxzS3WpCjJl8YK6zUBnCyYJClGp2dVyXURPCNO\nk6t7R06yQWsNIrwxUtNGNmVs0kfogKfBXjsAdTm3LtWFUCp0+xKkGYZhBRAIIYZx\nJ4Xs6PtQhVsgoJ04vSQKsKeu5kFNkoaOXMVB+OW9AoGAM2JUnU+AugommSgXuVvU\n77fuxK2Cxc7bnRkyOHZ9fhpdJT5BQDX2A9doL7e+73ns+ZVGXGgYEGLG5mhxoRlm\ntZ+jWi0LtUK+6Gg+TtLeKynxlvhM2C1ivRGcP8HyIB5yFQsq1BaqF0VCVTFQkkk0\nBKGbD+j/KTNYKK1MOXeFTpU=\n-----END PRIVATE KEY-----\n",
+  "client_email": "magnet-fcm-sender@magnet-ae15a.iam.gserviceaccount.com",
+  "client_id": "117614771752598795605",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/magnet-fcm-sender%40magnet-ae15a.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
