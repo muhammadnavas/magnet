@@ -68,6 +68,7 @@ class MagnetNotificationListener : NotificationListenerService() {
   )
   private val cues = Regex("(?i)\\\\b(paid|payment|debited|debit|sent|transferred|received|credited|credit|spent|purchase|transaction)\\\\b")
   private val amount = Regex("(?i)(₹|INR|Rs\\\\.?\\\\s*)\\\\s?[0-9][0-9,]*(\\\\.[0-9]{1,2})?|\\\\b(amount|for)\\\\s*(₹|INR|Rs\\\\.?\\\\s*)?[0-9][0-9,]*(\\\\.[0-9]{1,2})?")
+  private val sensitive = Regex("(?i)\\\\b(otp|one[- ]time password|verification code|security code|login code|passcode|cvv|upi pin)\\\\b")
 
   override fun onNotificationPosted(sbn: StatusBarNotification) {
     if (sbn.packageName == packageName || sbn.packageName !in paymentPackages || sbn.isOngoing) return
