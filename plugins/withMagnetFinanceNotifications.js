@@ -70,13 +70,15 @@ class MagnetNotificationListener : NotificationListenerService() {
   private val amount = Regex("(?i)(₹|INR|Rs\\\\.?\\\\s*)\\\\s?[0-9][0-9,]*(\\\\.[0-9]{1,2})?|\\\\b(amount|for)\\\\s*(₹|INR|Rs\\\\.?\\\\s*)?[0-9][0-9,]*(\\\\.[0-9]{1,2})?")
 
   override fun onNotificationPosted(sbn: StatusBarNotification) {
-    if (sbn.packageName == packageName || sbn.packageName !in paymentPackages) return
+    if (sbn.packageName == packageName || sbn.packageName !in paymentPackages || sbn.isOngoing) return
     val extras = sbn.notification.extras ?: return
     val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.take(300).orEmpty()
     val text = (extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()
       ?: extras.getCharSequence(Notification.EXTRA_TEXT)?.toString().orEmpty()).take(2000)
     val message = "$title $text"
-    if (text.isBlank() || !cues.containsMatchIn(message) || !amount.containsMatchIn(message)) return
+    if (text.isBlank() || !cues.containsMatchIn(message) || !amount.containsMatchIn(message) || sensitive.containsMatchIn(message)) return
+    // Forward only a likely payment notification from an explicitly supported app.
+    // Never log or persist the raw notification text on-device.
     executor.execute { sendNotification(sbn.packageName, title, text, sbn.postTime) }
   }
 
