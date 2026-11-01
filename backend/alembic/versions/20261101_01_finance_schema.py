@@ -6,7 +6,7 @@ have been applied manually through the Supabase SQL editor.
 from alembic import op
 
 revision = "20261101_01"
-down_revision = "c1d9e3f2b018"
+down_revision = "7d3a9b1c4e20"
 branch_labels = None
 depends_on = None
 
