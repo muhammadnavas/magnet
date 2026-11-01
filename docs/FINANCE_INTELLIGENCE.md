@@ -14,7 +14,9 @@ Finance Intelligence captures likely payment notifications from a user-enabled A
 
 The native listener allowlists Google Pay, PhonePe, Paytm, BHIM, selected Indian bank apps, CRED, and MobiKwik package IDs. This list is deliberately restrictive: unrelated notifications are ignored. Bank apps can change package IDs or notification formats, so the list and parser need device-level validation.
 
-## What is captured
+## Notification privacy and safety
+
+The Android listener is protected by Android's `BIND_NOTIFICATION_LISTENER_SERVICE` permission and is enabled only after the user explicitly grants Notification Access in Settings. It inspects notifications only from the explicit payment-app package allowlist, skips ongoing notifications, and forwards only messages matching a payment cue plus an amount. Notifications containing OTPs, one-time passwords, verification/security/login codes, passcodes, CVVs, or UPI PIN references are rejected on-device and again by the backend. Notification text is sent to the configured backend over HTTPS; it is parsed for a transaction and is not stored as raw notification text. The Finance screen discloses this behavior and the user can revoke access in Android Settings.
 
 Only notifications from the server- and client-side allowlisted packages that contain a payment cue and an amount are forwarded. The backend rejects timestamps older than 45 days or more than five minutes in the future. Inserts use an atomic unique-fingerprint conflict check, so concurrent duplicate callbacks do not create duplicate rows. The backend parses amount, merchant, category, transaction direction, source app, and timestamp. Raw notification text is not stored in the transaction table. Monthly queries use the device's timezone offset.
 
@@ -46,3 +48,8 @@ Limits are evaluated on successful new notification ingestion, not by a backgrou
 - `PATCH /api/v1/finance/transactions/{id}`
 - `DELETE /api/v1/finance/transactions/{id}`
 - `POST /api/v1/finance/ask`
+
+
+## Play Protect distribution note
+
+These least-privilege filters and the in-app disclosure improve privacy, but they cannot guarantee that Google Play Protect will stop warning about or blocking a sideloaded APK. Play Protect decisions are made by Google using app reputation, signing, distribution, and behavior signals. Do not disable Play Protect or attempt to bypass its checks. For broader distribution, use a verified, consistently signed release and Google Play internal testing, and follow Google's policy and review process for notification-listener access.
