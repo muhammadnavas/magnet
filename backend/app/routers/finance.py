@@ -56,6 +56,8 @@ def categorize(merchant: str) -> str:
 
 def parse_payment(payload: NotificationIngest):
     message = f"{payload.title} {payload.text}".strip()
+    if not message or SENSITIVE_NOTIFICATION_RE.search(message):
+        return None
     if not PAYMENT_TERMS.search(message):
         return None
     match = AMOUNT_RE.search(message)
