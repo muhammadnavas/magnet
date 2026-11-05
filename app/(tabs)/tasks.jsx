@@ -5,7 +5,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useGetTasks, useCreateTask, useParseTask } from "../../hooks/useTasks";
+import { useGetTasks, useCreateTask } from "../../hooks/useTasks";
 import { useAppTheme } from "../../store/themeStore";
 import { requestNotificationPermissions } from "../../lib/notifications";
 import { parseTaskDateTime } from "../../lib/taskDateTime";
@@ -68,7 +68,6 @@ export default function TasksScreen() {
   const inputRef = useRef(null);
   const { data: tasks = [], isLoading } = useGetTasks(filter);
   const createTask = useCreateTask();
-  const parseTask = useParseTask();
 
   useEffect(() => { requestNotificationPermissions(); }, []);
   const handleInputFocus = () => requestNotificationPermissions();
