@@ -1,10 +1,12 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView,
   Platform, ActivityIndicator, Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "expo-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useGetTasks, useCreateTask } from "../../hooks/useTasks";
 import { useAppTheme } from "../../store/themeStore";
 import { requestNotificationPermissions } from "../../lib/notifications";
@@ -63,6 +65,7 @@ function isReminderWithoutTime(text, task) {
 
 export default function TasksScreen() {
   const { themeColors } = useAppTheme();
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState(null);
   const [input, setInput] = useState("");
   const inputRef = useRef(null);
@@ -70,6 +73,12 @@ export default function TasksScreen() {
   const createTask = useCreateTask();
 
   useEffect(() => { requestNotificationPermissions(); }, []);
+
+  // Refresh whenever the Tasks tab becomes active. Cached tasks render first;
+  // the network refresh runs in the background and never blocks the screen.
+  useFocusEffect(useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["tasks"] });
+  }, [queryClient]));
   const handleInputFocus = () => requestNotificationPermissions();
 
   const createParsedTask = (task) => {

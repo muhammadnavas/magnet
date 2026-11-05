@@ -57,6 +57,9 @@ export function useGetTasks(statusFilter = null) {
       refreshTasksInBackground(queryClient);
       return visible;
     },
+    // Avoid a full-screen loading state while AsyncStorage hydrates the cache.
+    // Real cached/server data replaces this placeholder as soon as available.
+    placeholderData: [],
     staleTime: 30_000,
   });
 }
