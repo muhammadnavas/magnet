@@ -93,7 +93,7 @@ export function useCreateTask() {
       );
       const allTasks = await getTasksFromCache();
       await saveTasksToCache([task, ...allTasks.filter((t) => t.id !== payload._localId && t.id !== task.id)]);
-      qc.invalidateQueries({ queryKey: TASKS_KEY });
+      if (!task._offline) qc.invalidateQueries({ queryKey: TASKS_KEY });
       await cancelTaskReminder(task.id);
       if (task.deadline) {
         await scheduleDeadlineAlert({ id: task.id, title: task.title, deadline: task.deadline });
