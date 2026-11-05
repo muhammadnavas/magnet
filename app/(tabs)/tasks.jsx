@@ -95,38 +95,25 @@ export default function TasksScreen() {
     );
   };
 
-  const handleSend = async () => {
+  const handleSend = () => {
     const trimmed = input.trim();
     if (!trimmed) return;
+
+    // Accept immediately using the on-device date parser. AI/backend work must
+    // never sit in front of the user's send action (Render may be cold-starting).
     requestNotificationPermissions();
-    try {
-      const parsedData = await parseTask.mutateAsync(trimmed);
-      // Deterministic parser wins over an AI null/wrong date for explicit
-      // user-provided date/time expressions.
-      const correctedTask = applyDueTime(parsedData, trimmed);
-      if (isReminderWithoutTime(trimmed, correctedTask)) {
-        // No date/time at all: schedule the next actionable reminder in 30 min.
-        // If a clock time was supplied, applyDueTime above already resolves its
-        // next occurrence today or tomorrow in the device's local timezone.
-        createParsedTask({
-          ...correctedTask,
-          deadline: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-        });
-        return;
-      }
-      createParsedTask(correctedTask);
-    } catch (error) {
-      console.error("Failed to parse task via AI:", error);
-      const fallbackTask = applyDueTime({ title: trimmed, priority: "medium", deadline: null, reminder_interval_hours: 0 }, trimmed);
-      if (isReminderWithoutTime(trimmed, fallbackTask)) {
-        createParsedTask({
-          ...fallbackTask,
-          deadline: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-        });
-        return;
-      }
-      createParsedTask(fallbackTask);
-    }
+    const localTask = applyDueTime({
+      title: trimmed,
+      priority: "medium",
+      deadline: null,
+      reminder_interval_hours: 0,
+    }, trimmed);
+
+    const taskToCreate = isReminderWithoutTime(trimmed, localTask)
+      ? { ...localTask, deadline: new Date(Date.now() + 30 * 60 * 1000).toISOString() }
+      : localTask;
+
+    createParsedTask(taskToCreate);
   };
 
   const completedCount = tasks.filter((t) => t.status === "completed").length;
@@ -169,9 +156,9 @@ export default function TasksScreen() {
         <View style={{ borderTopWidth: 1, borderTopColor: themeColors.border, backgroundColor: themeColors.background, padding: 12 }}>
           <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1, borderRadius: 28, paddingLeft: 16, paddingRight: 6, paddingVertical: 6 }}>
             <TextInput ref={inputRef} value={input} onChangeText={setInput} onFocus={handleInputFocus} placeholder='e.g. "Submit assignment by Thursday"' placeholderTextColor={themeColors.text.muted} multiline style={{ flex: 1, color: themeColors.text.primary, fontSize: 14, maxHeight: 100, paddingTop: Platform.OS === "ios" ? 8 : 4, paddingBottom: Platform.OS === "ios" ? 8 : 4 }} onSubmitEditing={handleSend} blurOnSubmit={false} />
-            <VoiceInput onTranscript={(transcript) => setInput((current) => current ? `${current} ${transcript}` : transcript)} disabled={createTask.isPending || parseTask.isPending} />
-            <TouchableOpacity onPress={handleSend} disabled={!input.trim() || createTask.isPending || parseTask.isPending} style={{ width: 36, height: 36, borderRadius: 18, marginLeft: 8, backgroundColor: input.trim() ? themeColors.primary : themeColors.border, alignItems: "center", justifyContent: "center" }}>
-              {createTask.isPending || parseTask.isPending ? <ActivityIndicator size="small" color="#FFF" /> : <Ionicons name="arrow-up" size={18} color="#FFF" />}
+            <VoiceInput onTranscript={(transcript) => setInput((current) => current ? `${current} ${transcript}` : transcript)} disabled={false} />
+            <TouchableOpacity onPress={handleSend} disabled={!input.trim()} style={{ width: 36, height: 36, borderRadius: 18, marginLeft: 8, backgroundColor: input.trim() ? themeColors.primary : themeColors.border, alignItems: "center", justifyContent: "center" }}>
+              {createTask.isPending ? <ActivityIndicator size="small" color="#FFF" /> : <Ionicons name="arrow-up" size={18} color="#FFF" />}
             </TouchableOpacity>
           </View>
         </View>
