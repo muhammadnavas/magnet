@@ -1,5 +1,4 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import api from "../lib/api";
 import { scheduleDeadlineAlert, cancelTaskReminder, syncTaskNotifications } from "../lib/notifications";
@@ -25,42 +24,41 @@ function filterTasks(tasks, statusFilter) {
   return statusFilter ? tasks.filter((task) => task.status === statusFilter) : tasks;
 }
 
+let tasksRefreshPromise = null;
+
+function refreshTasksInBackground(queryClient) {
+  if (tasksRefreshPromise) return tasksRefreshPromise;
+  tasksRefreshPromise = api.get("/tasks")
+    .then(async (res) => {
+      const tasks = Array.isArray(res.data) ? res.data : [];
+      await saveTasksToCache(tasks);
+      for (const filter of [null, "pending", "completed"]) {
+        queryClient.setQueryData([...TASKS_KEY, filter], filterTasks(tasks, filter));
+      }
+      syncTaskNotifications(tasks).catch((err) => console.warn("Failed to sync task notifications:", err));
+    })
+    .catch((err) => {
+      console.warn("Task background refresh failed; continuing with local cache:", err);
+    })
+    .finally(() => { tasksRefreshPromise = null; });
+  return tasksRefreshPromise;
+}
+
 export function useGetTasks(statusFilter = null) {
   const queryClient = useQueryClient();
-  const query = useQuery({
+  return useQuery({
     queryKey: [...TASKS_KEY, statusFilter],
-    // Render locally cached tasks first. Never make the first screen render wait
-    // for Render to wake up or for the remote API to respond.
+    // Return local data immediately; refresh the server copy without blocking
+    // the first render. Query invalidations also trigger this background sync.
     queryFn: async () => {
       const cached = await getTasksFromCache();
       const visible = filterTasks(cached, statusFilter);
       syncTaskNotifications(visible).catch((err) => console.warn("Failed to sync task notifications:", err));
+      refreshTasksInBackground(queryClient);
       return visible;
     },
     staleTime: 30_000,
   });
-
-  useEffect(() => {
-    let active = true;
-    // Refresh the complete list in the background; update all filter caches so
-    // switching tabs never causes another blocking request.
-    api.get("/tasks")
-      .then(async (res) => {
-        const tasks = Array.isArray(res.data) ? res.data : [];
-        await saveTasksToCache(tasks);
-        if (!active) return;
-        for (const filter of [null, "pending", "completed"]) {
-          queryClient.setQueryData([...TASKS_KEY, filter], filterTasks(tasks, filter));
-        }
-        syncTaskNotifications(tasks).catch((err) => console.warn("Failed to sync task notifications:", err));
-      })
-      .catch((err) => {
-        console.warn("Task background refresh failed; continuing with local cache:", err);
-      });
-    return () => { active = false; };
-  }, [queryClient, statusFilter]);
-
-  return query;
 }
 
 export function useCreateTask() {
