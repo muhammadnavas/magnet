@@ -44,30 +44,56 @@ export function useGetTasks(statusFilter = null) {
 export function useCreateTask() {
   const qc = useQueryClient();
   return useMutation({
+    // The screen inserts the task optimistically before this request starts.
+    // Keep the request asynchronous so a sleeping backend never blocks input.
     mutationFn: async (payload) => {
+      const { _localId, ...serverPayload } = payload;
       try {
-        const res = await api.post("/tasks", payload);
-        return res.data;
+        const res = await api.post("/tasks", serverPayload);
+        return { ...res.data, _localId, _offline: false };
       } catch (err) {
-        console.warn("Backend post failed. Creating task in local offline cache:", err);
-        const fallbackTask = {
-          id: `offline_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-          title: payload.title || "Untitled Task",
-          priority: payload.priority || "medium",
-          deadline: payload.deadline || null,
+        console.warn("Task API unavailable; keeping task in local cache for retry:", err);
+        return {
+          id: _localId,
+          title: serverPayload.title || "Untitled Task",
+          priority: serverPayload.priority || "medium",
+          deadline: serverPayload.deadline || null,
           reminder_interval_hours: 0,
           status: "pending",
           created_at: new Date().toISOString(),
+          _offline: true,
         };
-        const cached = await getTasksFromCache();
-        const updated = [fallbackTask, ...cached];
-        await saveTasksToCache(updated);
-        return fallbackTask;
       }
     },
-    onSuccess: async (task) => {
+    onMutate: async (payload) => {
+      await qc.cancelQueries({ queryKey: TASKS_KEY });
+      const previousQueries = qc.getQueriesData({ queryKey: TASKS_KEY });
+      const optimisticTask = {
+        id: payload._localId,
+        title: payload.title || "Untitled Task",
+        priority: payload.priority || "medium",
+        deadline: payload.deadline || null,
+        reminder_interval_hours: payload.reminder_interval_hours || 0,
+        status: "pending",
+        created_at: new Date().toISOString(),
+        _sending: true,
+      };
+      qc.setQueriesData({ queryKey: TASKS_KEY }, (oldData) =>
+        Array.isArray(oldData) ? [optimisticTask, ...oldData.filter((t) => t.id !== optimisticTask.id)] : oldData
+      );
+      const cached = await getTasksFromCache();
+      await saveTasksToCache([optimisticTask, ...cached.filter((t) => t.id !== optimisticTask.id)]);
+      return { previousQueries, optimisticTask };
+    },
+    onSuccess: async (task, payload) => {
+      qc.setQueriesData({ queryKey: TASKS_KEY }, (oldData) =>
+        Array.isArray(oldData)
+          ? [task, ...oldData.filter((t) => t.id !== payload._localId && t.id !== task.id)]
+          : oldData
+      );
+      const allTasks = await getTasksFromCache();
+      await saveTasksToCache([task, ...allTasks.filter((t) => t.id !== payload._localId && t.id !== task.id)]);
       qc.invalidateQueries({ queryKey: TASKS_KEY });
-      // Remove any stale schedule for this task before creating the current one.
       await cancelTaskReminder(task.id);
       if (task.deadline) {
         await scheduleDeadlineAlert({ id: task.id, title: task.title, deadline: task.deadline });
