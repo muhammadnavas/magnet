@@ -74,13 +74,15 @@ export default function TasksScreen() {
   const handleInputFocus = () => requestNotificationPermissions();
 
   const createParsedTask = (task) => {
+    const localId = `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     createTask.mutate({
       ...task,
       deadline: task.deadline || null,
       reminder_interval_hours: 0,
+      _localId: localId,
     });
+    // Clear immediately and keep focus so the next task can be typed at once.
     setInput("");
-    inputRef.current?.blur();
   };
 
   const askForReminderTime = (task) => {
