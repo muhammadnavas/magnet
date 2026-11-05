@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import api from "../lib/api";
 import { scheduleDeadlineAlert, cancelTaskReminder, syncTaskNotifications } from "../lib/notifications";
@@ -19,26 +20,47 @@ async function getTasksFromCache() {
   } catch (e) { console.warn("Failed to read tasks from local cache:", e); return []; }
 }
 
+function filterTasks(tasks, statusFilter) {
+  if (!Array.isArray(tasks)) return [];
+  return statusFilter ? tasks.filter((task) => task.status === statusFilter) : tasks;
+}
+
 export function useGetTasks(statusFilter = null) {
-  return useQuery({
+  const queryClient = useQueryClient();
+  const query = useQuery({
     queryKey: [...TASKS_KEY, statusFilter],
+    // Render locally cached tasks first. Never make the first screen render wait
+    // for Render to wake up or for the remote API to respond.
     queryFn: async () => {
-      let tasks = [];
-      try {
-        const params = statusFilter ? { status_filter: statusFilter } : {};
-        const res = await api.get("/tasks", { params });
-        tasks = res.data;
-        if (Array.isArray(tasks)) await saveTasksToCache(tasks);
-      } catch (err) {
-        console.warn("Backend API unreachable. Falling back to local offline task cache:", err);
-        tasks = await getTasksFromCache();
-        if (statusFilter && Array.isArray(tasks)) tasks = tasks.filter((t) => t.status === statusFilter);
-      }
-      if (Array.isArray(tasks)) syncTaskNotifications(tasks).catch((err) => console.warn("Failed to sync task notifications:", err));
-      return tasks;
+      const cached = await getTasksFromCache();
+      const visible = filterTasks(cached, statusFilter);
+      syncTaskNotifications(visible).catch((err) => console.warn("Failed to sync task notifications:", err));
+      return visible;
     },
     staleTime: 30_000,
   });
+
+  useEffect(() => {
+    let active = true;
+    // Refresh the complete list in the background; update all filter caches so
+    // switching tabs never causes another blocking request.
+    api.get("/tasks")
+      .then(async (res) => {
+        const tasks = Array.isArray(res.data) ? res.data : [];
+        await saveTasksToCache(tasks);
+        if (!active) return;
+        for (const filter of [null, "pending", "completed"]) {
+          queryClient.setQueryData([...TASKS_KEY, filter], filterTasks(tasks, filter));
+        }
+        syncTaskNotifications(tasks).catch((err) => console.warn("Failed to sync task notifications:", err));
+      })
+      .catch((err) => {
+        console.warn("Task background refresh failed; continuing with local cache:", err);
+      });
+    return () => { active = false; };
+  }, [queryClient, statusFilter]);
+
+  return query;
 }
 
 export function useCreateTask() {
@@ -118,8 +140,6 @@ export function useUpdateTask() {
     onSettled: async (task) => {
       qc.invalidateQueries({ queryKey: TASKS_KEY });
       if (!task) return;
-
-      // Reconcile the notification with the latest task state/deadline.
       await cancelTaskReminder(task.id);
       if (task.status === "pending" && task.deadline) {
         await scheduleDeadlineAlert({ id: task.id, title: task.title, deadline: task.deadline });
