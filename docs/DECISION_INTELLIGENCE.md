@@ -8,7 +8,8 @@ Decision Intelligence adds an assumption-led decision workspace to Magnet.
 2. Generate AI scenario hypotheses for each alternative.
 3. Review the time-based event timeline for each path.
 4. Add new events as they become known. Event dates entered by the user are relative to today and are stored on the original decision timeline.
-5. Record the current choice. The decision can be revisited and updated as circumstances change.
+5. When a decision-point event offers follow-up choices, select one to create a nested child timeline. The child inherits the history up to that point and can be simulated independently.
+6. Record the current choice. The decision can be revisited and updated as circumstances change.
 
 ## API
 
@@ -21,6 +22,7 @@ All endpoints are under /api/v1 and use Magnet's existing personal-profile depen
 - DELETE /decisions/{id} — delete a decision and its events.
 - GET /decisions/{id}/timeline — retrieve all scenario branches and timeline metadata.
 - POST /decisions/{id}/events — add a user-defined event to one path or all paths (alternative: "*").
+- PATCH /decisions/{id}/events/{event_id} — select a follow-up option and create a nested timeline branch.
 - POST /decisions/{id}/simulate — ask the configured Magnet LLM provider to generate scenario hypotheses.
 
 ## AI and safety design
