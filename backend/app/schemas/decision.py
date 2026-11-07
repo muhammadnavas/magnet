@@ -15,6 +15,7 @@ class EventIn(BaseModel):
     description: str | None = Field(default=None, max_length=4000)
     event_type: Literal["milestone", "opportunity", "risk", "checkpoint", "decision"] = "milestone"
     offset_days: int = Field(ge=0, le=3650)
+    follow_up_options: list[str] = Field(default_factory=list, max_length=8)
 
 
 class DecisionCreate(BaseModel):
@@ -52,6 +53,7 @@ class DecisionEventOut(BaseModel):
     event_type: str
     offset_days: int
     is_user_defined: bool
+    follow_up_options: list[str] = []
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
 
