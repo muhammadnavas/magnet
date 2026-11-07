@@ -7,6 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { SafeAreaView } from "react-native-safe-area-context";
 import api from "../lib/api";
+import MultiverseTree from "../components/decisions/MultiverseTree";
 import { useAppTheme } from "../store/themeStore";
 
 const TYPES = {
@@ -67,11 +68,11 @@ export default function DecisionsScreen() {
   const [title, setTitle] = useState("");
   const [context, setContext] = useState("");
   const [alternativesText, setAlternativesText] = useState("Continue current path\nLeave and focus on other opportunities");
-  const [horizon, setHorizon] = useState("90");
+  const [horizon, setHorizon] = useState("3");
   const [uncertaintiesText, setUncertaintiesText] = useState("");
   const [eventTitle, setEventTitle] = useState("");
   const [eventDescription, setEventDescription] = useState("");
-  const [eventDay, setEventDay] = useState("30");
+  const [eventDay, setEventDay] = useState("4");
   const [eventType, setEventType] = useState("opportunity");
   const [eventAlternative, setEventAlternative] = useState("*");
   const [followUpOptionsText, setFollowUpOptionsText] = useState("");
@@ -98,7 +99,7 @@ export default function DecisionsScreen() {
       return (await api.post("/decisions", {
         title: title.trim(),
         context: context.trim(),
-        horizon_days: Math.max(7, Math.min(3650, Number(horizon) || 90)),
+        horizon_days: Math.max(30, Math.min(3650, (Number(horizon) || 3) * 30)),
         alternatives: alternatives.map((name) => ({ name })),
         uncertainties: uncertaintiesText.split("\n").map((item) => item.trim()).filter(Boolean),
         events: [],
@@ -119,7 +120,7 @@ export default function DecisionsScreen() {
       title: eventTitle.trim(),
       description: eventDescription.trim() || null,
       event_type: eventType,
-      offset_days: Math.max(0, Number(eventDay) || 0),
+      offset_days: Math.max(0, (Number(eventDay) || 0) * 7),
       follow_up_options: followUpOptionsText.split("\n").map((item) => item.trim()).filter(Boolean).slice(0, 8),
     })).data,
     onSuccess: async () => {
@@ -218,7 +219,7 @@ export default function DecisionsScreen() {
                   <Text style={[text(12, "400", c.text.secondary), { marginTop: 7 }]} numberOfLines={2}>{item.context}</Text>
                   <View style={{ flexDirection: "row", alignItems: "center", marginTop: 13, gap: 14 }}>
                     <Text style={text(11, "700", c.text.muted)}>{item.alternatives?.length || 0} paths</Text>
-                    <Text style={text(11, "700", c.text.muted)}>{item.horizon_days} day horizon</Text>
+                    <Text style={text(11, "700", c.text.muted)}>{Math.ceil((item.horizon_days || 30) / 30)} month horizon</Text>
                     <View style={{ flex: 1 }} />
                     <Ionicons name="chevron-forward" size={17} color={c.text.muted} />
                   </View>
@@ -236,7 +237,7 @@ export default function DecisionsScreen() {
               <Field label="Decision title" value={title} onChangeText={setTitle} placeholder="e.g. Continue internship or leave?" colors={c} />
               <Field label="Situation and context" value={context} onChangeText={setContext} placeholder="Explain the situation, goals, deadlines, financial or personal constraints..." multiline colors={c} />
               <Field label="Possible paths (one per line, minimum two)" value={alternativesText} onChangeText={setAlternativesText} placeholder={"Stay\nLeave"} multiline colors={c} />
-              <Field label="Timeline horizon (days)" value={horizon} onChangeText={setHorizon} placeholder="90" keyboardType="number-pad" colors={c} />
+              <Field label="Planning horizon (months)" value={horizon} onChangeText={setHorizon} placeholder="3" keyboardType="number-pad" colors={c} />
               <Field label="Uncertainties (optional, one per line)" value={uncertaintiesText} onChangeText={setUncertaintiesText} placeholder={"Will I receive a campus offer?\nWill the company offer full-time?"} multiline colors={c} />
               <ActionButton label={createMutation.isPending ? "Creating..." : "Create decision timeline"} icon="git-branch-outline" onPress={() => createMutation.mutate()} colors={c} disabled={createMutation.isPending || !title.trim() || context.trim().length < 10} />
             </View>
@@ -252,7 +253,7 @@ export default function DecisionsScreen() {
                 <Text style={text(17, "900")}>{decision.title}</Text>
                 <Text style={[text(12, "400", c.text.secondary), { marginTop: 8, lineHeight: 19 }]}>{decision.context}</Text>
                 <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap", marginTop: 13 }}>
-                  <View style={{ backgroundColor: c.surfaceHover, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 }}><Text style={text(10, "800", c.primary)}>{decision.horizon_days} days</Text></View>
+                  <View style={{ backgroundColor: c.surfaceHover, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 }}><Text style={text(10, "800", c.primary)}>{Math.ceil((decision.horizon_days || 30) / 30)} month horizon</Text></View>
                   <View style={{ backgroundColor: c.surfaceHover, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 }}><Text style={text(10, "800", c.text.secondary)}>{decision.status}</Text></View>
                 </View>
               </View>
@@ -270,41 +271,30 @@ export default function DecisionsScreen() {
                 })}
               </View>
 
-              <View style={[panel, { padding: 16 }]}>
-                <Text style={text(14, "900")}>Future timeline</Text>
-                <Text style={[text(11, "400", c.text.muted), { marginTop: 4, marginBottom: 12 }]}>Each path has its own sequence. Add new information at any time to update the future map.</Text>
-                <View style={{ marginBottom: 14 }}>
+              <View style={[panel, { padding: 12 }]}>
+                <View style={{ paddingHorizontal: 4, marginBottom: 12 }}>
+                  <Text style={text(14, "900")}>Explore the multiverse</Text>
+                  <Text style={[text(11, "400", c.text.muted), { marginTop: 4 }]}>Follow each possibility, then split a reality at any decision point.</Text>
+                </View>
+                <View style={{ marginBottom: 13 }}>
                   <ActionButton
-                    label={simulateMutation.isPending ? "Exploring possible futures..." : "Generate AI scenarios"}
+                    label={simulateMutation.isPending ? "Opening possible realities..." : "Generate alternate realities"}
                     icon="sparkles"
                     onPress={() => simulateMutation.mutate()}
                     colors={c}
                     disabled={simulateMutation.isPending}
                   />
-                  <Text style={[text(10, "500", c.text.muted), { marginTop: 7 }]}>AI suggestions are hypothetical possibilities, not predictions. Regenerating replaces prior AI suggestions but keeps events you added.</Text>
+                  <Text style={[text(10, "500", c.text.muted), { marginTop: 7 }]}>AI-generated branches are hypothetical. Regenerating replaces prior AI scenarios but preserves events you added.</Text>
                 </View>
-                {branches.map((branch) => (
-                  <View key={branch.name} style={{ marginTop: 10 }}>
-                    <Text style={[text(13, "900", c.primary), { marginBottom: 8 }]}>{branch.name}</Text>
-                    {branch.timeline.map((event, index) => {
-                      const meta = TYPES[event.event_type] || TYPES.milestone;
-                      return <View key={event.title + index} style={{ flexDirection: "row", gap: 11, minHeight: 74 }}>
-                        <View style={{ width: 22, alignItems: "center" }}>
-                          <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: meta.color + "20", alignItems: "center", justifyContent: "center" }}><Ionicons name={meta.icon} size={12} color={meta.color} /></View>
-                          {index < branch.timeline.length - 1 ? <View style={{ width: 1, flex: 1, backgroundColor: c.border, marginTop: 3 }} /> : null}
-                        </View>
-                        <View style={{ flex: 1, paddingBottom: 15 }}>
-                          <Text style={text(12, "800")}>{event.title}</Text>
-                          <Text style={[text(10, "700", meta.color), { marginTop: 3 }]}>{event.expected_date} · Day {event.offset_days} · {meta.label}</Text>
-                          {event.description ? <Text style={[text(11, "400", c.text.secondary), { marginTop: 4, lineHeight: 16 }]}>{event.description}</Text> : null}
-                          {event.follow_up_options?.length ? <View style={{ marginTop: 7 }}><Text style={text(9, "800", c.text.muted)}>POSSIBLE NEXT CHOICES</Text><View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 5 }}>{event.follow_up_options.map((option, optionIndex) => <Pressable key={optionIndex} disabled={followUpMutation.isPending} onPress={() => followUpMutation.mutate({ eventId: event.id, option, parentAlternative: branch.name })} style={{ borderRadius: 12, paddingHorizontal: 8, paddingVertical: 7, backgroundColor: event.selected_follow_up_option === option ? c.primary + "20" : c.surfaceHover, borderWidth: 1, borderColor: event.selected_follow_up_option === option ? c.primary : c.border }}><Text style={text(10, "700", event.selected_follow_up_option === option ? c.primary : c.text.secondary)}>{event.selected_follow_up_option === option ? "✓ " : ""}{option} · Explore</Text></Pressable>)}</View></View> : null}
-                          {event.source ? <Text style={[text(9, "700", c.text.muted), { marginTop: 3 }]}>{event.source === "ai_generated" ? "AI scenario · hypothetical" : event.source === "user_input" ? "Added by you" : "Suggested checkpoint"}</Text> : null}
-                        </View>
-                      </View>;
-                    })}
-                  </View>
-                ))}
-                <Text style={[text(10, "500", c.text.muted), { marginTop: 5, lineHeight: 15 }]}>{timeline?.methodology?.note || "Timeline checkpoints are planning prompts, not predictions."}</Text>
+                <MultiverseTree
+                  title={decision.title}
+                  branches={branches}
+                  selectedAlternative={decision.selected_alternative}
+                  onSelectFollowUp={(payload) => followUpMutation.mutate(payload)}
+                  followUpPending={followUpMutation.isPending}
+                  colors={c}
+                />
+                <Text style={[text(10, "500", c.text.muted), { marginTop: 9, lineHeight: 15 }]}>{timeline?.methodology?.note || "This map explores possible paths. It does not predict which outcome will happen."}</Text>
               </View>
 
               <View style={[panel, { padding: 16 }]}>
@@ -312,7 +302,7 @@ export default function DecisionsScreen() {
                 <Text style={[text(11, "400", c.text.muted), { marginTop: 4, marginBottom: 13 }]}>Add an opportunity, risk, deadline, or new decision point. It will appear in the relevant timeline.</Text>
                 <Field label="Event title" value={eventTitle} onChangeText={setEventTitle} placeholder="e.g. Campus placement offer arrives" colors={c} />
                 <Field label="Details (optional)" value={eventDescription} onChangeText={setEventDescription} placeholder="What might happen or what changed?" multiline colors={c} />
-                <Field label="When? Days from today" value={eventDay} onChangeText={setEventDay} placeholder="30" keyboardType="number-pad" colors={c} />
+                <Field label="Approximate timing (weeks from now)" value={eventDay} onChangeText={setEventDay} placeholder="4" keyboardType="number-pad" colors={c} />
                 {eventType === "decision" ? <Field label="Possible next choices (one per line)" value={followUpOptionsText} onChangeText={setFollowUpOptionsText} placeholder={"Accept the new offer\nStay with the current company"} multiline colors={c} /> : null}
                 <Text style={[text(11, "700", c.text.secondary), { marginBottom: 7 }]}>Event type</Text>
                 <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7, marginBottom: 14 }}>
