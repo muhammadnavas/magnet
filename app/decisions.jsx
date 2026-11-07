@@ -300,7 +300,7 @@ export default function DecisionsScreen() {
                 <Text style={[text(11, "400", c.text.muted), { marginTop: 4, marginBottom: 13 }]}>Add an opportunity, risk, deadline, or new decision point. It will appear in the relevant timeline.</Text>
                 <Field label="Event title" value={eventTitle} onChangeText={setEventTitle} placeholder="e.g. Campus placement offer arrives" colors={c} />
                 <Field label="Details (optional)" value={eventDescription} onChangeText={setEventDescription} placeholder="What might happen or what changed?" multiline colors={c} />
-                <Field label="When? Day from now" value={eventDay} onChangeText={setEventDay} placeholder="30" keyboardType="number-pad" colors={c} />
+                <Field label="When? Days from today" value={eventDay} onChangeText={setEventDay} placeholder="30" keyboardType="number-pad" colors={c} />
                 <Text style={[text(11, "700", c.text.secondary), { marginBottom: 7 }]}>Event type</Text>
                 <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7, marginBottom: 14 }}>
                   {Object.entries(TYPES).map(([key, value]) => <Pressable key={key} onPress={() => setEventType(key)} style={{ paddingHorizontal: 10, paddingVertical: 8, borderRadius: 18, borderWidth: 1, borderColor: eventType === key ? c.primary : c.border, backgroundColor: eventType === key ? c.primary + "18" : c.surface }}><Text style={text(10, "700", eventType === key ? c.primary : c.text.secondary)}>{value.label}</Text></Pressable>)}
