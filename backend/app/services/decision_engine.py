@@ -20,7 +20,9 @@ def build_timeline(decision, events):
             description = event.description if hasattr(event, "description") else event.get("description")
             event_type = event.event_type if hasattr(event, "event_type") else event["event_type"]
             source = ("user_input" if event.is_user_defined else "ai_generated") if hasattr(event, "is_user_defined") else event.get("source", "suggested_checkpoint")
-            timeline.append({"alternative": name, "title": title, "description": description, "event_type": event_type, "offset_days": offset, "follow_up_options": event.follow_up_options if hasattr(event, "follow_up_options") else event.get("follow_up_options", []), "expected_date": (start + timedelta(days=offset)).date().isoformat(), "source": source})
+            event_id = str(event.id) if hasattr(event, "id") else None
+            selected_option = event.selected_follow_up_option if hasattr(event, "selected_follow_up_option") else event.get("selected_follow_up_option")
+            timeline.append({"id": event_id, "selected_follow_up_option": selected_option, "alternative": name, "title": title, "description": description, "event_type": event_type, "offset_days": offset, "follow_up_options": event.follow_up_options if hasattr(event, "follow_up_options") else event.get("follow_up_options", []), "expected_date": (start + timedelta(days=offset)).date().isoformat(), "source": source})
     return sorted(timeline, key=lambda item: (item["offset_days"], item["alternative"]))
 
 
