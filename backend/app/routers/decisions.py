@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -97,9 +98,17 @@ async def add_event(
     decision = await _get_decision(db, decision_id)
     if payload.alternative != "*" and payload.alternative not in [item["name"] for item in decision.alternatives]:
         raise HTTPException(status_code=422, detail="Event must belong to an existing alternative or '*' for all paths")
-    if payload.offset_days > decision.horizon_days:
-        decision.horizon_days = payload.offset_days
-    event = DecisionEvent(decision_id=decision.id, **payload.model_dump(), is_user_defined=True)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    decision_start = decision.created_at.replace(tzinfo=None) if decision.created_at.tzinfo else decision.created_at
+    # User-entered event timing is relative to today; persist it as an offset
+    # from the decision start so the complete timeline remains consistently ordered.
+    absolute_offset = max(0, (now - decision_start).days) + payload.offset_days
+    if absolute_offset > decision.horizon_days:
+        decision.horizon_days = absolute_offset
+    event_data = payload.model_dump()
+    event_data["offset_days"] = absolute_offset
+    event = DecisionEvent(decision_id=decision.id, **event_data, is_user_defined=True)
+    decision.updated_at = now
     db.add(event)
     await db.commit()
     await db.refresh(event)
@@ -143,7 +152,7 @@ async def simulate_decision(
         await db.delete(old_event)
     for item in generated:
         db.add(DecisionEvent(decision_id=decision.id, **item, is_user_defined=False))
-    decision.updated_at = __import__("datetime").datetime.now(__import__("datetime").timezone.utc).replace(tzinfo=None)
+    decision.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
     await db.commit()
     return {"generated_events": len(generated), "timeline": build_analysis(decision, await _load_events(db, decision.id))}
 
