@@ -258,7 +258,7 @@ export default function DecisionsScreen() {
               disabled={!canCreateDecision}
             />
             <Text style={[text(10, "500", c.text.muted), { textAlign: "center", marginTop: 6 }]}>
-              {createMutation.isPending ? "Saving your decision..." : createMutation.isError ? "Creation failed. Check the error and try again." : alternativeCount < 2 ? "Add at least two paths." : !hasUniqueAlternatives ? "Each path must have a different name." : title.trim().length < 3 ? "Enter a title with at least 3 characters." : context.trim().length < 10 ? "Add at least 10 characters of context." : "Your decision is ready to map."}
+              {createMutation.isPending ? "Saving your decision..." : createMutation.isError ? "Creation failed. Check the error and try again." : alternativeCount < 2 ? "Add at least two paths." : !hasUniqueAlternatives ? "Each path must have a different name." : !horizonIsValid ? "Choose a planning horizon from 1 to 120 months." : title.trim().length < 3 ? "Enter a title with at least 3 characters." : context.trim().length < 10 ? "Add at least 10 characters of context." : "Your decision is ready to map."}
             </Text>
           </View>
           </>
