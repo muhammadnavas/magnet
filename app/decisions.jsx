@@ -168,7 +168,9 @@ export default function DecisionsScreen() {
   const alternatives = alternativesText.split("\n").map((item) => item.trim()).filter(Boolean);
   const alternativeCount = alternatives.length;
   const hasUniqueAlternatives = new Set(alternatives.map((item) => item.toLocaleLowerCase())).size === alternativeCount;
-  const canCreateDecision = title.trim().length >= 3 && context.trim().length >= 10 && alternativeCount >= 2 && hasUniqueAlternatives && !createMutation.isPending;
+  const horizonMonths = Number(horizon);
+  const horizonIsValid = Number.isInteger(horizonMonths) && horizonMonths >= 1 && horizonMonths <= 120;
+  const canCreateDecision = title.trim().length >= 3 && context.trim().length >= 10 && alternativeCount >= 2 && hasUniqueAlternatives && horizonIsValid && !createMutation.isPending;
   const timeline = timelineQuery.data;
   const branches = useMemo(() => timeline?.alternatives || [], [timeline]);
   const panel = { backgroundColor: c.card, borderColor: c.border, borderWidth: 1, borderRadius: 18 };
@@ -214,7 +216,7 @@ export default function DecisionsScreen() {
               </View>
             ) : null}
             {(listQuery.data || []).map((item) => (
-              <Pressable key={item.id} onPress={() => { setSelectedId(item.id); setMode("detail"); }}>
+              <Pressable key={item.id} onPress={() => { setEventAlternative("*"); setSelectedId(item.id); setMode("detail"); }}>
                 <View style={[panel, { padding: 16 }]}>
                   <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                     <Text style={[text(15, "800"), { flex: 1, marginRight: 10 }]} numberOfLines={2}>{item.title}</Text>
@@ -281,7 +283,7 @@ export default function DecisionsScreen() {
                 <Text style={[text(11, "400", c.text.muted), { marginTop: 4, marginBottom: 12 }]}>Choose a path to record your current decision. You can revisit it later.</Text>
                 {decision.alternatives.map((alt) => {
                   const active = decision.selected_alternative === alt.name;
-                  return <Pressable key={alt.name} onPress={() => chooseMutation.mutate(alt.name)} style={{ borderWidth: 1, borderColor: active ? c.primary : c.border, backgroundColor: active ? c.primary + "15" : c.surface, padding: 12, borderRadius: 13, marginTop: 8, flexDirection: "row", alignItems: "center", gap: 10 }}>
+                  return <Pressable key={alt.name} disabled={chooseMutation.isPending} onPress={() => chooseMutation.mutate(alt.name)} style={{ borderWidth: 1, borderColor: active ? c.primary : c.border, opacity: chooseMutation.isPending && !active ? 0.6 : 1, backgroundColor: active ? c.primary + "15" : c.surface, padding: 12, borderRadius: 13, marginTop: 8, flexDirection: "row", alignItems: "center", gap: 10 }}>
                     <Ionicons name={active ? "radio-button-on" : "radio-button-off"} size={18} color={active ? c.primary : c.text.muted} />
                     <Text style={[text(13, "700"), { flex: 1 }]}>{alt.name}</Text>
                     {active ? <Text style={text(10, "800", c.primary)}>CURRENT CHOICE</Text> : null}
