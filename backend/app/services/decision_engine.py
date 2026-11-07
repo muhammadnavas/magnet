@@ -49,7 +49,7 @@ async def generate_scenario_events(decision):
         "promises, or guaranteed outcomes. Include 2 to 4 useful events for EACH alternative across the time horizon, including risks, "
         "opportunities, checkpoints, and new decision points. Return ONLY JSON with shape "
         '{"events":[{"alternative":"exact alternative name","title":"short title","description":"conditional explanation","event_type":"milestone|opportunity|risk|checkpoint|decision","offset_days":30}]} '
-        "Use event_type from the listed values and offset_days from 1 through the horizon."
+        "Use event_type from the listed values and offset_days is days from TODAY, from 1 through remaining_days."
     )
     raw = await get_completion(system_prompt, json.dumps(prompt_data, ensure_ascii=False))
     if not raw or raw.startswith("AI unavailable"):
