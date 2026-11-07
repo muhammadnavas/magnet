@@ -34,6 +34,7 @@ def upgrade() -> None:
         sa.Column("offset_days", sa.Integer(), nullable=False),
         sa.Column("is_user_defined", sa.Boolean(), nullable=False, server_default=sa.false()),
         sa.Column("follow_up_options", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default="[]"),
+        sa.Column("selected_follow_up_option", sa.String(240), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
     )
     op.create_index("ix_decision_events_decision_id", "decision_events", ["decision_id"])
