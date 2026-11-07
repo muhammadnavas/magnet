@@ -234,6 +234,7 @@ export default function DecisionsScreen() {
         ) : null}
 
         {mode === "create" ? (
+          <>
           <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingTop: 4, paddingBottom: 28 }}>
             <View style={[panel, { padding: 17, marginBottom: 14 }]}>
               <Text style={text(16, "900")}>What decision are you facing?</Text>
@@ -257,6 +258,7 @@ export default function DecisionsScreen() {
               {alternativeCount < 2 ? "Add at least two paths." : !hasUniqueAlternatives ? "Each path must have a different name." : title.trim().length < 3 ? "Enter a title with at least 3 characters." : context.trim().length < 10 ? "Add at least 10 characters of context." : "Your decision is ready to map."}
             </Text>
           </View>
+          </>
         ) : null}
 
         {mode === "detail" ? (
