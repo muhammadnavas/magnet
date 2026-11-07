@@ -255,9 +255,19 @@ async def choose_follow_up(
             decision_id=decision.id,
             alternative=child_name,
             title=f"Decision made: {payload.selected_follow_up_option}",
-            description="This is a new branch based on the choice you selected. Add future events as new information becomes available.",
+            description="This child reality follows the option you selected. Its outcome is not guaranteed.",
             event_type="checkpoint",
             offset_days=event.offset_days,
+            is_user_defined=True,
+        ))
+        db.add(DecisionEvent(
+            decision_id=decision.id,
+            alternative=child_name,
+            title="Reassess this path with the information available",
+            description="Review your actual progress, new opportunities, constraints, and well-being. You can continue or change direction.",
+            event_type="decision",
+            offset_days=min(event.offset_days + 30, decision.horizon_days),
+            follow_up_options=["Continue on this path", "Reassess and change direction"],
             is_user_defined=True,
         ))
     decision.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
