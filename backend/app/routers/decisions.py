@@ -196,6 +196,16 @@ async def choose_follow_up(
     # Shared events appear on every path. Fork the event into the selected path
     # before saving the choice, so another path is not changed accidentally.
     if event.alternative == "*":
+        # Hide the shared copy only on the path being forked; other paths keep it.
+        updated_alternatives = []
+        for alternative in decision.alternatives:
+            if alternative["name"] == parent_path:
+                excluded = list(alternative.get("excluded_shared_event_ids", []))
+                if str(event.id) not in excluded:
+                    excluded.append(str(event.id))
+                alternative = {**alternative, "excluded_shared_event_ids": excluded}
+            updated_alternatives.append(alternative)
+        decision.alternatives = updated_alternatives
         db.add(DecisionEvent(
             decision_id=decision.id, alternative=parent_path, title=event.title,
             description=event.description, event_type=event.event_type,
