@@ -139,6 +139,19 @@ export default function DecisionsScreen() {
     onError: (error) => Alert.alert("Could not save choice", error.response?.data?.detail || error.message),
   });
 
+  const simulateMutation = useMutation({
+    mutationFn: async () => (await api.post("/decisions/" + selectedId + "/simulate")).data,
+    onSuccess: async (result) => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["decision", selectedId] }),
+        qc.invalidateQueries({ queryKey: ["decision-timeline", selectedId] }),
+        qc.invalidateQueries({ queryKey: ["decisions"] }),
+      ]);
+      Alert.alert("Future scenarios updated", result.generated_events + " conditional events were added across your decision paths.");
+    },
+    onError: (error) => Alert.alert("Scenario generation unavailable", error.response?.data?.detail || error.message),
+  });
+
   const decision = detailQuery.data;
   const timeline = timelineQuery.data;
   const branches = useMemo(() => timeline?.alternatives || [], [timeline]);
@@ -249,6 +262,16 @@ export default function DecisionsScreen() {
               <View style={[panel, { padding: 16 }]}>
                 <Text style={text(14, "900")}>Future timeline</Text>
                 <Text style={[text(11, "400", c.text.muted), { marginTop: 4, marginBottom: 12 }]}>Each path has its own sequence. Add new information at any time to update the future map.</Text>
+                <View style={{ marginBottom: 14 }}>
+                  <ActionButton
+                    label={simulateMutation.isPending ? "Exploring possible futures..." : "Generate AI scenarios"}
+                    icon="sparkles"
+                    onPress={() => simulateMutation.mutate()}
+                    colors={c}
+                    disabled={simulateMutation.isPending}
+                  />
+                  <Text style={[text(10, "500", c.text.muted), { marginTop: 7 }]}>AI suggestions are hypothetical possibilities, not predictions. Regenerating replaces prior AI suggestions but keeps events you added.</Text>
+                </View>
                 {branches.map((branch) => (
                   <View key={branch.name} style={{ marginTop: 10 }}>
                     <Text style={[text(13, "900", c.primary), { marginBottom: 8 }]}>{branch.name}</Text>
@@ -263,6 +286,7 @@ export default function DecisionsScreen() {
                           <Text style={text(12, "800")}>{event.title}</Text>
                           <Text style={[text(10, "700", meta.color), { marginTop: 3 }]}>{event.expected_date} · Day {event.offset_days} · {meta.label}</Text>
                           {event.description ? <Text style={[text(11, "400", c.text.secondary), { marginTop: 4, lineHeight: 16 }]}>{event.description}</Text> : null}
+                          {event.source ? <Text style={[text(9, "700", c.text.muted), { marginTop: 3 }]}>{event.source === "ai_generated" ? "AI scenario · hypothetical" : event.source === "user_input" ? "Added by you" : "Suggested checkpoint"}</Text> : null}
                         </View>
                       </View>;
                     })}
