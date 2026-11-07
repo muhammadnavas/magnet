@@ -165,7 +165,7 @@ export default function DecisionsScreen() {
   });
 
   const decision = detailQuery.data;
-  const alternativeCount = alternativesText.split("\\n").map((item) => item.trim()).filter(Boolean).length;
+  const alternativeCount = alternativesText.split("\n").map((item) => item.trim()).filter(Boolean).length;
   const canCreateDecision = Boolean(title.trim()) && context.trim().length >= 10 && alternativeCount >= 2 && !createMutation.isPending;
   const timeline = timelineQuery.data;
   const branches = useMemo(() => timeline?.alternatives || [], [timeline]);
