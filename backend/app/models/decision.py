@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy import String, DateTime, Integer, ForeignKey, JSON, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
@@ -17,7 +17,7 @@ class Decision(Base):
     title: Mapped[str] = mapped_column(String(240), nullable=False)
     context: Mapped[str] = mapped_column(Text, nullable=False)
     horizon_days: Mapped[int] = mapped_column(Integer, default=90, nullable=False)
-    alternatives: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    alternatives: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     uncertainties: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     status: Mapped[str] = mapped_column(String(24), default="exploring", nullable=False)
     selected_alternative: Mapped[str | None] = mapped_column(String(240), nullable=True)
