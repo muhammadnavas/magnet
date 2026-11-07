@@ -64,7 +64,7 @@ export default function MultiverseTree({
             return (
               <View key={branch.name} style={{ width: 270, marginHorizontal: 5 }}>
                 <View style={{ alignItems: "center", height: 25 }}>
-                  <View style={{ width: 2, height: 13, backgroundColor: tint, opacity: 0.9 }} />
+                  <View style={{ width: 1.5, height: 13, backgroundColor: "#77708F" }} />
                   <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: tint, borderWidth: 2, borderColor: "#090912" }} />
                 </View>
                 <View style={{ ...card, borderColor: active ? tint : "#29283D", padding: 12, backgroundColor: active ? tint + "12" : "#11111B" }}>
