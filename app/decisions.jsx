@@ -41,20 +41,20 @@ function Field({ label, value, onChangeText, placeholder, multiline, keyboardTyp
   );
 }
 
-function ActionButton({ label, onPress, colors, secondary, disabled, icon }) {
+function ActionButton({ label, onPress, colors, secondary, disabled, icon, loading = false }) {
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => ({
-        minHeight: 46, borderRadius: 13, paddingHorizontal: 16, paddingVertical: 12,
-        alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8,
-        backgroundColor: secondary ? colors.surface : colors.primary,
+        width: "100%", minHeight: 52, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 13,
+        alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 9,
+        backgroundColor: secondary ? colors.surface : (colors.primary || "#6C63FF"),
         borderWidth: secondary ? 1 : 0, borderColor: colors.border,
-        opacity: disabled ? 0.5 : pressed ? 0.82 : 1,
+        opacity: disabled && !loading ? 0.58 : pressed ? 0.84 : 1,
       })}
     >
-      {icon ? <Ionicons name={icon} size={17} color={secondary ? colors.text.primary : "#FFFFFF"} /> : null}
+      {loading ? <ActivityIndicator size="small" color={secondary ? colors.text.primary : "#FFFFFF"} /> : icon ? <Ionicons name={icon} size={17} color={secondary ? colors.text.primary : "#FFFFFF"} /> : null}
       <Text style={{ color: secondary ? colors.text.primary : "#FFFFFF", fontWeight: "800", fontSize: 13 }}>{label}</Text>
     </Pressable>
   );
@@ -252,10 +252,11 @@ export default function DecisionsScreen() {
               icon="git-branch-outline"
               onPress={() => createMutation.mutate()}
               colors={c}
+              loading={createMutation.isPending}
               disabled={!canCreateDecision}
             />
             <Text style={[text(10, "500", c.text.muted), { textAlign: "center", marginTop: 6 }]}>
-              {alternativeCount < 2 ? "Add at least two paths." : !hasUniqueAlternatives ? "Each path must have a different name." : title.trim().length < 3 ? "Enter a title with at least 3 characters." : context.trim().length < 10 ? "Add at least 10 characters of context." : "Your decision is ready to map."}
+              {createMutation.isPending ? "Saving your decision..." : createMutation.isError ? "Creation failed. Check the error and try again." : alternativeCount < 2 ? "Add at least two paths." : !hasUniqueAlternatives ? "Each path must have a different name." : title.trim().length < 3 ? "Enter a title with at least 3 characters." : context.trim().length < 10 ? "Add at least 10 characters of context." : "Your decision is ready to map."}
             </Text>
           </View>
           </>
