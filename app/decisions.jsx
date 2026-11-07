@@ -74,6 +74,7 @@ export default function DecisionsScreen() {
   const [eventDay, setEventDay] = useState("30");
   const [eventType, setEventType] = useState("opportunity");
   const [eventAlternative, setEventAlternative] = useState("*");
+  const [followUpOptionsText, setFollowUpOptionsText] = useState("");
 
   const listQuery = useQuery({
     queryKey: ["decisions"],
@@ -119,9 +120,10 @@ export default function DecisionsScreen() {
       description: eventDescription.trim() || null,
       event_type: eventType,
       offset_days: Math.max(0, Number(eventDay) || 0),
+      follow_up_options: followUpOptionsText.split("\n").map((item) => item.trim()).filter(Boolean).slice(0, 8),
     })).data,
     onSuccess: async () => {
-      setEventTitle(""); setEventDescription("");
+      setEventTitle(""); setEventDescription(""); setFollowUpOptionsText("");
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["decision", selectedId] }),
         qc.invalidateQueries({ queryKey: ["decision-timeline", selectedId] }),
@@ -286,6 +288,7 @@ export default function DecisionsScreen() {
                           <Text style={text(12, "800")}>{event.title}</Text>
                           <Text style={[text(10, "700", meta.color), { marginTop: 3 }]}>{event.expected_date} · Day {event.offset_days} · {meta.label}</Text>
                           {event.description ? <Text style={[text(11, "400", c.text.secondary), { marginTop: 4, lineHeight: 16 }]}>{event.description}</Text> : null}
+                          {event.follow_up_options?.length ? <View style={{ marginTop: 7 }}><Text style={text(9, "800", c.text.muted)}>POSSIBLE NEXT CHOICES</Text><View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 5 }}>{event.follow_up_options.map((option, optionIndex) => <View key={optionIndex} style={{ borderRadius: 12, paddingHorizontal: 8, paddingVertical: 5, backgroundColor: c.surfaceHover }}><Text style={text(10, "700", c.text.secondary)}>{option}</Text></View>)}</View></View> : null}
                           {event.source ? <Text style={[text(9, "700", c.text.muted), { marginTop: 3 }]}>{event.source === "ai_generated" ? "AI scenario · hypothetical" : event.source === "user_input" ? "Added by you" : "Suggested checkpoint"}</Text> : null}
                         </View>
                       </View>;
@@ -301,6 +304,7 @@ export default function DecisionsScreen() {
                 <Field label="Event title" value={eventTitle} onChangeText={setEventTitle} placeholder="e.g. Campus placement offer arrives" colors={c} />
                 <Field label="Details (optional)" value={eventDescription} onChangeText={setEventDescription} placeholder="What might happen or what changed?" multiline colors={c} />
                 <Field label="When? Days from today" value={eventDay} onChangeText={setEventDay} placeholder="30" keyboardType="number-pad" colors={c} />
+                {eventType === "decision" ? <Field label="Possible next choices (one per line)" value={followUpOptionsText} onChangeText={setFollowUpOptionsText} placeholder={"Accept the new offer\nStay with the current company"} multiline colors={c} /> : null}
                 <Text style={[text(11, "700", c.text.secondary), { marginBottom: 7 }]}>Event type</Text>
                 <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7, marginBottom: 14 }}>
                   {Object.entries(TYPES).map(([key, value]) => <Pressable key={key} onPress={() => setEventType(key)} style={{ paddingHorizontal: 10, paddingVertical: 8, borderRadius: 18, borderWidth: 1, borderColor: eventType === key ? c.primary : c.border, backgroundColor: eventType === key ? c.primary + "18" : c.surface }}><Text style={text(10, "700", eventType === key ? c.primary : c.text.secondary)}>{value.label}</Text></Pressable>)}
