@@ -41,7 +41,7 @@ export default function MultiverseTree({ title, branches = [], selectedAlternati
     branches.forEach(walk);
 
     const firstY = 190;
-    const rowGap = 276;
+    const rowGap = 284;
     const yByName = new Map(rows.map((b, i) => [b.name, firstY + i * rowGap]));
     const xByName = new Map();
     const eventXs = new Map();
@@ -51,7 +51,7 @@ export default function MultiverseTree({ title, branches = [], selectedAlternati
         ? xByName.get(b.parent_alternative) : 164;
       let previous = start + 26;
       const xs = (b.timeline || []).map((event) => {
-        const x = Math.max(dayX(event.offset_days || 0), previous + 164);
+        const x = Math.max(dayX(event.offset_days || 0), previous + 190);
         previous = x;
         return x;
       });
@@ -64,7 +64,7 @@ export default function MultiverseTree({ title, branches = [], selectedAlternati
     });
     const maxX = Math.max(0, ...Array.from(eventXs.values()).flat(), ...Array.from(xByName.values()));
     const originY = roots.length ? roots.reduce((sum, b) => sum + yByName.get(b.name), 0) / roots.length : firstY;
-    return { roots, rows, children, yByName, xByName, eventXs, firstY, rowGap, originY, width: Math.max(760, maxX + 220), height: firstY + Math.max(1, rows.length) * rowGap + 20 };
+    return { roots, rows, children, yByName, xByName, eventXs, firstY, rowGap, originY, width: Math.max(720, maxX + 230), height: firstY + Math.max(1, rows.length) * rowGap + 20 };
   }, [branches]);
 
   const { roots, rows, children, yByName, xByName, eventXs, originY, width, height } = graph;
@@ -80,12 +80,26 @@ export default function MultiverseTree({ title, branches = [], selectedAlternati
           <Text style={{ color: "#80B9FF", fontSize: 9, fontWeight: "800" }}>SCENARIOS</Text>
         </View>
       </View>
+      {rows.length > 0 ? (
+        <View style={{ paddingHorizontal: 15, paddingTop: 12, flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
+          {Object.entries(META).map(([key, item]) => (
+            <View key={key} style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+              <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: item.color }} />
+              <Text style={{ color: "#A9B9CF", fontSize: 8, fontWeight: "700" }}>{item.label}</Text>
+            </View>
+          ))}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <Ionicons name="swap-horizontal" size={12} color="#80B9FF" />
+            <Text style={{ color: "#80B9FF", fontSize: 8, fontWeight: "700" }}>SWIPE TO EXPLORE</Text>
+          </View>
+        </View>
+      ) : null}
       {!rows.length ? (
         <View style={{ padding: 24, alignItems: "center" }}>
           <Text style={{ color: "#A7B8CF", fontSize: 12, textAlign: "center" }}>Generate possible futures to create your first branches.</Text>
         </View>
       ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={{ paddingHorizontal: 12, paddingTop: 12, paddingBottom: 8 }}>
+        <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator contentContainerStyle={{ paddingHorizontal: 12, paddingTop: 18, paddingBottom: 12 }}>
           <View style={{ width, height }}>
             <View style={{ position: "absolute", left: 12, top: originY - 29, width: 118, minHeight: 58, borderRadius: 12, borderWidth: 1.5, borderColor: "#438BEA", backgroundColor: "#101D31", alignItems: "center", justifyContent: "center", padding: 8 }}>
               <Text style={{ color: "#7EB6FF", fontSize: 8, fontWeight: "900", letterSpacing: 0.8 }}>START</Text>
@@ -131,19 +145,19 @@ export default function MultiverseTree({ title, branches = [], selectedAlternati
                     return (
                       <React.Fragment key={String(event.id || event.title) + eventIndex}>
                         <View style={{ position: "absolute", left: x - 6, top: y - 6, width: 14, height: 14, borderRadius: 7, backgroundColor: meta.color, borderWidth: 2, borderColor: "#080D16" }} />
-                        <View style={{ position: "absolute", left: x - 5, top: y + 13, width: 150, borderRadius: 10, padding: 9, backgroundColor: "#101827", borderWidth: 1, borderColor: event.event_type === "decision" ? meta.color : "#26364D" }}>
-                          <Text style={{ color: meta.color, fontSize: 7, fontWeight: "900", letterSpacing: 0.5 }}>{meta.label}</Text>
-                          <Text style={{ color: "#91A6C4", fontSize: 8, marginTop: 3 }}>{eventDate(event)}</Text>
-                          <Text style={{ color: "#F0F5FF", fontSize: 9, fontWeight: "800", marginTop: 4 }} numberOfLines={3}>{event.title}</Text>
-                          {event.description ? <Text style={{ color: "#A6B4C9", fontSize: 8, lineHeight: 12, marginTop: 3 }} numberOfLines={3}>{event.description}</Text> : null}
+                        <View style={{ position: "absolute", left: x - 5, top: y + 13, width: 174, borderRadius: 12, padding: 11, backgroundColor: "#111C2C", borderWidth: 1, borderColor: event.event_type === "decision" ? meta.color : "#26364D" }}>
+                          <Text style={{ color: meta.color, fontSize: 8, fontWeight: "900", letterSpacing: 0.6 }}>{meta.label}</Text>
+                          <Text style={{ color: "#91A6C4", fontSize: 9, marginTop: 4 }}>{eventDate(event)}</Text>
+                          <Text style={{ color: "#F4F7FF", fontSize: 11, lineHeight: 15, fontWeight: "800", marginTop: 5 }} numberOfLines={3}>{event.title}</Text>
+                          {event.description ? <Text style={{ color: "#B4C1D3", fontSize: 9, lineHeight: 14, marginTop: 5 }} numberOfLines={3}>{event.description}</Text> : null}
                           {event.source ? <Text style={{ color: "#71839D", fontSize: 7, marginTop: 4 }}>{event.source === "ai_generated" ? "Hypothetical" : event.source === "user_input" ? "Added by you" : "Checkpoint"}</Text> : null}
                           {event.follow_up_options?.length ? (
                             <View style={{ marginTop: 6 }}>
                               {event.follow_up_options.map((option, optionIndex) => (
                                 <Pressable key={optionIndex} disabled={followUpPending || event.selected_follow_up_option === option}
                                   onPress={() => onSelectFollowUp?.({ eventId: event.id, option, parentAlternative: branch.name })}
-                                  style={{ borderWidth: 1, borderColor: event.selected_follow_up_option === option ? tint : "#294362", backgroundColor: event.selected_follow_up_option === option ? tint + "22" : "#111C2C", borderRadius: 7, paddingHorizontal: 6, paddingVertical: 5, marginTop: 4, opacity: followUpPending || event.selected_follow_up_option === option ? 0.55 : 1 }}>
-                                  <Text style={{ color: event.selected_follow_up_option === option ? tint : "#D8E6F8", fontSize: 8, fontWeight: "700" }}>{option}  ›</Text>
+                                  style={{ borderWidth: 1, borderColor: event.selected_follow_up_option === option ? tint : "#294362", backgroundColor: event.selected_follow_up_option === option ? tint + "22" : "#111C2C", borderRadius: 7, paddingHorizontal: 8, paddingVertical: 7, marginTop: 5, opacity: followUpPending || event.selected_follow_up_option === option ? 0.55 : 1 }}>
+                                  <Text style={{ color: event.selected_follow_up_option === option ? tint : "#D8E6F8", fontSize: 9, lineHeight: 13, fontWeight: "700" }}>{option}  ›</Text>
                                 </Pressable>
                               ))}
                             </View>
@@ -163,7 +177,7 @@ export default function MultiverseTree({ title, branches = [], selectedAlternati
       )}
       <View style={{ marginHorizontal: 15, marginTop: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: "#243A59", flexDirection: "row", alignItems: "center", gap: 7 }}>
         <Ionicons name="information-circle-outline" size={13} color="#7195C0" />
-        <Text style={{ color: "#8FA3BE", fontSize: 9, flex: 1, lineHeight: 13 }}>Blue lines show the branches. Nodes mark events and decision points. Scenarios are possibilities, not predictions. Swipe sideways to explore.</Text>
+        <Text style={{ color: "#8FA3BE", fontSize: 9, flex: 1, lineHeight: 13 }}>Follow the connected line from left to right. Tap a choice on a decision event to create another branch. Scenarios are possibilities, not predictions.</Text>
       </View>
     </View>
   );
