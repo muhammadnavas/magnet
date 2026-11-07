@@ -150,8 +150,13 @@ async def simulate_decision(
     )
     for old_event in previous.scalars().all():
         await db.delete(old_event)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    decision_start = decision.created_at.replace(tzinfo=None) if decision.created_at.tzinfo else decision.created_at
+    elapsed_days = max(0, (now - decision_start).days)
     for item in generated:
+        item["offset_days"] = elapsed_days + item["offset_days"]
         db.add(DecisionEvent(decision_id=decision.id, **item, is_user_defined=False))
+        decision.horizon_days = max(decision.horizon_days, item["offset_days"])
     decision.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
     await db.commit()
     return {"generated_events": len(generated), "timeline": build_analysis(decision, await _load_events(db, decision.id))}
