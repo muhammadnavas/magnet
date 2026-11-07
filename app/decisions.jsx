@@ -95,7 +95,8 @@ export default function DecisionsScreen() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (templatePayload) => {
+      if (templatePayload) return (await api.post("/decisions", templatePayload)).data;
       const alternatives = alternativesText.split("\n").map((name) => name.trim()).filter(Boolean);
       if (alternatives.length < 2) throw new Error("Add at least two alternatives, one per line.");
       return (await api.post("/decisions", {
@@ -199,6 +200,45 @@ export default function DecisionsScreen() {
 
         {mode === "list" ? (
           <ScrollView contentContainerStyle={{ paddingHorizontal: horizontalPadding, paddingTop: 4, paddingBottom: 24, gap: 12 }} refreshControl={<RefreshControl refreshing={listQuery.isRefetching} onRefresh={() => listQuery.refetch()} tintColor={c.primary} />}>
+            <View style={[panel, { padding: 16, borderColor: c.primary, backgroundColor: c.surface }]}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 7 }}>
+                <Ionicons name="git-branch-outline" size={18} color={c.primary} />
+                <Text style={text(14, "900")}>Try a real decision scenario</Text>
+              </View>
+              <Text style={[text(11, "400", c.text.secondary), { lineHeight: 17, marginBottom: 12 }]}>
+                Explore the Prudential internship decision: continue for two months or leave now and focus on campus placements. Includes conditional outcomes and follow-up branches.
+              </Text>
+              <ActionButton
+                label={createMutation.isPending ? "Building decision map..." : "Build my Prudential decision map"}
+                icon="git-network-outline"
+                onPress={() => createMutation.mutate({
+                  title: "Prudential internship: continue or leave?",
+                  context: "I completed an internship at Prudential Health India but was not selected for full-time employment. Some fellow interns received offers. I was offered the choice to stay for two more months or leave now. I am in my fourth year and campus placements are ongoing. I do not want to continue in a work environment that is affecting my mental peace, and I believe I can secure another role. Outcomes below are possibilities, not predictions.",
+                  horizon_days: 180,
+                  alternatives: [
+                    { name: "Continue at Prudential for 2 more months", description: "Keep the internship temporarily while participating in campus placements. Full-time conversion is not confirmed." },
+                    { name: "Leave now and focus on placements", description: "Complete exit formalities, recover, and prioritize campus and off-campus opportunities." }
+                  ],
+                  uncertainties: [
+                    "Will Prudential make a written full-time offer by the end of the extension?",
+                    "How many campus placement opportunities will remain available?",
+                    "How will balancing work and interviews affect preparation and well-being?",
+                    "How long might it take to secure another offer?",
+                    "Can I comfortably manage expenses during a job search?"
+                  ],
+                  events: [
+                    { alternative: "Continue at Prudential for 2 more months", title: "Continue the extension while applying to campus roles", description: "Keep working for now, track placement deadlines, and make time for applications and interviews where possible.", event_type: "milestone", offset_days: 7, follow_up_options: [] },
+                    { alternative: "Continue at Prudential for 2 more months", title: "Extension ends: what has changed?", description: "At the end of the two-month extension, reassess only against a clear written offer and your well-being. Do not assume conversion is guaranteed.", event_type: "decision", offset_days: 60, follow_up_options: ["Prudential provides a written full-time offer", "No full-time offer; the extension ends", "Another company makes an offer", "Prudential still has no clear answer"] },
+                    { alternative: "Leave now and focus on placements", title: "Complete exit formalities and take a short reset", description: "Confirm your final working day, experience and relieving documentation, then give yourself time to recover from work-related stress.", event_type: "milestone", offset_days: 7, follow_up_options: [] },
+                    { alternative: "Leave now and focus on placements", title: "Prepare and participate in campus placements", description: "Prioritize coding assessments, core CS subjects, project explanations, applications, and interview practice while opportunities are active.", event_type: "milestone", offset_days: 30, follow_up_options: [] },
+                    { alternative: "Leave now and focus on placements", title: "Review placement progress", description: "Check actual shortlists, interview feedback, remaining campus drives, and financial runway. Adjust the search plan based on evidence.", event_type: "decision", offset_days: 60, follow_up_options: ["Receive a campus full-time offer", "Reach final interview stages but no offer yet", "No offer yet; expand off-campus applications", "Need more time and a revised preparation plan"] }
+                  ]
+                })}
+                colors={c}
+                loading={createMutation.isPending}
+                disabled={createMutation.isPending}
+              />
+            </View>
             <View style={[panel, { padding: 18, backgroundColor: c.surface }]}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 9, marginBottom: 9 }}>
                 <Ionicons name="git-network-outline" size={20} color={c.primary} />
