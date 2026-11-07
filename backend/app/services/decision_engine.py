@@ -31,7 +31,7 @@ def build_analysis(decision, events):
     return {
         "decision_id": str(decision.id),
         "horizon_days": decision.horizon_days,
-        "alternatives": [{"name": item["name"], "description": item.get("description"), "timeline": [event for event in timeline if event["alternative"] == item["name"]]} for item in decision.alternatives],
+        "alternatives": [{"name": item["name"], "parent_alternative": item.get("parent_alternative"), "description": item.get("description"), "timeline": [event for event in timeline if event["alternative"] == item["name"]]} for item in decision.alternatives],
         "shared_events": [event for event in timeline if event["alternative"] == "*"],
         "uncertainties": decision.uncertainties or [],
         "methodology": {"probabilities": "not_estimated", "outcome_predictions": "scenario_hypotheses_only", "note": "AI-generated events are plausible scenarios, not predictions or promises. Dates are planning estimates from the decision creation date. Revisit when facts change."},
