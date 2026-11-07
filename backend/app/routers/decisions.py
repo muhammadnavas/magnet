@@ -1,6 +1,7 @@
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.routers.auth import get_current_user
@@ -14,7 +15,7 @@ router = APIRouter(prefix="/decisions", tags=["Decision Intelligence"])
 
 async def _get_decision(db: AsyncSession, decision_id: uuid.UUID):
     result = await db.execute(
-        select(Decision).where(Decision.id == decision_id).options()
+        select(Decision).where(Decision.id == decision_id).options(selectinload(Decision.events))
     )
     decision = result.scalar_one_or_none()
     if decision is None:
@@ -27,7 +28,7 @@ async def list_decisions(
     current_user: UserOut = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Decision).order_by(Decision.updated_at.desc()))
+    result = await db.execute(select(Decision).options(selectinload(Decision.events)).order_by(Decision.updated_at.desc()))
     return result.scalars().all()
 
 
@@ -51,7 +52,7 @@ async def create_decision(
             raise HTTPException(status_code=422, detail=f"Unknown alternative: {item.alternative}")
         db.add(DecisionEvent(decision_id=decision.id, **item.model_dump(), is_user_defined=True))
     await db.commit()
-    result = await db.execute(select(Decision).where(Decision.id == decision.id))
+    result = await db.execute(select(Decision).where(Decision.id == decision.id).options(selectinload(Decision.events)))
     return result.scalar_one()
 
 
