@@ -36,11 +36,38 @@ def build_timeline(decision, events):
 
 def build_analysis(decision, events):
     timeline = build_timeline(decision, events)
+    start = decision.created_at or datetime.now(timezone.utc).replace(tzinfo=None)
+    shared_events = []
+    for event in events:
+        alternative = event.alternative if hasattr(event, "alternative") else event.get("alternative")
+        if alternative != "*":
+            continue
+        offset = event.offset_days if hasattr(event, "offset_days") else event["offset_days"]
+        title = event.title if hasattr(event, "title") else event["title"]
+        description = event.description if hasattr(event, "description") else event.get("description")
+        event_type = event.event_type if hasattr(event, "event_type") else event["event_type"]
+        source = ("user_input" if event.is_user_defined else "ai_generated") if hasattr(event, "is_user_defined") else event.get("source", "suggested_checkpoint")
+        event_id = str(event.id) if hasattr(event, "id") else event.get("id")
+        selected_option = event.selected_follow_up_option if hasattr(event, "selected_follow_up_option") else event.get("selected_follow_up_option")
+        follow_up_options = event.follow_up_options if hasattr(event, "follow_up_options") else event.get("follow_up_options", [])
+        shared_events.append({
+            "id": event_id,
+            "selected_follow_up_option": selected_option,
+            "alternative": "*",
+            "title": title,
+            "description": description,
+            "event_type": event_type,
+            "offset_days": offset,
+            "follow_up_options": follow_up_options or [],
+            "expected_date": (start + timedelta(days=offset)).date().isoformat(),
+            "source": source,
+        })
+    shared_events.sort(key=lambda item: item["offset_days"])
     return {
         "decision_id": str(decision.id),
         "horizon_days": decision.horizon_days,
         "alternatives": [{"name": item["name"], "parent_alternative": item.get("parent_alternative"), "description": item.get("description"), "timeline": [event for event in timeline if event["alternative"] == item["name"]]} for item in decision.alternatives],
-        "shared_events": [event for event in timeline if event["alternative"] == "*"],
+        "shared_events": shared_events,
         "uncertainties": decision.uncertainties or [],
         "methodology": {"probabilities": "not_estimated", "outcome_predictions": "scenario_hypotheses_only", "note": "AI-generated events are plausible scenarios, not predictions or promises. Dates are planning estimates from the decision creation date. Revisit when facts change."},
     }
