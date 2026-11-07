@@ -38,7 +38,11 @@ def build_analysis(decision, events):
 
 async def generate_scenario_events(decision):
     alternatives = [item["name"] for item in decision.alternatives]
-    prompt_data = {"decision": decision.title, "context": decision.context, "alternatives": alternatives, "horizon_days": decision.horizon_days, "uncertainties": decision.uncertainties or []}
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    decision_start = decision.created_at.replace(tzinfo=None) if decision.created_at.tzinfo else decision.created_at
+    elapsed_days = max(0, (now - decision_start).days)
+    remaining_days = max(30, decision.horizon_days - elapsed_days)
+    prompt_data = {"decision": decision.title, "context": decision.context, "alternatives": alternatives, "remaining_days": remaining_days, "days_elapsed": elapsed_days, "uncertainties": decision.uncertainties or []}
     system_prompt = (
         "You are a careful decision-planning analyst. Generate possible futures, not advice. Treat only supplied details as facts. "
         "Every event must be conditional or hypothetical, never certain. Never invent probabilities, scores, statistics, salary figures, "
@@ -69,7 +73,7 @@ async def generate_scenario_events(decision):
         except (TypeError, ValueError):
             continue
         event_type = item.get("event_type")
-        if title and description and event_type in valid_types and 1 <= offset <= decision.horizon_days:
+        if title and description and event_type in valid_types and 1 <= offset <= remaining_days:
             output.append({"alternative": item["alternative"], "title": title, "description": description, "event_type": event_type, "offset_days": offset})
     if not output:
         raise ValueError("AI could not produce valid scenario events. Add more context or uncertainties and try again.")
