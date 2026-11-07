@@ -133,7 +133,7 @@ export default function DecisionsScreen() {
   });
 
   const followUpMutation = useMutation({
-    mutationFn: async ({ eventId, option }) => (await api.patch("/decisions/" + selectedId + "/events/" + eventId, { selected_follow_up_option: option })).data,
+    mutationFn: async ({ eventId, option, parentAlternative }) => (await api.patch("/decisions/" + selectedId + "/events/" + eventId, { selected_follow_up_option: option, parent_alternative: parentAlternative })).data,
     onSuccess: async (result) => {
       await Promise.all([qc.invalidateQueries({ queryKey: ["decision", selectedId] }), qc.invalidateQueries({ queryKey: ["decision-timeline", selectedId] }), qc.invalidateQueries({ queryKey: ["decisions"] })]);
       Alert.alert("New future branch created", result.new_alternative + " is now available as a separate timeline.");
@@ -297,7 +297,7 @@ export default function DecisionsScreen() {
                           <Text style={text(12, "800")}>{event.title}</Text>
                           <Text style={[text(10, "700", meta.color), { marginTop: 3 }]}>{event.expected_date} · Day {event.offset_days} · {meta.label}</Text>
                           {event.description ? <Text style={[text(11, "400", c.text.secondary), { marginTop: 4, lineHeight: 16 }]}>{event.description}</Text> : null}
-                          {event.follow_up_options?.length ? <View style={{ marginTop: 7 }}><Text style={text(9, "800", c.text.muted)}>POSSIBLE NEXT CHOICES</Text><View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 5 }}>{event.follow_up_options.map((option, optionIndex) => <Pressable key={optionIndex} disabled={followUpMutation.isPending} onPress={() => followUpMutation.mutate({ eventId: event.id, option })} style={{ borderRadius: 12, paddingHorizontal: 8, paddingVertical: 7, backgroundColor: event.selected_follow_up_option === option ? c.primary + "20" : c.surfaceHover, borderWidth: 1, borderColor: event.selected_follow_up_option === option ? c.primary : c.border }}><Text style={text(10, "700", event.selected_follow_up_option === option ? c.primary : c.text.secondary)}>{event.selected_follow_up_option === option ? "✓ " : ""}{option} · Explore</Text></Pressable>)}</View></View> : null}
+                          {event.follow_up_options?.length ? <View style={{ marginTop: 7 }}><Text style={text(9, "800", c.text.muted)}>POSSIBLE NEXT CHOICES</Text><View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 5 }}>{event.follow_up_options.map((option, optionIndex) => <Pressable key={optionIndex} disabled={followUpMutation.isPending} onPress={() => followUpMutation.mutate({ eventId: event.id, option, parentAlternative: branch.name })} style={{ borderRadius: 12, paddingHorizontal: 8, paddingVertical: 7, backgroundColor: event.selected_follow_up_option === option ? c.primary + "20" : c.surfaceHover, borderWidth: 1, borderColor: event.selected_follow_up_option === option ? c.primary : c.border }}><Text style={text(10, "700", event.selected_follow_up_option === option ? c.primary : c.text.secondary)}>{event.selected_follow_up_option === option ? "✓ " : ""}{option} · Explore</Text></Pressable>)}</View></View> : null}
                           {event.source ? <Text style={[text(9, "700", c.text.muted), { marginTop: 3 }]}>{event.source === "ai_generated" ? "AI scenario · hypothetical" : event.source === "user_input" ? "Added by you" : "Suggested checkpoint"}</Text> : null}
                         </View>
                       </View>;
