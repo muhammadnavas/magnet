@@ -44,6 +44,10 @@ class DecisionEventCreate(EventIn):
     pass
 
 
+class DecisionEventUpdate(BaseModel):
+    selected_follow_up_option: str = Field(min_length=1, max_length=240)
+
+
 class DecisionEventOut(BaseModel):
     id: uuid.UUID
     decision_id: uuid.UUID
@@ -54,6 +58,7 @@ class DecisionEventOut(BaseModel):
     offset_days: int
     is_user_defined: bool
     follow_up_options: list[str] = []
+    selected_follow_up_option: str | None = None
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
 
