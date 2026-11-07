@@ -31,6 +31,7 @@ export default function MultiverseTree({
     const children = childrenByParent[branch.name] || [];
     return (
       <View key={branch.name} style={{ width: Math.max(190, 264 - depth * 18), marginRight: 12, marginBottom: 12, marginLeft: depth ? 4 : 0 }}>
+        {depth === 0 ? <View style={{ width: 1.5, height: 12, backgroundColor: "#625B7D", marginLeft: 6 }} /> : null}
         <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 7 }}>
           <View style={{ width: 13, height: 13, borderRadius: 7, backgroundColor: tint, borderWidth: 2, borderColor: "#090912", marginRight: 8 }} />
           <Text numberOfLines={2} style={{ flex: 1, color: "#F4F0FF", fontSize: 13, fontWeight: "900" }}>{branch.name}</Text>
