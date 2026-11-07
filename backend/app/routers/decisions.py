@@ -189,7 +189,10 @@ async def choose_follow_up(
         raise HTTPException(status_code=422, detail="Choose one of the available follow-up options on a decision event")
 
     event.selected_follow_up_option = payload.selected_follow_up_option
-    parent_path = event.alternative
+    parent_path = payload.parent_alternative or event.alternative
+    valid_paths = [item["name"] for item in decision.alternatives]
+    if parent_path not in valid_paths or (event.alternative != "*" and parent_path != event.alternative):
+        raise HTTPException(status_code=422, detail="This event does not belong to the selected timeline path")
     child_name = f"{parent_path} → {payload.selected_follow_up_option}"[:240]
     existing = [item["name"] for item in decision.alternatives]
     if child_name not in existing:
@@ -200,7 +203,7 @@ async def choose_follow_up(
         prior = await db.execute(
             select(DecisionEvent).where(
                 DecisionEvent.decision_id == decision.id,
-                DecisionEvent.alternative == parent_path,
+                DecisionEvent.alternative.in_([parent_path, "*"]),
                 DecisionEvent.offset_days <= event.offset_days,
             )
         )
