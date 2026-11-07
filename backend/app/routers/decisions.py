@@ -208,6 +208,8 @@ async def choose_follow_up(
             )
         )
         for previous in prior.scalars().all():
+            if previous.id == event.id:
+                continue
             db.add(DecisionEvent(
                 decision_id=decision.id,
                 alternative=child_name,
