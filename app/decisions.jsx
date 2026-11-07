@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput,
-  View, RefreshControl, KeyboardAvoidingView
+  View, RefreshControl, KeyboardAvoidingView, useWindowDimensions, Platform
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -62,6 +62,8 @@ function ActionButton({ label, onPress, colors, secondary, disabled, icon, loadi
 
 export default function DecisionsScreen() {
   const { themeColors: c } = useAppTheme();
+  const { width: screenWidth } = useWindowDimensions();
+  const horizontalPadding = screenWidth < 360 ? 14 : screenWidth < 420 ? 16 : 22;
   const qc = useQueryClient();
   const [mode, setMode] = useState("list");
   const [selectedId, setSelectedId] = useState(null);
@@ -183,8 +185,8 @@ export default function DecisionsScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
-        <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16, gap: 12 }}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: horizontalPadding, paddingTop: 10, paddingBottom: 16, gap: 12 }}>
           <Pressable onPress={goBack} style={{ width: 40, height: 40, borderRadius: 13, borderWidth: 1, borderColor: c.border, alignItems: "center", justifyContent: "center", backgroundColor: c.card }}>
             <Ionicons name="arrow-back" size={19} color={c.text.primary} />
           </Pressable>
@@ -196,7 +198,7 @@ export default function DecisionsScreen() {
         </View>
 
         {mode === "list" ? (
-          <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 4, gap: 14 }} refreshControl={<RefreshControl refreshing={listQuery.isRefetching} onRefresh={() => listQuery.refetch()} tintColor={c.primary} />}>
+          <ScrollView contentContainerStyle={{ paddingHorizontal: horizontalPadding, paddingTop: 4, paddingBottom: 24, gap: 12 }} refreshControl={<RefreshControl refreshing={listQuery.isRefetching} onRefresh={() => listQuery.refetch()} tintColor={c.primary} />}>
             <View style={[panel, { padding: 18, backgroundColor: c.surface }]}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 9, marginBottom: 9 }}>
                 <Ionicons name="git-network-outline" size={20} color={c.primary} />
@@ -237,7 +239,7 @@ export default function DecisionsScreen() {
 
         {mode === "create" ? (
           <>
-          <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingTop: 4, paddingBottom: 28 }}>
+          <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: horizontalPadding, paddingTop: 4, paddingBottom: 24 }}>
             <View style={[panel, { padding: 17, marginBottom: 14 }]}>
               <Text style={text(16, "900")}>What decision are you facing?</Text>
               <Text style={[text(12, "400", c.text.muted), { marginTop: 5, marginBottom: 17 }]}>Describe the real situation. Include constraints and what matters to you.</Text>
@@ -248,7 +250,7 @@ export default function DecisionsScreen() {
               <Field label="Uncertainties (optional, one per line)" value={uncertaintiesText} onChangeText={setUncertaintiesText} placeholder={"Will I receive a campus offer?\nWill the company offer full-time?"} multiline colors={c} />
             </View>
           </ScrollView>
-          <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 14, borderTopWidth: 1, borderTopColor: c.border, backgroundColor: c.background }}>
+          <View style={{ paddingHorizontal: horizontalPadding, paddingTop: 10, paddingBottom: 12, borderTopWidth: 1, borderTopColor: c.border, backgroundColor: c.background }}>
             <ActionButton
               label={createMutation.isPending ? "Creating timeline..." : "Create decision timeline"}
               icon="git-branch-outline"
@@ -268,7 +270,7 @@ export default function DecisionsScreen() {
           detailQuery.isLoading || timelineQuery.isLoading ? <ActivityIndicator color={c.primary} style={{ marginTop: 60 }} /> :
           detailQuery.isError ? <View style={{ padding: 24 }}><Text style={text(14, "700", c.error)}>Could not load this decision.</Text><ActionButton label="Try again" onPress={() => { detailQuery.refetch(); timelineQuery.refetch(); }} colors={c} /></View> :
           decision ? (
-            <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 2, gap: 14 }} refreshControl={<RefreshControl refreshing={detailQuery.isRefetching || timelineQuery.isRefetching} onRefresh={() => { detailQuery.refetch(); timelineQuery.refetch(); }} tintColor={c.primary} />}>
+            <ScrollView contentContainerStyle={{ paddingHorizontal: horizontalPadding, paddingTop: 2, paddingBottom: 24, gap: 12 }} refreshControl={<RefreshControl refreshing={detailQuery.isRefetching || timelineQuery.isRefetching} onRefresh={() => { detailQuery.refetch(); timelineQuery.refetch(); }} tintColor={c.primary} />}>
               <View style={[panel, { padding: 17 }]}>
                 <Text style={text(17, "900")}>{decision.title}</Text>
                 <Text style={[text(12, "400", c.text.secondary), { marginTop: 8, lineHeight: 19 }]}>{decision.context}</Text>
