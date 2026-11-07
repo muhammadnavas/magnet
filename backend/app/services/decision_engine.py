@@ -8,7 +8,15 @@ def build_timeline(decision, events):
     timeline = []
     for alternative in decision.alternatives or []:
         name = alternative["name"]
-        branch_events = [event for event in events if event.alternative in (name, "*")]
+        excluded_shared = set(alternative.get("excluded_shared_event_ids", []))
+        branch_events = [
+            event for event in events
+            if (event.alternative if hasattr(event, "alternative") else event.get("alternative")) == name
+            or (
+                (event.alternative if hasattr(event, "alternative") else event.get("alternative")) == "*"
+                and str(event.id if hasattr(event, "id") else event.get("id")) not in excluded_shared
+            )
+        ]
         if not branch_events:
             branch_events = [
                 {"title": "Review progress and new information", "description": "Suggested checkpoint. Update this timeline when something changes.", "event_type": "checkpoint", "offset_days": min(30, decision.horizon_days), "source": "suggested_checkpoint"},
