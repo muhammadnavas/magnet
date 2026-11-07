@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput,
-  View, RefreshControl, KeyboardAvoidingView, Platform
+  View, RefreshControl, KeyboardAvoidingView
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";

@@ -20,7 +20,7 @@ def build_timeline(decision, events):
         if not branch_events:
             branch_events = [
                 {"title": "Review progress and new information", "description": "Suggested checkpoint. Update this timeline when something changes.", "event_type": "checkpoint", "offset_days": min(30, decision.horizon_days), "source": "suggested_checkpoint"},
-                {"title": "Reassess this path", "description": "Compare what happened with the assumptions behind this option.", "event_type": "decision", "offset_days": decision.horizon_days, "source": "suggested_checkpoint"},
+                {"title": "Reassess this path", "description": "Compare what happened with the assumptions behind this option.", "event_type": "checkpoint", "offset_days": decision.horizon_days, "source": "suggested_checkpoint"},
             ]
         for event in branch_events:
             offset = event.offset_days if hasattr(event, "offset_days") else event["offset_days"]

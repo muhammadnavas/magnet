@@ -52,6 +52,7 @@ export default function MultiverseTree({
                 <View style={{ flex: 1, paddingBottom: 6 }}>
                   <View style={{ ...card, padding: 9, borderRadius: 11, borderColor: event.event_type === "decision" ? "#7656B8" : "#302D43" }}>
                     <Text style={{ color: meta.color, fontSize: 8, fontWeight: "900", letterSpacing: 0.6 }}>{meta.label.toUpperCase()}</Text>
+                    <Text style={{ color: "#8F89A8", fontSize: 8, fontWeight: "700", marginTop: 3 }}>{event.expected_date ? new Date(event.expected_date + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : `Week ${Math.max(1, Math.ceil((event.offset_days || 0) / 7))}`}</Text>
                     <Text style={{ color: "#F4F0FF", fontSize: 11, fontWeight: "800", marginTop: 4 }}>{event.title}</Text>
                     {event.description ? <Text style={{ color: "#AAA6BD", fontSize: 10, lineHeight: 15, marginTop: 4 }}>{event.description}</Text> : null}
                     {event.source ? <Text style={{ color: "#77738F", fontSize: 8, marginTop: 6 }}>{event.source === "ai_generated" ? "AI scenario · hypothetical" : event.source === "user_input" ? "Added by you" : "Planning checkpoint"}</Text> : null}
