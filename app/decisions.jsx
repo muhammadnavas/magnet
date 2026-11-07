@@ -165,6 +165,8 @@ export default function DecisionsScreen() {
   });
 
   const decision = detailQuery.data;
+  const alternativeCount = alternativesText.split("\\n").map((item) => item.trim()).filter(Boolean).length;
+  const canCreateDecision = Boolean(title.trim()) && context.trim().length >= 10 && alternativeCount >= 2 && !createMutation.isPending;
   const timeline = timelineQuery.data;
   const branches = useMemo(() => timeline?.alternatives || [], [timeline]);
   const panel = { backgroundColor: c.card, borderColor: c.border, borderWidth: 1, borderRadius: 18 };
@@ -230,7 +232,7 @@ export default function DecisionsScreen() {
         ) : null}
 
         {mode === "create" ? (
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingTop: 4 }}>
+          <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingTop: 4, paddingBottom: 28 }}>
             <View style={[panel, { padding: 17, marginBottom: 14 }]}>
               <Text style={text(16, "900")}>What decision are you facing?</Text>
               <Text style={[text(12, "400", c.text.muted), { marginTop: 5, marginBottom: 17 }]}>Describe the real situation. Include constraints and what matters to you.</Text>
@@ -239,9 +241,20 @@ export default function DecisionsScreen() {
               <Field label="Possible paths (one per line, minimum two)" value={alternativesText} onChangeText={setAlternativesText} placeholder={"Stay\nLeave"} multiline colors={c} />
               <Field label="Planning horizon (months)" value={horizon} onChangeText={setHorizon} placeholder="3" keyboardType="number-pad" colors={c} />
               <Field label="Uncertainties (optional, one per line)" value={uncertaintiesText} onChangeText={setUncertaintiesText} placeholder={"Will I receive a campus offer?\nWill the company offer full-time?"} multiline colors={c} />
-              <ActionButton label={createMutation.isPending ? "Creating..." : "Create decision timeline"} icon="git-branch-outline" onPress={() => createMutation.mutate()} colors={c} disabled={createMutation.isPending || !title.trim() || context.trim().length < 10} />
             </View>
           </ScrollView>
+          <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 14, borderTopWidth: 1, borderTopColor: c.border, backgroundColor: c.background }}>
+            <ActionButton
+              label={createMutation.isPending ? "Creating timeline..." : "Create decision timeline"}
+              icon="git-branch-outline"
+              onPress={() => createMutation.mutate()}
+              colors={c}
+              disabled={!canCreateDecision}
+            />
+            <Text style={[text(10, "500", c.text.muted), { textAlign: "center", marginTop: 6 }]}>
+              Add a title, at least 10 characters of context, and two or more paths.
+            </Text>
+          </View>
         ) : null}
 
         {mode === "detail" ? (
