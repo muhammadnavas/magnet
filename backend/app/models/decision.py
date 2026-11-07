@@ -39,6 +39,7 @@ class DecisionEvent(Base):
     offset_days: Mapped[int] = mapped_column(Integer, nullable=False)
     is_user_defined: Mapped[bool] = mapped_column(default=False, nullable=False)
     follow_up_options: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    selected_follow_up_option: Mapped[str | None] = mapped_column(String(240), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, nullable=False)
 
     decision = relationship("Decision", back_populates="events")
