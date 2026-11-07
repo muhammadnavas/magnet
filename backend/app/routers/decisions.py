@@ -219,15 +219,17 @@ async def choose_follow_up(
     child_name = f"{parent_path} → {payload.selected_follow_up_option}"[:240]
     existing = [item["name"] for item in decision.alternatives]
     if child_name not in existing:
+        parent_metadata = next(item for item in decision.alternatives if item["name"] == parent_path)
         decision.alternatives = decision.alternatives + [{
             "name": child_name,
             "parent_alternative": parent_path,
+            "excluded_shared_event_ids": list(parent_metadata.get("excluded_shared_event_ids", [])),
             "description": f"Explore the future of {parent_path} after choosing: {payload.selected_follow_up_option}",
         }]
         prior = await db.execute(
             select(DecisionEvent).where(
                 DecisionEvent.decision_id == decision.id,
-                DecisionEvent.alternative.in_([parent_path, "*"]),
+                DecisionEvent.alternative == parent_path,
                 DecisionEvent.offset_days <= event.offset_days,
             )
         )
