@@ -8,7 +8,7 @@ from app.database import get_db
 from app.routers.auth import get_current_user
 from app.schemas.auth import UserOut
 from app.models.decision import Decision, DecisionEvent
-from app.schemas.decision import DecisionCreate, DecisionUpdate, DecisionOut, DecisionEventCreate, DecisionEventOut
+from app.schemas.decision import DecisionCreate, DecisionUpdate, DecisionOut, DecisionEventCreate, DecisionEventOut, DecisionEventUpdate
 from app.services.decision_engine import build_analysis, generate_scenario_events
 
 router = APIRouter(prefix="/decisions", tags=["Decision Intelligence"])
@@ -165,6 +165,70 @@ async def simulate_decision(
 async def _load_events(db: AsyncSession, decision_id: uuid.UUID):
     result = await db.execute(select(DecisionEvent).where(DecisionEvent.decision_id == decision_id))
     return result.scalars().all()
+
+
+@router.patch("/{decision_id}/events/{event_id}")
+async def choose_follow_up(
+    decision_id: uuid.UUID,
+    event_id: uuid.UUID,
+    payload: DecisionEventUpdate,
+    current_user: UserOut = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    decision = await _get_decision(db, decision_id)
+    result = await db.execute(
+        select(DecisionEvent).where(
+            DecisionEvent.id == event_id,
+            DecisionEvent.decision_id == decision.id,
+        )
+    )
+    event = result.scalar_one_or_none()
+    if event is None:
+        raise HTTPException(status_code=404, detail="Timeline event not found")
+    if event.event_type != "decision" or payload.selected_follow_up_option not in (event.follow_up_options or []):
+        raise HTTPException(status_code=422, detail="Choose one of the available follow-up options on a decision event")
+
+    event.selected_follow_up_option = payload.selected_follow_up_option
+    parent_path = event.alternative
+    child_name = f"{parent_path} → {payload.selected_follow_up_option}"[:240]
+    existing = [item["name"] for item in decision.alternatives]
+    if child_name not in existing:
+        decision.alternatives = decision.alternatives + [{
+            "name": child_name,
+            "description": f"Explore the future of {parent_path} after choosing: {payload.selected_follow_up_option}",
+        }]
+        prior = await db.execute(
+            select(DecisionEvent).where(
+                DecisionEvent.decision_id == decision.id,
+                DecisionEvent.alternative == parent_path,
+                DecisionEvent.offset_days <= event.offset_days,
+            )
+        )
+        for previous in prior.scalars().all():
+            db.add(DecisionEvent(
+                decision_id=decision.id,
+                alternative=child_name,
+                title=previous.title,
+                description=previous.description,
+                event_type=previous.event_type,
+                offset_days=previous.offset_days,
+                is_user_defined=previous.is_user_defined,
+                follow_up_options=previous.follow_up_options or [],
+                selected_follow_up_option=previous.selected_follow_up_option,
+            ))
+        db.add(DecisionEvent(
+            decision_id=decision.id,
+            alternative=child_name,
+            title=f"Decision made: {payload.selected_follow_up_option}",
+            description="This is a new branch based on the choice you selected. Add future events as new information becomes available.",
+            event_type="checkpoint",
+            offset_days=event.offset_days,
+            is_user_defined=True,
+        ))
+    decision.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    await db.commit()
+    await db.refresh(event)
+    return {"event": event, "new_alternative": child_name}
 
 
 @router.delete("/{decision_id}", status_code=status.HTTP_204_NO_CONTENT)
