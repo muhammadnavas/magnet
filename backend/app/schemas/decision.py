@@ -46,6 +46,7 @@ class DecisionEventCreate(EventIn):
 
 class DecisionEventUpdate(BaseModel):
     selected_follow_up_option: str = Field(min_length=1, max_length=240)
+    parent_alternative: str | None = Field(default=None, max_length=240)
 
 
 class DecisionEventOut(BaseModel):
