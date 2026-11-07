@@ -41,7 +41,7 @@ export default function MultiverseTree({
       </View>
 
       <View style={{ alignItems: "center", paddingHorizontal: 18, marginTop: 19 }}>
-        <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: "#C4B5FD", shadowColor: "#9B8CFF", shadowOpacity: 1, shadowRadius: 12, elevation: 8 }} />
+        <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: "#C4B5FD" }} />
         <View style={{ width: 2, height: 17, backgroundColor: "#7664D8" }} />
         <View style={{ ...card, width: "100%", padding: 13, borderColor: "#7866E8", backgroundColor: "#171429", alignItems: "center" }}>
           <Text style={{ color: "#A99AFF", fontSize: 9, fontWeight: "900", letterSpacing: 1.2 }}>ORIGIN REALITY</Text>
@@ -57,7 +57,7 @@ export default function MultiverseTree({
           <Text style={{ color: "#A7A3BC", fontSize: 12, textAlign: "center" }}>Generate possible futures to open the first branches of your multiverse.</Text>
         </View>
       ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, paddingTop: 0, paddingBottom: 8 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, paddingTop: 0, paddingBottom: 8 }}><View pointerEvents="none" style={{ position: "absolute", top: 0, left: 12, right: 12, height: 1, backgroundColor: "#514A70" }} />
           {branches.map((branch, branchIndex) => {
             const tint = PALETTE[branchIndex % PALETTE.length];
             const active = selectedAlternative === branch.name;
@@ -65,7 +65,7 @@ export default function MultiverseTree({
               <View key={branch.name} style={{ width: 270, marginHorizontal: 5 }}>
                 <View style={{ alignItems: "center", height: 25 }}>
                   <View style={{ width: 2, height: 13, backgroundColor: tint, opacity: 0.9 }} />
-                  <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: tint, borderWidth: 2, borderColor: "#090912", shadowColor: tint, shadowOpacity: 0.9, shadowRadius: 8, elevation: 5 }} />
+                  <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: tint, borderWidth: 2, borderColor: "#090912" }} />
                 </View>
                 <View style={{ ...card, borderColor: active ? tint : "#29283D", padding: 12, backgroundColor: active ? tint + "12" : "#11111B" }}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
