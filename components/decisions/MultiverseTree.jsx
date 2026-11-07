@@ -41,7 +41,7 @@ export default function MultiverseTree({ title, branches = [], selectedAlternati
     branches.forEach(walk);
 
     const firstY = 190;
-    const rowGap = 196;
+    const rowGap = 276;
     const yByName = new Map(rows.map((b, i) => [b.name, firstY + i * rowGap]));
     const xByName = new Map();
     const eventXs = new Map();
@@ -108,7 +108,8 @@ export default function MultiverseTree({ title, branches = [], selectedAlternati
               const tint = COLORS[index % COLORS.length];
               const active = selectedAlternative === branch.name;
               const events = branch.timeline || [];
-              const childYs = (children.get(branch.name) || []).map((child) => yByName.get(child.name));
+              const childBranches = children.get(branch.name) || [];
+              const branchEndX = childBranches.length ? xByName.get(branch.name) : width - 25;
 
               return (
                 <React.Fragment key={branch.name}>
@@ -118,7 +119,7 @@ export default function MultiverseTree({ title, branches = [], selectedAlternati
                       <View style={line(splitX, y, 25, 2, tint + "CC")} />
                     </>
                   ) : null}
-                  <View style={line(startX, y, Math.max(80, width - startX - 25), 2, tint + "AA")} />
+                  <View style={line(startX, y, Math.max(80, branchEndX - startX), 2, tint + "AA")} />
                   <View style={{ position: "absolute", left: startX - 5, top: y - 5, width: 12, height: 12, borderRadius: 6, backgroundColor: tint, borderWidth: 2, borderColor: "#080D16" }} />
                   <View style={{ position: "absolute", left: startX, top: y - 31, maxWidth: 280, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 7, backgroundColor: "#111B2B", borderWidth: 1, borderColor: active ? tint : "#263B55" }}>
                     <Text numberOfLines={1} style={{ color: active ? "#FFFFFF" : "#DCE8F8", fontSize: 11, fontWeight: "900" }}>{branch.name}{active ? "  · CURRENT" : ""}</Text>
@@ -151,11 +152,8 @@ export default function MultiverseTree({ title, branches = [], selectedAlternati
                       </React.Fragment>
                     );
                   })}
-                  {childYs.length ? (
-                    <>
-                      <View style={line(xByName.get(branch.name), Math.min(y, ...childYs), 2, Math.max(2, Math.max(...childYs) - Math.min(y, ...childYs)), tint + "AA")} />
-                      {childYs.map((childY, childIndex) => <View key={branch.name + "-child-" + childIndex} style={line(xByName.get(branch.name), childY, 25, 2, tint + "AA")} />)}
-                    </>
+                  {childBranches.length && !events.length ? (
+                    <View style={{ position: "absolute", left: xByName.get(branch.name) - 6, top: y - 6, width: 14, height: 14, borderRadius: 7, backgroundColor: tint, borderWidth: 2, borderColor: "#080D16" }} />
                   ) : null}
                 </React.Fragment>
               );
