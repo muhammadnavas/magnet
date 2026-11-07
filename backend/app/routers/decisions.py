@@ -193,6 +193,11 @@ async def choose_follow_up(
     if parent_path not in valid_paths or (event.alternative != "*" and parent_path != event.alternative):
         raise HTTPException(status_code=422, detail="This event does not belong to the selected timeline path")
 
+    child_name = f"{parent_path} → {payload.selected_follow_up_option}"[:240]
+    existing_alternatives = {item["name"] for item in decision.alternatives}
+    if child_name in existing_alternatives:
+        return {"event": event, "new_alternative": child_name, "parent_alternative": parent_path}
+
     # Shared events appear on every path. Fork the event into the selected path
     # before saving the choice, so another path is not changed accidentally.
     if event.alternative == "*":
@@ -216,7 +221,6 @@ async def choose_follow_up(
     else:
         event.selected_follow_up_option = payload.selected_follow_up_option
 
-    child_name = f"{parent_path} → {payload.selected_follow_up_option}"[:240]
     existing = [item["name"] for item in decision.alternatives]
     if child_name not in existing:
         parent_metadata = next(item for item in decision.alternatives if item["name"] == parent_path)

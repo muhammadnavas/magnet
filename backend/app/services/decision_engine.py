@@ -87,8 +87,14 @@ async def generate_scenario_events(decision):
             options = item.get("follow_up_options", [])
             if not isinstance(options, list):
                 options = []
-            options = [str(option).strip()[:240] for option in options if str(option).strip()][:8]
+            options = list(dict.fromkeys(str(option).strip()[:240] for option in options if str(option).strip()))[:8]
+            if event_type == "decision" and len(options) < 2:
+                continue
             output.append({"alternative": item["alternative"], "title": title, "description": description, "event_type": event_type, "offset_days": offset, "follow_up_options": options})
+    covered_alternatives = {item["alternative"] for item in output}
+    missing_alternatives = [name for name in alternatives if name not in covered_alternatives]
+    if missing_alternatives:
+        raise ValueError("AI did not generate a valid timeline for every path. Try generating again.")
     if not output:
         raise ValueError("AI could not produce valid scenario events. Add more context or uncertainties and try again.")
     return output

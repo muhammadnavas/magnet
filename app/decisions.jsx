@@ -120,7 +120,7 @@ export default function DecisionsScreen() {
       title: eventTitle.trim(),
       description: eventDescription.trim() || null,
       event_type: eventType,
-      offset_days: Math.max(0, (Number(eventDay) || 0) * 7),
+      offset_days: Math.max(0, Math.min(3650, Math.round((Number(eventDay) || 0) * 7))),
       follow_up_options: followUpOptionsText.split("\n").map((item) => item.trim()).filter(Boolean).slice(0, 8),
     })).data,
     onSuccess: async () => {
@@ -165,8 +165,10 @@ export default function DecisionsScreen() {
   });
 
   const decision = detailQuery.data;
-  const alternativeCount = alternativesText.split("\n").map((item) => item.trim()).filter(Boolean).length;
-  const canCreateDecision = Boolean(title.trim()) && context.trim().length >= 10 && alternativeCount >= 2 && !createMutation.isPending;
+  const alternatives = alternativesText.split("\n").map((item) => item.trim()).filter(Boolean);
+  const alternativeCount = alternatives.length;
+  const hasUniqueAlternatives = new Set(alternatives.map((item) => item.toLocaleLowerCase())).size === alternativeCount;
+  const canCreateDecision = title.trim().length >= 3 && context.trim().length >= 10 && alternativeCount >= 2 && hasUniqueAlternatives && !createMutation.isPending;
   const timeline = timelineQuery.data;
   const branches = useMemo(() => timeline?.alternatives || [], [timeline]);
   const panel = { backgroundColor: c.card, borderColor: c.border, borderWidth: 1, borderRadius: 18 };
@@ -179,7 +181,7 @@ export default function DecisionsScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16, gap: 12 }}>
           <Pressable onPress={goBack} style={{ width: 40, height: 40, borderRadius: 13, borderWidth: 1, borderColor: c.border, alignItems: "center", justifyContent: "center", backgroundColor: c.card }}>
             <Ionicons name="arrow-back" size={19} color={c.text.primary} />
@@ -252,7 +254,7 @@ export default function DecisionsScreen() {
               disabled={!canCreateDecision}
             />
             <Text style={[text(10, "500", c.text.muted), { textAlign: "center", marginTop: 6 }]}>
-              Add a title, at least 10 characters of context, and two or more paths.
+              {alternativeCount < 2 ? "Add at least two paths." : !hasUniqueAlternatives ? "Each path must have a different name." : title.trim().length < 3 ? "Enter a title with at least 3 characters." : context.trim().length < 10 ? "Add at least 10 characters of context." : "Your decision is ready to map."}
             </Text>
           </View>
         ) : null}
@@ -299,6 +301,12 @@ export default function DecisionsScreen() {
                   />
                   <Text style={[text(10, "500", c.text.muted), { marginTop: 7 }]}>AI-generated branches are hypothetical. Regenerating replaces prior AI scenarios but preserves events you added.</Text>
                 </View>
+                {timelineQuery.isError ? (
+                  <View style={{ padding: 12, borderRadius: 12, backgroundColor: c.surfaceHover, marginBottom: 12 }}>
+                    <Text style={text(11, "700", c.error)}>The timeline could not be loaded.</Text>
+                    <Pressable onPress={() => timelineQuery.refetch()}><Text style={[text(11, "800", c.primary), { marginTop: 6 }]}>Retry timeline</Text></Pressable>
+                  </View>
+                ) : null}
                 <MultiverseTree
                   title={decision.title}
                   branches={branches}
@@ -326,7 +334,18 @@ export default function DecisionsScreen() {
                   <Pressable onPress={() => setEventAlternative("*")} style={{ paddingHorizontal: 10, paddingVertical: 8, borderRadius: 18, borderWidth: 1, borderColor: eventAlternative === "*" ? c.primary : c.border, backgroundColor: eventAlternative === "*" ? c.primary + "18" : c.surface }}><Text style={text(10, "700", eventAlternative === "*" ? c.primary : c.text.secondary)}>All paths</Text></Pressable>
                   {decision.alternatives.map((alt) => <Pressable key={alt.name} onPress={() => setEventAlternative(alt.name)} style={{ paddingHorizontal: 10, paddingVertical: 8, borderRadius: 18, borderWidth: 1, borderColor: eventAlternative === alt.name ? c.primary : c.border, backgroundColor: eventAlternative === alt.name ? c.primary + "18" : c.surface }}><Text style={text(10, "700", eventAlternative === alt.name ? c.primary : c.text.secondary)} numberOfLines={1}>{alt.name}</Text></Pressable>)}
                 </View>
-                <ActionButton label={eventMutation.isPending ? "Adding..." : "Add timeline event"} icon="add-circle-outline" onPress={() => eventMutation.mutate()} colors={c} disabled={eventMutation.isPending || !eventTitle.trim()} />
+                <ActionButton label={eventMutation.isPending ? "Adding..." : "Add timeline event"} icon="add-circle-outline" onPress={() => {
+                  const options = followUpOptionsText.split("\n").map((item) => item.trim()).filter(Boolean);
+                  if (eventType === "decision" && options.length < 2) {
+                    Alert.alert("Add follow-up choices", "A decision point needs at least two choices, one per line.");
+                    return;
+                  }
+                  if (!Number.isFinite(Number(eventDay)) || Number(eventDay) < 0) {
+                    Alert.alert("Check the timing", "Enter a valid number of weeks from now.");
+                    return;
+                  }
+                  eventMutation.mutate();
+                }} colors={c} disabled={eventMutation.isPending || !eventTitle.trim()} />
               </View>
 
               {decision.uncertainties?.length ? <View style={[panel, { padding: 16 }]}><Text style={text(13, "900")}>Things still uncertain</Text>{decision.uncertainties.map((item, i) => <Text key={i} style={[text(12, "400", c.text.secondary), { marginTop: 7 }]}>• {item}</Text>)}</View> : null}

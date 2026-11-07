@@ -59,9 +59,9 @@ export default function MultiverseTree({
                       <View style={{ marginTop: 9, paddingTop: 8, borderTopWidth: 1, borderTopColor: "#302D43" }}>
                         <Text style={{ color: "#A69BCB", fontSize: 8, fontWeight: "900", marginBottom: 5 }}>SPLIT THIS REALITY</Text>
                         {event.follow_up_options.map((option, optionIndex) => (
-                          <Pressable key={optionIndex} disabled={followUpPending}
+                          <Pressable key={optionIndex} disabled={followUpPending || event.selected_follow_up_option === option}
                             onPress={() => onSelectFollowUp?.({ eventId: event.id, option, parentAlternative: branch.name })}
-                            style={{ borderWidth: 1, borderColor: event.selected_follow_up_option === option ? tint : "#39344F", backgroundColor: event.selected_follow_up_option === option ? tint + "20" : "#191725", borderRadius: 9, paddingHorizontal: 8, paddingVertical: 8, marginTop: 5, opacity: followUpPending ? 0.55 : 1 }}>
+                            style={{ borderWidth: 1, borderColor: event.selected_follow_up_option === option ? tint : "#39344F", backgroundColor: event.selected_follow_up_option === option ? tint + "20" : "#191725", borderRadius: 9, paddingHorizontal: 8, paddingVertical: 8, marginTop: 5, opacity: followUpPending || event.selected_follow_up_option === option ? 0.55 : 1 }}>
                             <Text style={{ color: event.selected_follow_up_option === option ? tint : "#D7D2E7", fontSize: 9, fontWeight: "700" }}>{option}  ›</Text>
                           </Pressable>
                         ))}

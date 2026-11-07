@@ -17,6 +17,13 @@ class EventIn(BaseModel):
     offset_days: int = Field(ge=0, le=3650)
     follow_up_options: list[str] = Field(default_factory=list, max_length=8)
 
+    @field_validator("follow_up_options")
+    @classmethod
+    def decision_events_need_choices(cls, values, info):
+        if info.data.get("event_type") == "decision" and len([item for item in values if item.strip()]) < 2:
+            raise ValueError("Decision events need at least two follow-up options")
+        return [item.strip()[:240] for item in values if item.strip()]
+
 
 class DecisionCreate(BaseModel):
     title: str = Field(min_length=3, max_length=240)
@@ -30,9 +37,11 @@ class DecisionCreate(BaseModel):
     @classmethod
     def unique_alternatives(cls, values):
         names = [item.name.strip().casefold() for item in values]
+        if any(not name for name in names):
+            raise ValueError("Alternative names cannot be blank")
         if len(names) != len(set(names)):
             raise ValueError("Alternative names must be unique")
-        return values
+        return [item.model_copy(update={"name": item.name.strip()}) for item in values]
 
 
 class DecisionUpdate(BaseModel):
