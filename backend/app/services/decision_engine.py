@@ -20,7 +20,7 @@ def build_timeline(decision, events):
             description = event.description if hasattr(event, "description") else event.get("description")
             event_type = event.event_type if hasattr(event, "event_type") else event["event_type"]
             source = ("user_input" if event.is_user_defined else "ai_generated") if hasattr(event, "is_user_defined") else event.get("source", "suggested_checkpoint")
-            timeline.append({"alternative": name, "title": title, "description": description, "event_type": event_type, "offset_days": offset, "expected_date": (start + timedelta(days=offset)).date().isoformat(), "source": source})
+            timeline.append({"alternative": name, "title": title, "description": description, "event_type": event_type, "offset_days": offset, "follow_up_options": event.follow_up_options if hasattr(event, "follow_up_options") else event.get("follow_up_options", []), "expected_date": (start + timedelta(days=offset)).date().isoformat(), "source": source})
     return sorted(timeline, key=lambda item: (item["offset_days"], item["alternative"]))
 
 
@@ -47,8 +47,8 @@ async def generate_scenario_events(decision):
         "You are a careful decision-planning analyst. Generate possible futures, not advice. Treat only supplied details as facts. "
         "Every event must be conditional or hypothetical, never certain. Never invent probabilities, scores, statistics, salary figures, "
         "promises, or guaranteed outcomes. Include 2 to 4 useful events for EACH alternative across the time horizon, including risks, "
-        "opportunities, checkpoints, and new decision points. Return ONLY JSON with shape "
-        '{"events":[{"alternative":"exact alternative name","title":"short title","description":"conditional explanation","event_type":"milestone|opportunity|risk|checkpoint|decision","offset_days":30}]} '
+        "opportunities, checkpoints, and new decision points. For each event of type decision, include 2 to 4 follow_up_options that represent possible next choices; otherwise use an empty array. Return ONLY JSON with shape "
+        '{"events":[{"alternative":"exact alternative name","title":"short title","description":"conditional explanation","event_type":"milestone|opportunity|risk|checkpoint|decision","offset_days":30,"follow_up_options":["choice A","choice B"]}]} '
         "Use event_type from the listed values and offset_days is days from TODAY, from 1 through remaining_days."
     )
     raw = await get_completion(system_prompt, json.dumps(prompt_data, ensure_ascii=False))
@@ -74,7 +74,11 @@ async def generate_scenario_events(decision):
             continue
         event_type = item.get("event_type")
         if title and description and event_type in valid_types and 1 <= offset <= remaining_days:
-            output.append({"alternative": item["alternative"], "title": title, "description": description, "event_type": event_type, "offset_days": offset})
+            options = item.get("follow_up_options", [])
+            if not isinstance(options, list):
+                options = []
+            options = [str(option).strip()[:240] for option in options if str(option).strip()][:8]
+            output.append({"alternative": item["alternative"], "title": title, "description": description, "event_type": event_type, "offset_days": offset, "follow_up_options": options})
     if not output:
         raise ValueError("AI could not produce valid scenario events. Add more context or uncertainties and try again.")
     return output
