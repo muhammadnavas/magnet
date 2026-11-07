@@ -188,22 +188,48 @@ async def choose_follow_up(
     if event.event_type != "decision" or payload.selected_follow_up_option not in (event.follow_up_options or []):
         raise HTTPException(status_code=422, detail="Choose one of the available follow-up options on a decision event")
 
-    event.selected_follow_up_option = payload.selected_follow_up_option
     parent_path = payload.parent_alternative or event.alternative
     valid_paths = [item["name"] for item in decision.alternatives]
     if parent_path not in valid_paths or (event.alternative != "*" and parent_path != event.alternative):
         raise HTTPException(status_code=422, detail="This event does not belong to the selected timeline path")
+
+    # Shared events appear on every path. Fork the event into the selected path
+    # before saving the choice, so another path is not changed accidentally.
+    if event.alternative == "*":
+        # Hide the shared copy only on the path being forked; other paths keep it.
+        updated_alternatives = []
+        for alternative in decision.alternatives:
+            if alternative["name"] == parent_path:
+                excluded = list(alternative.get("excluded_shared_event_ids", []))
+                if str(event.id) not in excluded:
+                    excluded.append(str(event.id))
+                alternative = {**alternative, "excluded_shared_event_ids": excluded}
+            updated_alternatives.append(alternative)
+        decision.alternatives = updated_alternatives
+        db.add(DecisionEvent(
+            decision_id=decision.id, alternative=parent_path, title=event.title,
+            description=event.description, event_type=event.event_type,
+            offset_days=event.offset_days, is_user_defined=event.is_user_defined,
+            follow_up_options=event.follow_up_options or [],
+            selected_follow_up_option=payload.selected_follow_up_option,
+        ))
+    else:
+        event.selected_follow_up_option = payload.selected_follow_up_option
+
     child_name = f"{parent_path} → {payload.selected_follow_up_option}"[:240]
     existing = [item["name"] for item in decision.alternatives]
     if child_name not in existing:
+        parent_metadata = next(item for item in decision.alternatives if item["name"] == parent_path)
         decision.alternatives = decision.alternatives + [{
             "name": child_name,
+            "parent_alternative": parent_path,
+            "excluded_shared_event_ids": list(parent_metadata.get("excluded_shared_event_ids", [])),
             "description": f"Explore the future of {parent_path} after choosing: {payload.selected_follow_up_option}",
         }]
         prior = await db.execute(
             select(DecisionEvent).where(
                 DecisionEvent.decision_id == decision.id,
-                DecisionEvent.alternative.in_([parent_path, "*"]),
+                DecisionEvent.alternative == parent_path,
                 DecisionEvent.offset_days <= event.offset_days,
             )
         )
@@ -233,7 +259,7 @@ async def choose_follow_up(
     decision.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
     await db.commit()
     await db.refresh(event)
-    return {"event": event, "new_alternative": child_name}
+    return {"event": event, "new_alternative": child_name, "parent_alternative": parent_path}
 
 
 @router.delete("/{decision_id}", status_code=status.HTTP_204_NO_CONTENT)
