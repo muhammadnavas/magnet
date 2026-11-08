@@ -116,21 +116,6 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        <Pressable onPress={() => router.push("/decisions")} className="mb-4">
-          <Card className="p-4">
-            <View className="flex-row items-center">
-              <View style={{ backgroundColor: `${themeColors.primary}18`, borderColor: `${themeColors.primary}35` }} className="w-11 h-11 rounded-2xl border items-center justify-center mr-3">
-                <Ionicons name="git-network-outline" size={21} color={themeColors.primary} />
-              </View>
-              <View className="flex-1">
-                <Text style={{ color: themeColors.text.primary }} className="text-sm font-extrabold">Decision Intelligence</Text>
-                <Text style={{ color: themeColors.text.muted }} className="text-[11px] mt-1">Explore choices and map possible futures</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color={themeColors.primary} />
-            </View>
-          </Card>
-        </Pressable>
-
         <Pressable onPress={() => router.push("/classroom")} className="mb-4">
           <Card className="p-4">
             <View className="flex-row items-center">
