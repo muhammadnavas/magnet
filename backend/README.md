@@ -31,8 +31,3 @@ This is the Python FastAPI backend service orchestrating database sessions (via 
    Once containers show healthy, navigate in your web browser to:
    - Swagger OpenAPI Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
    - ReDoc alternative docs: [http://localhost:8000/redoc](http://localhost:8000/redoc)
-
-
-## Decision Intelligence
-
-Decision Intelligence provides decision creation, AI-assisted scenario hypotheses, branch timelines, and event updates. See docs/DECISION_INTELLIGENCE.md for the workflow and API details. The existing container startup runs alembic upgrade head before launching FastAPI, applying the decision tables automatically.
