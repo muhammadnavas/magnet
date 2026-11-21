@@ -58,3 +58,8 @@ __pycache__/
 # Generated native folders
 /ios
 /android
+
+# Google service-account keys
+*service-account*.json
+*firebase-adminsdk*.json
+magnet-*.json
