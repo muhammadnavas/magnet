@@ -1,25 +1,25 @@
 services:
   db:
     image: pgvector/pgvector:pg16
-    container_name: orio-db
+    container_name: magnet-db
     restart: always
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgrespassword
-      POSTGRES_DB: orio
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in backend/.env}
+      POSTGRES_DB: ${POSTGRES_DB:-magnet}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d orio"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-magnet}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   redis:
     image: redis:7-alpine
-    container_name: orio-redis
+    container_name: magnet-redis
     restart: always
     ports:
       - "6379:6379"
@@ -35,7 +35,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: orio-api
+    container_name: magnet-api
     restart: always
     command: sh -c "alembic upgrade head && python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     ports:
@@ -43,32 +43,31 @@ services:
     volumes:
       - .:/app
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://postgres:postgrespassword@db:5432/orio}
+      - DATABASE_URL=${DATABASE_URL:?Set DATABASE_URL in backend/.env}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - SECRET_KEY=${SECRET_KEY:-f1c24e69b5e58fa2f33c3dc52e9cd1b5ce8aa58fd916e788c2b5357904e9c1b5}
+      - SECRET_KEY=${SECRET_KEY:?Set SECRET_KEY in backend/.env}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
       - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS:-30}
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - GOOGLE_GEMINI_API_KEY=${GOOGLE_GEMINI_API_KEY}
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GOOGLE_GEMINI_API_KEY=${GOOGLE_GEMINI_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
       - GEMINI_EMBEDDING_MODEL=${GEMINI_EMBEDDING_MODEL:-gemini-embedding-001}
       - GEMINI_LLM_MODEL=${GEMINI_LLM_MODEL:-gemini-3.5-flash}
-      - XAI_API_KEY=${XAI_API_KEY}
+      - XAI_API_KEY=${XAI_API_KEY:-}
       - XAI_LLM_MODEL=${XAI_LLM_MODEL:-grok-4.6}
       - LLM_PROVIDER=${LLM_PROVIDER:-gemini}
       - ENVIRONMENT=${ENVIRONMENT:-development}
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
       - GOOGLE_CLASSROOM_REDIRECT_URI=${GOOGLE_CLASSROOM_REDIRECT_URI:-http://localhost:8000/api/v1/classroom/callback}
       - GOOGLE_CLASSROOM_APP_REDIRECT_URI=${GOOGLE_CLASSROOM_APP_REDIRECT_URI:-magnet://classroom/callback}
+      - GDRIVE_TOKEN_JSON=${GDRIVE_TOKEN_JSON:-}
       - PYTHONPATH=.
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-
-
 
 volumes:
   postgres_data:
