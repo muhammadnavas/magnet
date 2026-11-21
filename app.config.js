@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const config = require("./app.json");
+const config = require("./app.json").expo;
 
 const localGoogleServices = path.join(__dirname, "google-services.json");
 const googleServicesFile =
@@ -8,9 +8,9 @@ const googleServicesFile =
   (fs.existsSync(localGoogleServices) ? "./google-services.json" : undefined);
 
 if (googleServicesFile) {
-  config.expo.android.googleServicesFile = googleServicesFile;
+  config.android.googleServicesFile = googleServicesFile;
 } else {
-  delete config.expo.android.googleServicesFile;
+  delete config.android.googleServicesFile;
 }
 
 module.exports = config;
