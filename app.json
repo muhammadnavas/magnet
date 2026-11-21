@@ -13,9 +13,7 @@
       "bundleIdentifier": "com.muhammadnavas.orio",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Orio uses the microphone when you choose voice input for notes, AI questions, and tasks.",
-        "UIBackgroundModes": [
-          "fetch"
-        ]
+        "UIBackgroundModes": ["fetch"]
       }
     },
     "android": {
@@ -30,8 +28,7 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      },
-      "googleServicesFile": "./google-services.json"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"

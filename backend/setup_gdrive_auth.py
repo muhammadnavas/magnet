@@ -1,57 +1,48 @@
+"""Run a local Google Drive OAuth flow using credentials from environment variables.
+
+Set GDRIVE_CLIENT_ID and GDRIVE_CLIENT_SECRET before running this script.
+The resulting token.json is local-only and must never be committed.
+"""
+import json
 import os
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+from pathlib import Path
 
 from google_auth_oauthlib.flow import InstalledAppFlow
-from google.oauth2.credentials import Credentials
-from google.auth.transport.requests import Request
 
-# If modifying these scopes, delete the file token.json.
-SCOPES = ['https://www.googleapis.com/auth/drive.file']
+SCOPES = ["https://www.googleapis.com/auth/drive.file"]
+TOKEN_PATH = Path(os.getenv("GDRIVE_TOKEN_PATH", "token.json"))
 
-def main():
-    """Shows basic usage of the Drive v3 API.
-    Prints the names and ids of the first 10 files the user has access to.
-    """
-    creds = None
-    # The file token.json stores the user's access and refresh tokens, and is
-    # created automatically when the authorization flow completes for the first
-    # time.
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-    # If there are no (valid) credentials available, let the user log in.
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            # Use one of the URIs already registered in the user's Google Cloud Console
-            redirect_uri = 'http://localhost:8000/api/auth/callback/google'
-            
-            from google_auth_oauthlib.flow import Flow
-            flow = Flow.from_client_secrets_file(
-                'client_secret.json',
-                scopes=SCOPES,
-                redirect_uri=redirect_uri
-            )
-            
-            auth_url, _ = flow.authorization_url(prompt='consent')
-            
-            print("=========================================================")
-            print("Please visit this URL to authorize the application:")
-            print(f"\n{auth_url}\n")
-            print("=========================================================")
-            print(f"After you authorize, your browser will redirect you to {redirect_uri}.")
-            print("Copy the ENTIRE URL from your browser's address bar (it should contain '?code=...') and paste it below.")
-            
-            auth_response = input("\nPaste the full redirect URL here: ").strip()
-            
-            flow.fetch_token(authorization_response=auth_response)
-            creds = flow.credentials
-        # Save the credentials for the next run
-        with open('token.json', 'w') as token:
-            token.write(creds.to_json())
 
-    print("Success! token.json has been generated.")
-    print("Magnet backend can now upload files to Google Drive.")
+def main() -> None:
+    client_id = os.getenv("GDRIVE_CLIENT_ID")
+    client_secret = os.getenv("GDRIVE_CLIENT_SECRET")
+    if not client_id or not client_secret:
+        raise SystemExit(
+            "Missing GDRIVE_CLIENT_ID or GDRIVE_CLIENT_SECRET. "
+            "Set both in your local backend/.env file."
+        )
 
-if __name__ == '__main__':
+    client_config = {
+        "installed": {
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "redirect_uris": ["http://localhost"],
+        }
+    }
+    flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
+    credentials = flow.run_local_server(port=0, prompt="consent")
+
+    TOKEN_PATH.parent.mkdir(parents=True, exist_ok=True)
+    TOKEN_PATH.write_text(credentials.to_json(), encoding="utf-8")
+    try:
+        TOKEN_PATH.chmod(0o600)
+    except OSError:
+        pass
+
+    print(f"Google Drive authorization saved to {TOKEN_PATH}. Keep this file private.")
+
+
+if __name__ == "__main__":
     main()
